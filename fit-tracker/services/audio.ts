@@ -120,6 +120,8 @@ export function announcePhase(
     switch (phase) {
       case 'prepare': playPrepareSound(); break;
       case 'exercise': playWorkStartSound(); break;
+      case 'exercise-right': playWorkStartSound(); break;
+      case 'exercise-left': playWorkStartSound(); break;
       case 'rest': playRestStartSound(); break;
       case 'break': playRestStartSound(); break;
       case 'finished': playSessionCompleteSound(); break;

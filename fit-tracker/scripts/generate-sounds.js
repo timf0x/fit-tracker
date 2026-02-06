@@ -1,6 +1,6 @@
 /**
  * Generate Tabata/HIIT workout timer sound effects.
- * Designed to cut through gym noise + background music (2-4kHz presence).
+ * Uses square/saw waveforms for harsh buzzer character (not sine = video game).
  * Run: node scripts/generate-sounds.js
  */
 
@@ -32,54 +32,34 @@ const noise = () => Math.random() * 2 - 1;
 const ms = (t) => Math.floor(SR * t / 1000);
 const sec = (t) => Math.floor(SR * t);
 
-// Hard attack, exponential decay
+// Square wave (odd harmonics) — harsh buzzer tone
+function square(f, i, harmonics = 8) {
+  let val = 0;
+  for (let h = 1; h <= harmonics * 2; h += 2) {
+    val += sin(f * h, i) / h;
+  }
+  return val * (4 / Math.PI);
+}
+
+// Sawtooth wave — brassy/horn tone
+function saw(f, i, harmonics = 10) {
+  let val = 0;
+  for (let h = 1; h <= harmonics; h++) {
+    val += sin(f * h, i) / h * (h % 2 === 0 ? -1 : 1);
+  }
+  return val * (2 / Math.PI);
+}
+
+// Envelope
 function env(i, len, attack = 0.002, decay = 4) {
   const aSamples = SR * attack;
   if (i < aSamples) return i / aSamples;
   return Math.exp(-decay * (i - aSamples) / (len - aSamples));
 }
 
-// Soft clip for warmth/aggression
-function softClip(x, drive = 2) {
-  return Math.tanh(x * drive) / Math.tanh(drive);
-}
-
-// Band-pass noise burst (percussive attack)
-function noiseBurst(len, centerFreq = 3000, bandwidth = 1500, amplitude = 0.5) {
-  const samples = new Float64Array(len);
-  // Simple resonant filter approximation
-  const w0 = 2 * Math.PI * centerFreq / SR;
-  const Q = centerFreq / bandwidth;
-  const alpha = Math.sin(w0) / (2 * Q);
-  const b0 = alpha, b1 = 0, b2 = -alpha;
-  const a0 = 1 + alpha, a1 = -2 * Math.cos(w0), a2 = 1 - alpha;
-
-  let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
-  for (let i = 0; i < len; i++) {
-    const x0 = noise();
-    const y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
-    x2 = x1; x1 = x0; y2 = y1; y1 = y0;
-    const e = env(i, len, 0.001, 8);
-    samples[i] = y0 * e * amplitude;
-  }
-  return samples;
-}
-
-// Frequency sweep
-function sweep(startFreq, endFreq, duration, amplitude = 0.7, harmonics = 1) {
-  const len = sec(duration);
-  const samples = new Float64Array(len);
-  for (let i = 0; i < len; i++) {
-    const t = i / len;
-    const f = startFreq + (endFreq - startFreq) * t;
-    const e = env(i, len, 0.001, 3);
-    let val = 0;
-    for (let h = 1; h <= harmonics; h++) {
-      val += sin(f * h, i) * (1 / h);
-    }
-    samples[i] = val * e * amplitude;
-  }
-  return samples;
+// Hard clip — real buzzer distortion
+function hardClip(x, threshold = 0.8) {
+  return Math.max(-threshold, Math.min(threshold, x));
 }
 
 function mix(dest, src, offset = 0) {
@@ -88,171 +68,95 @@ function mix(dest, src, offset = 0) {
   }
 }
 
-// ─── PREPARE: Rising attention sweep + noise hit ───
-// "Get ready" — builds tension, ends with a snap
+// ─── PREPARE: Short harsh buzzer beep ───
+// Like a CrossFit timer "attention" signal
 function generatePrepare() {
-  const len = sec(0.4);
+  const len = sec(0.2);
   const samples = new Float64Array(len);
 
-  // Rising sweep 800 → 2500Hz with 3 harmonics
-  const sweepSamples = sweep(800, 2500, 0.3, 0.6, 3);
-  mix(samples, sweepSamples, 0);
-
-  // Noise burst at the peak (percussive snap)
-  const burst = noiseBurst(ms(60), 3500, 2000, 0.5);
-  mix(samples, burst, sec(0.25));
-
-  // Final bright ping
-  for (let i = sec(0.28); i < len; i++) {
-    const t = i - sec(0.28);
-    const e = env(t, len - sec(0.28), 0.001, 10);
-    samples[i] += sin(2500, t) * 0.4 * e;
+  for (let i = 0; i < len; i++) {
+    const e = env(i, len, 0.001, 6);
+    // Square wave at 880Hz — harsh, industrial
+    const val = square(880, i, 6) * 0.5;
+    samples[i] = hardClip(val * e, 0.7) * 0.85;
   }
 
-  // Soft clip for punch
-  for (let i = 0; i < len; i++) samples[i] = softClip(samples[i], 1.5) * 0.85;
   return samples;
 }
 
-// ─── WORK START: Aggressive double horn blast ───
-// "GO!" — urgent, powerful, impossible to miss
+// ─── WORK START: Aggressive double blast ───
+// "GO!" — like a basketball game buzzer
 function generateWorkStart() {
   const len = sec(0.35);
   const samples = new Float64Array(len);
 
-  // Hit 1: thick horn with sub
-  const hit1Len = ms(120);
-  for (let i = 0; i < hit1Len; i++) {
-    const e = env(i, hit1Len, 0.001, 3);
-    const val = sin(900, i) * 0.4
-      + sin(1800, i) * 0.25
-      + sin(2700, i) * 0.15
-      + sin(450, i) * 0.2  // sub
-      + sin(3600, i) * 0.08;
-    samples[i] = val * e;
+  // Blast 1: harsh low buzzer
+  const b1Len = ms(100);
+  for (let i = 0; i < b1Len; i++) {
+    const e = env(i, b1Len, 0.001, 3);
+    const val = square(600, i, 8) * 0.35 + saw(600, i, 6) * 0.2;
+    samples[i] = hardClip(val * e, 0.7);
   }
 
-  // Noise punch on hit 1
-  const punch1 = noiseBurst(ms(40), 4000, 3000, 0.4);
-  mix(samples, punch1, 0);
-
-  // Hit 2: same but higher pitch, louder (emphasis)
-  const gap = ms(50);
-  const hit2Start = hit1Len + gap;
-  const hit2Len = ms(140);
-  for (let i = 0; i < hit2Len && (hit2Start + i) < len; i++) {
-    const e = env(i, hit2Len, 0.001, 2.5);
-    const val = sin(1100, i) * 0.45
-      + sin(2200, i) * 0.3
-      + sin(3300, i) * 0.15
-      + sin(550, i) * 0.2
-      + sin(4400, i) * 0.08;
-    samples[hit2Start + i] = val * e;
+  // Blast 2: slightly higher, longer — emphasis
+  const b2Start = ms(140);
+  const b2Len = ms(150);
+  for (let i = 0; i < b2Len && (b2Start + i) < len; i++) {
+    const e = env(i, b2Len, 0.001, 2.5);
+    const val = square(750, i, 8) * 0.4 + saw(750, i, 6) * 0.2;
+    samples[b2Start + i] = hardClip(val * e, 0.75);
   }
 
-  // Noise punch on hit 2
-  const punch2 = noiseBurst(ms(50), 4500, 3000, 0.5);
-  mix(samples, punch2, hit2Start);
-
-  // Soft clip for aggression
-  for (let i = 0; i < len; i++) samples[i] = softClip(samples[i], 2) * 0.9;
+  for (let i = 0; i < len; i++) samples[i] *= 0.9;
   return samples;
 }
 
-// ─── REST START: Descending relief tone ───
-// "Rest now" — instant contrast from work, calming but clear
+// ─── REST START: Lower softer buzz ───
+// "Rest" — clearly different from work, calmer but still a buzzer
 function generateRestStart() {
-  const len = sec(0.35);
+  const len = sec(0.25);
   const samples = new Float64Array(len);
 
-  // Descending sweep 1200 → 400Hz
-  const sweepDown = sweep(1200, 400, 0.3, 0.5, 2);
-  mix(samples, sweepDown, 0);
-
-  // Soft low pad underneath
   for (let i = 0; i < len; i++) {
-    const e = env(i, len, 0.005, 3);
-    samples[i] += sin(300, i) * 0.2 * e;
+    const e = env(i, len, 0.005, 4);
+    // Lower square wave, fewer harmonics = softer but still buzzer-like
+    const val = square(500, i, 4) * 0.35 + sin(500, i) * 0.15;
+    samples[i] = hardClip(val * e, 0.6) * 0.7;
   }
 
-  // Gentle clip
-  for (let i = 0; i < len; i++) samples[i] = softClip(samples[i], 1.2) * 0.7;
   return samples;
 }
 
-// ─── SET COMPLETE: Tight percussive snap + bright ding ───
-// "Done!" — satisfying, quick reward
+// ─── SET COMPLETE: Quick harsh chirp ───
+// Short and sharp — acknowledgment, not a reward jingle
 function generateSetComplete() {
-  const len = sec(0.3);
+  const len = sec(0.15);
   const samples = new Float64Array(len);
 
-  // Percussive noise snap
-  const snap = noiseBurst(ms(25), 5000, 4000, 0.6);
-  mix(samples, snap, 0);
-
-  // Bright metallic ding with inharmonic partials (bell-like)
   for (let i = 0; i < len; i++) {
-    const e = env(i, len, 0.001, 7);
-    samples[i] += (
-      sin(2000, i) * 0.35
-      + sin(3100, i) * 0.2
-      + sin(4700, i) * 0.12
-      + sin(1500, i) * 0.15
-    ) * e;
+    const e = env(i, len, 0.001, 10);
+    const val = square(1200, i, 5) * 0.4;
+    samples[i] = hardClip(val * e, 0.7) * 0.8;
   }
 
-  for (let i = 0; i < len; i++) samples[i] = softClip(samples[i], 1.3) * 0.8;
   return samples;
 }
 
-// ─── SESSION COMPLETE: Powerful rising triple blast + thick final chord ───
-// "DONE!" — triumphant, energetic closure
+// ─── SESSION COMPLETE: Long arena horn ───
+// End of match — sustained harsh buzzer
 function generateSessionComplete() {
   const len = sec(1.0);
   const samples = new Float64Array(len);
 
-  // Three rising blasts
-  const blasts = [
-    { freq: 800, start: 0, dur: 0.12 },
-    { freq: 1100, start: 0.16, dur: 0.12 },
-    { freq: 1400, start: 0.32, dur: 0.15 },
-  ];
-
-  for (const b of blasts) {
-    const bStart = sec(b.start);
-    const bLen = sec(b.dur);
-    for (let i = 0; i < bLen && (bStart + i) < len; i++) {
-      const e = env(i, bLen, 0.001, 3);
-      const val = sin(b.freq, i) * 0.4
-        + sin(b.freq * 2, i) * 0.25
-        + sin(b.freq * 3, i) * 0.12
-        + sin(b.freq * 0.5, i) * 0.15;
-      samples[bStart + i] += val * e;
-    }
-    // Noise hit per blast
-    const hit = noiseBurst(ms(35), 4000, 3000, 0.35);
-    mix(samples, hit, bStart);
+  // Single long sustained buzzer that fades out — like end of a basketball quarter
+  for (let i = 0; i < len; i++) {
+    const e = env(i, len, 0.005, 1.8);
+    const val = square(440, i, 10) * 0.35
+      + saw(440, i, 8) * 0.15
+      + square(880, i, 4) * 0.08;  // slight octave presence
+    samples[i] = hardClip(val * e, 0.65) * 0.85;
   }
 
-  // Final thick chord (major triad + octave)
-  const chordStart = sec(0.5);
-  const chordLen = len - chordStart;
-  for (let i = 0; i < chordLen; i++) {
-    const e = env(i, chordLen, 0.003, 3);
-    const val = sin(1400, i) * 0.25     // root
-      + sin(1760, i) * 0.2              // major third
-      + sin(2100, i) * 0.2              // fifth
-      + sin(2800, i) * 0.15             // octave
-      + sin(700, i) * 0.12              // sub octave
-      + sin(4200, i) * 0.06;            // brightness
-    samples[chordStart + i] += val * e;
-  }
-
-  // Final noise wash for width
-  const wash = noiseBurst(ms(80), 3000, 2000, 0.2);
-  mix(samples, wash, chordStart);
-
-  for (let i = 0; i < len; i++) samples[i] = softClip(samples[i], 1.8) * 0.9;
   return samples;
 }
 

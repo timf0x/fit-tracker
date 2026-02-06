@@ -45,6 +45,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 import { CircularProgress } from '@/components/CircularProgress';
 import { ExerciseIcon } from '@/components/ExerciseIcon';
 import { useWorkoutStore } from '@/stores/workoutStore';
@@ -322,11 +323,12 @@ export default function WorkoutSessionScreen() {
 
     if (phase === 'prepare') {
       const ex = sessionExercises[exerciseIndex];
-      setCurrentSide(ex?.isUnilateral ? 'right' : null);
+      const isUni = ex?.isUnilateral;
+      setCurrentSide(isUni ? 'right' : null);
       setPhase('exercise');
       setTotalTime(EXERCISE_SET_DURATION);
       setTimeRemaining(EXERCISE_SET_DURATION);
-      announcePhase('exercise', ex?.exerciseName);
+      announcePhase(isUni ? 'exercise-right' : 'exercise', ex?.exerciseName);
     } else if (phase === 'exercise') {
       const ex = sessionExercises[exerciseIndex];
       if (!ex) return;
@@ -376,11 +378,12 @@ export default function WorkoutSessionScreen() {
       }
     } else if (phase === 'rest') {
       const ex = sessionExercises[exerciseIndex];
-      setCurrentSide(ex?.isUnilateral ? 'right' : null);
+      const isUni = ex?.isUnilateral;
+      setCurrentSide(isUni ? 'right' : null);
       setPhase('exercise');
       setTotalTime(EXERCISE_SET_DURATION);
       setTimeRemaining(EXERCISE_SET_DURATION);
-      announcePhase('exercise', ex?.exerciseName);
+      announcePhase(isUni ? 'exercise-right' : 'exercise', ex?.exerciseName);
     } else if (phase === 'break') {
       const nextIdx = exerciseIndex + 1;
       if (nextIdx < totalExercises) {
@@ -1098,7 +1101,9 @@ export default function WorkoutSessionScreen() {
             <Text style={s.exerciseInfoName} numberOfLines={1}>{currentExercise.exerciseName}</Text>
             <Text style={s.exerciseInfoDetail}>
               SET {setIndex + 1} OF {currentExercise.sets}
-              {currentSide ? (currentSide === 'right' ? ' · DROITE ›' : ' · ‹ GAUCHE') : ''}
+              {currentSide ? (currentSide === 'right'
+                ? (i18n.locale === 'fr' ? ' · DROITE ›' : ' · RIGHT ›')
+                : (i18n.locale === 'fr' ? ' · ‹ GAUCHE' : ' · ‹ LEFT')) : ''}
               {' · '}{currentExercise.reps} REPS
               {currentExercise.weight > 0 ? ` · ${currentExercise.weight} KG` : ''}
             </Text>
