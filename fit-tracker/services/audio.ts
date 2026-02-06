@@ -18,6 +18,7 @@ export function setLanguage(lang: 'fr' | 'en') { _language = lang; }
 const SOUND_FILES: Record<string, AVPlaybackSource> = {
   workStart: require('@/assets/sounds/work-start.wav'),
   restStart: require('@/assets/sounds/rest-start.wav'),
+  breakStart: require('@/assets/sounds/break-start.wav'),
   countdown: require('@/assets/sounds/countdown.wav'),
   tick: require('@/assets/sounds/tick.wav'),
   setComplete: require('@/assets/sounds/set-complete.wav'),
@@ -79,6 +80,7 @@ function playSound(name: string, relativeVolume: number = 1.0) {
 
 export function playWorkStartSound() { playSound('workStart', 1.0); }
 export function playRestStartSound() { playSound('restStart', 0.8); }
+export function playBreakStartSound() { playSound('breakStart', 0.8); }
 export function playPrepareSound() { playSound('prepare', 0.9); }
 export function playSetCompleteSound() { playSound('setComplete', 0.9); }
 export function playSessionCompleteSound() { playSound('sessionComplete', 1.0); }
@@ -123,7 +125,7 @@ export function announcePhase(
       case 'exercise-right': playWorkStartSound(); break;
       case 'exercise-left': playWorkStartSound(); break;
       case 'rest': playRestStartSound(); break;
-      case 'break': playRestStartSound(); break;
+      case 'break': playBreakStartSound(); break;
       case 'finished': playSessionCompleteSound(); break;
     }
   }

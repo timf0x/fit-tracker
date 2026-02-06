@@ -142,6 +142,32 @@ function generateSetComplete() {
   return samples;
 }
 
+// ─── BREAK: Double low tone — longer pause signal ───
+// Distinct from rest — two descending tones, signals "take your time"
+function generateBreak() {
+  const len = sec(0.4);
+  const samples = new Float64Array(len);
+
+  // Tone 1: mid-low
+  const t1Len = ms(120);
+  for (let i = 0; i < t1Len; i++) {
+    const e = env(i, t1Len, 0.003, 4);
+    const val = square(400, i, 4) * 0.3 + sin(400, i) * 0.15;
+    samples[i] = hardClip(val * e, 0.6) * 0.7;
+  }
+
+  // Tone 2: lower — descending feel
+  const t2Start = ms(160);
+  const t2Len = ms(150);
+  for (let i = 0; i < t2Len && (t2Start + i) < len; i++) {
+    const e = env(i, t2Len, 0.003, 3.5);
+    const val = square(300, i, 4) * 0.3 + sin(300, i) * 0.15;
+    samples[t2Start + i] = hardClip(val * e, 0.55) * 0.65;
+  }
+
+  return samples;
+}
+
 // ─── SESSION COMPLETE: Long arena horn ───
 // End of match — sustained harsh buzzer
 function generateSessionComplete() {
@@ -165,6 +191,7 @@ function generateSessionComplete() {
 const sounds = {
   'work-start': generateWorkStart(),
   'rest-start': generateRestStart(),
+  'break-start': generateBreak(),
   prepare: generatePrepare(),
   'set-complete': generateSetComplete(),
   'session-complete': generateSessionComplete(),
