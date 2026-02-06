@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Custom Badge Icon System — Onset Fitness (65 Badges)</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#050505;--card:rgba(255,255,255,0.04);--border:rgba(255,255,255,0.06);--text:#fff;--muted:rgba(120,120,130,1);--label:rgba(160,150,140,1);--primary:#f97316;--bronze:#CD7F32;--bronze-hi:#E8C898;--bronze-lo:#6B3A1F;--silver:#C0C0C0;--silver-hi:#E8E8E8;--silver-lo:#606060;--gold:#FFD700;--gold-hi:#FFF0A0;--gold-lo:#8B6914;--plat:#D0D0E8;--plat-hi:#F0F0FF;--plat-lo:#707088}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;padding:20px 0 80px}
+h1{text-align:center;padding:20px;font-size:24px;font-weight:800;background:linear-gradient(135deg,var(--primary),#eab308);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.subtitle{text-align:center;color:var(--muted);font-size:13px;padding:0 20px 24px;line-height:1.5}
+.cat-section{margin:32px 0}
+.cat-header{display:flex;align-items:center;gap:12px;padding:0 20px;margin-bottom:20px}
+.cat-header-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center}
+.cat-header-title{flex:1;font-size:18px;font-weight:700}
+.cat-header-count{color:var(--muted);font-size:13px;font-weight:600}
+.badge-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px 6px;padding:0 12px}
+.badge-cell{text-align:center;padding:4px 0}
+.badge-cell .name{font-size:9.5px;color:var(--label);font-weight:500;line-height:12px;height:24px;overflow:hidden;margin-top:4px}
+.badge-cell.unlocked .name{color:var(--text)}
+.tier-tag{display:inline-block;font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:2px 6px;border-radius:4px;margin-top:2px}
+@keyframes forgeGlow{0%,100%{filter:drop-shadow(0 0 6px var(--g))}50%{filter:drop-shadow(0 0 14px var(--g))}}
+.badge-cell.unlocked svg{animation:forgeGlow 3s ease-in-out infinite}
+@keyframes shineSweep{0%{transform:translateX(-120%) rotate(25deg)}100%{transform:translateX(220%) rotate(25deg)}}
+.shine{position:absolute;top:0;left:0;right:0;bottom:0;border-radius:50%;overflow:hidden;pointer-events:none}
+.shine::after{content:'';position:absolute;top:-20%;left:-40%;width:35%;height:140%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.12),transparent);animation:shineSweep 5s ease-in-out infinite;animation-delay:1.5s}
+.badge-wrap{position:relative;display:inline-block}
+.divider{height:1px;margin:24px 20px;background:linear-gradient(90deg,transparent,var(--border),transparent)}
+/* SVG shared defs are in a hidden SVG */
+</style>
+</head>
+<body>
+
+<!-- Shared SVG Defs -->
+<svg width="0" height="0" style="position:absolute">
+<defs>
+  <!-- BRONZE -->
+  <linearGradient id="br-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#E8B878"/><stop offset="50%" stop-color="#CD7F32"/><stop offset="100%" stop-color="#8B4513"/></linearGradient>
+  <radialGradient id="br-fill" cx="45%" cy="40%"><stop offset="0%" stop-color="#E8C898"/><stop offset="50%" stop-color="#CD7F32"/><stop offset="100%" stop-color="#6B3A1F"/></radialGradient>
+  <filter id="br-e"><feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#000" flood-opacity="0.4"/><feDropShadow dx="0" dy="-0.5" stdDeviation="0.5" flood-color="#E8C898" flood-opacity="0.25"/></filter>
+  <!-- SILVER -->
+  <linearGradient id="sv-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#E8E8E8"/><stop offset="50%" stop-color="#C0C0C0"/><stop offset="100%" stop-color="#808080"/></linearGradient>
+  <radialGradient id="sv-fill" cx="45%" cy="40%"><stop offset="0%" stop-color="#F0F0F0"/><stop offset="50%" stop-color="#C0C0C0"/><stop offset="100%" stop-color="#606060"/></radialGradient>
+  <filter id="sv-e"><feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#000" flood-opacity="0.4"/><feDropShadow dx="0" dy="-0.5" stdDeviation="0.5" flood-color="#F0F0F0" flood-opacity="0.25"/></filter>
+  <!-- GOLD -->
+  <linearGradient id="gd-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FFE878"/><stop offset="30%" stop-color="#FFD700"/><stop offset="70%" stop-color="#B8960F"/><stop offset="100%" stop-color="#FFE878"/></linearGradient>
+  <radialGradient id="gd-fill" cx="40%" cy="35%"><stop offset="0%" stop-color="#FFF0A0"/><stop offset="50%" stop-color="#FFD700"/><stop offset="100%" stop-color="#8B6914"/></radialGradient>
+  <filter id="gd-e"><feDropShadow dx="0" dy="1" stdDeviation="1.2" flood-color="#000" flood-opacity="0.45"/><feDropShadow dx="0" dy="-0.5" stdDeviation="0.5" flood-color="#FFF0A0" flood-opacity="0.3"/></filter>
+  <!-- PLATINUM -->
+  <linearGradient id="pt-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#F0F0FF"/><stop offset="30%" stop-color="#D0D0E8"/><stop offset="70%" stop-color="#A0A0C0"/><stop offset="100%" stop-color="#F0F0FF"/></linearGradient>
+  <radialGradient id="pt-fill" cx="40%" cy="35%"><stop offset="0%" stop-color="#F8F8FF"/><stop offset="50%" stop-color="#D0D0E0"/><stop offset="100%" stop-color="#707088"/></radialGradient>
+  <filter id="pt-e"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#000" flood-opacity="0.5"/><feDropShadow dx="0" dy="-1" stdDeviation="0.8" flood-color="#F8F8FF" flood-opacity="0.35"/></filter>
+  <!-- LOCKED -->
+  <radialGradient id="lk-fill" cx="50%" cy="50%"><stop offset="0%" stop-color="#1a1a1a"/><stop offset="100%" stop-color="#0a0a0a"/></radialGradient>
+</defs>
+</svg>
+
+<h1>65 Custom Badge Icons — Forge System</h1>
+<p class="subtitle">Every badge has a unique multi-path SVG emblem.<br>Shown in Forge medallion frames with correct tier coloring.</p>
+
+<script>
+// ── Badge Data ──
+const T={
+  br:{ring:'url(#br-ring)',fill:'url(#br-fill)',filter:'url(#br-e)',hi:'#E8C898',lo:'#CD7F32',glow:'rgba(205,127,50,0.4)',bg:'rgba(205,127,50,0.12)'},
+  sv:{ring:'url(#sv-ring)',fill:'url(#sv-fill)',filter:'url(#sv-e)',hi:'#E0E0E0',lo:'#C0C0C0',glow:'rgba(192,192,192,0.4)',bg:'rgba(192,192,192,0.10)'},
+  gd:{ring:'url(#gd-ring)',fill:'url(#gd-fill)',filter:'url(#gd-e)',hi:'#FFE878',lo:'#FFD700',glow:'rgba(255,215,0,0.4)',bg:'rgba(255,215,0,0.10)'},
+  pt:{ring:'url(#pt-ring)',fill:'url(#pt-fill)',filter:'url(#pt-e)',hi:'#E8E8FF',lo:'#D0D0E8',glow:'rgba(200,200,255,0.45)',bg:'rgba(200,200,255,0.10)'}
+};
+
+// SVG icon paths for each badge (centered at 0,0, scale ~0.55)
+const ICONS = {
+// ── VOLUME: Tonnage ──
+vol_ton_1: `<circle cx="0" cy="-2" r="14" fill="HI" opacity="0.85"/><circle cx="0" cy="-2" r="10" fill="LO" opacity="0.3"/><circle cx="0" cy="-2" r="6" fill="HI" opacity="0.5"/><text x="0" y="2" text-anchor="middle" font-size="8" font-weight="800" fill="LO" font-family="Plus Jakarta Sans">1T</text><rect x="-3" y="12" width="6" height="3" rx="1.5" fill="HI" opacity="0.6"/>`,
+vol_ton_2: `<rect x="-12" y="-6" width="10" height="10" rx="2" fill="HI" opacity="0.8" transform="rotate(-8)"/><rect x="-4" y="-10" width="10" height="10" rx="2" fill="LO" opacity="0.6" transform="rotate(5)"/><rect x="2" y="-2" width="10" height="10" rx="2" fill="HI" opacity="0.7" transform="rotate(-3)"/><path d="M14,4 L18,0" stroke="HI" stroke-width="1.5" opacity="0.4"/><path d="M14,8 L20,4" stroke="HI" stroke-width="1" opacity="0.3"/>`,
+vol_ton_3: `<path d="M-18,14 L-2,-16 L2,-8 L8,-18 L22,14 Z" fill="HI" opacity="0.85"/><path d="M-2,-16 L2,-8 L8,-18 L4,-10 Z" fill="LO" opacity="0.5" stroke="LO" stroke-width="0.3"/><path d="M-18,14 L-2,-16 L0,-10 L-12,14 Z" fill="LO" opacity="0.25"/><path d="M2,-10 L0,-4 L4,-6 Z" fill="HI" opacity="0.4"/><line x1="-18" y1="14" x2="22" y2="14" stroke="HI" stroke-width="0.8" opacity="0.3"/>`,
+vol_ton_4: `<circle cx="0" cy="0" r="14" fill="none" stroke="HI" stroke-width="2" opacity="0.7"/><ellipse cx="0" cy="0" rx="14" ry="5" fill="none" stroke="HI" stroke-width="1" opacity="0.4"/><ellipse cx="0" cy="0" rx="5" ry="14" fill="none" stroke="HI" stroke-width="1" opacity="0.4" transform="rotate(30)"/><ellipse cx="0" cy="0" rx="5" ry="14" fill="none" stroke="HI" stroke-width="1" opacity="0.4" transform="rotate(-30)"/><circle cx="0" cy="0" r="3" fill="HI" opacity="0.6"/>`,
+vol_ton_5: `<path d="M-3,-20 L-12,2 L-3,0 L-7,22 L15,-4 L5,-2 L9,-20 Z" fill="HI" opacity="0.9"/><path d="M-3,-20 L9,-20 L5,-2 L15,-4 Z" fill="LO" opacity="0.35"/><path d="M-7,22 L-3,0 L-1,4 L-4,18 Z" fill="LO" opacity="0.2"/><circle cx="-3" cy="-20" r="1.5" fill="HI" opacity="0.5"/><circle cx="9" cy="-20" r="1.5" fill="HI" opacity="0.5"/>`,
+vol_ton_6: `<rect x="-4" y="-18" width="8" height="36" rx="2" fill="HI" opacity="0.7"/><rect x="-12" y="-14" width="8" height="6" rx="1" fill="HI" opacity="0.5"/><rect x="4" y="-14" width="8" height="6" rx="1" fill="HI" opacity="0.5"/><rect x="-16" y="-18" width="4" height="36" rx="1" fill="LO" opacity="0.3"/><rect x="12" y="-18" width="4" height="36" rx="1" fill="LO" opacity="0.3"/><path d="M-6,-18 L6,-18 L4,-22 L-4,-22 Z" fill="HI" opacity="0.6"/>`,
+vol_ton_7: `<path d="M-16,6 L-18,-10 L-8,-4 L0,-16 L8,-4 L18,-10 L16,6 Z" fill="HI" opacity="0.9"/><path d="M-16,6 L16,6 L14,12 L-14,12 Z" fill="LO" opacity="0.6"/><circle cx="-18" cy="-10" r="2.5" fill="HI" opacity="0.7"/><circle cx="0" cy="-16" r="3" fill="HI" opacity="0.8"/><circle cx="18" cy="-10" r="2.5" fill="HI" opacity="0.7"/><path d="M-8,2 C-8,-2 -4,-6 0,-6 C4,-6 8,-2 8,2" fill="none" stroke="LO" stroke-width="1" opacity="0.3"/>`,
+vol_ton_8: `<circle cx="0" cy="-4" r="6" fill="HI" opacity="0.7"/><path d="M-4,-10 L-12,-18 L-8,-10 Z" fill="HI" opacity="0.5"/><path d="M4,-10 L12,-18 L8,-10 Z" fill="HI" opacity="0.5"/><path d="M-6,0 L-16,-4 L-8,2 Z" fill="HI" opacity="0.4"/><path d="M6,0 L16,-4 L8,2 Z" fill="HI" opacity="0.4"/><path d="M-3,4 L-8,14 L-2,8 Z" fill="HI" opacity="0.45"/><path d="M3,4 L8,14 L2,8 Z" fill="HI" opacity="0.45"/><circle cx="0" cy="-4" r="3" fill="LO" opacity="0.4"/><circle cx="0" cy="-4" r="1.5" fill="HI" opacity="0.6"/>`,
+
+// ── VOLUME: Sessions ──
+vol_ses_1: `<ellipse cx="-2" cy="6" rx="8" ry="12" fill="HI" opacity="0.8" transform="rotate(-10,-2,6)"/><ellipse cx="-2" cy="6" rx="5" ry="8" fill="LO" opacity="0.3" transform="rotate(-10,-2,6)"/><circle cx="-10" cy="-10" r="3" fill="HI" opacity="0.7"/><circle cx="-14" cy="-4" r="2.5" fill="HI" opacity="0.6"/><circle cx="-15" cy="3" r="2.2" fill="HI" opacity="0.5"/><circle cx="-13" cy="10" r="2" fill="HI" opacity="0.45"/><path d="M6,-8 C8,-4 10,2 8,8" stroke="HI" stroke-width="1" opacity="0.3" fill="none"/><path d="M10,-6 C12,-2 14,4 12,10" stroke="HI" stroke-width="0.8" opacity="0.2" fill="none"/>`,
+vol_ses_2: `<circle cx="0" cy="0" r="12" fill="none" stroke="HI" stroke-width="2" opacity="0.7"/><path d="M0,-12 A12,12 0 0,1 12,0" fill="none" stroke="HI" stroke-width="3" opacity="0.9"/><path d="M10,2 L14,-2 L12,4 Z" fill="HI" opacity="0.8"/><circle cx="0" cy="0" r="3" fill="HI" opacity="0.5"/><text x="0" y="3" text-anchor="middle" font-size="5" font-weight="800" fill="LO" font-family="Plus Jakarta Sans">10</text>`,
+vol_ses_3: `<rect x="-14" y="-12" width="28" height="28" rx="4" fill="HI" opacity="0.15" stroke="HI" stroke-width="1.5" opacity="0.6"/><line x1="-14" y1="-4" x2="14" y2="-4" stroke="HI" stroke-width="1" opacity="0.4"/><rect x="-6" y="-10" width="4" height="4" rx="1" fill="HI" opacity="0.6"/><rect x="2" y="-10" width="4" height="4" rx="1" fill="HI" opacity="0.6"/><circle cx="-4" cy="4" r="2" fill="HI" opacity="0.5"/><circle cx="4" cy="4" r="2" fill="HI" opacity="0.5"/><circle cx="-4" cy="11" r="2" fill="HI" opacity="0.4"/><path d="M-6,-14 L-6,-18" stroke="HI" stroke-width="2" opacity="0.5" stroke-linecap="round"/><path d="M6,-14 L6,-18" stroke="HI" stroke-width="2" opacity="0.5" stroke-linecap="round"/>`,
+vol_ses_4: `<circle cx="0" cy="-6" r="10" fill="HI" opacity="0.2" stroke="HI" stroke-width="1.5" opacity="0.7"/><circle cx="0" cy="-6" r="6" fill="HI" opacity="0.15" stroke="HI" stroke-width="1" opacity="0.5"/><path d="M0,-12 L2,-8 L0,-4 L-2,-8 Z" fill="HI" opacity="0.8"/><path d="M-6,4 L-4,16" stroke="HI" stroke-width="3" opacity="0.7" stroke-linecap="round"/><path d="M6,4 L4,16" stroke="HI" stroke-width="3" opacity="0.7" stroke-linecap="round"/><path d="M-8,4 L-2,4" stroke="HI" stroke-width="1.5" opacity="0.4"/><path d="M2,4 L8,4" stroke="HI" stroke-width="1.5" opacity="0.4"/>`,
+vol_ses_5: `<path d="M-12,-12 L12,-12 L14,-6 L10,-2 L-10,-2 L-14,-6 Z" fill="HI" opacity="0.8"/><path d="M-12,-12 L-14,-6 L-10,-2" fill="LO" opacity="0.3"/><rect x="-8" y="-2" width="16" height="4" rx="0" fill="HI" opacity="0.6"/><path d="M-6,2 L-10,16 L10,16 L6,2 Z" fill="HI" opacity="0.7"/><path d="M-6,2 L-10,16 L-4,16 L0,2 Z" fill="LO" opacity="0.2"/><circle cx="0" cy="-8" r="2" fill="LO" opacity="0.4"/>`,
+vol_ses_6: `<path d="M0,-18 L-14,10 L-4,6 L0,18 L4,6 L14,10 Z" fill="HI" opacity="0.8"/><path d="M-4,-14 L4,-14 L6,-8 L-6,-8 Z" fill="LO" opacity="0.3"/><path d="M0,-18 L-4,-14 L0,-10 L4,-14 Z" fill="HI" opacity="0.5"/><circle cx="0" cy="-4" r="3" fill="LO" opacity="0.4"/><path d="M-2,-4 L0,-6 L2,-4 L0,-2 Z" fill="HI" opacity="0.6"/><line x1="-8" y1="2" x2="-14" y2="10" stroke="HI" stroke-width="1" opacity="0.3"/>`,
+
+// ── CONSISTENCY ──
+con_str_1: `<path d="M0,10 C-4,4 -6,-2 -4,-8 C-2,-12 2,-12 4,-8 C6,-2 4,4 0,10 Z" fill="HI" opacity="0.8"/><path d="M0,4 C-2,0 -2,-4 0,-6 C2,-4 2,0 0,4 Z" fill="LO" opacity="0.5"/><circle cx="0" cy="-2" r="1.5" fill="HI" opacity="0.4"/>`,
+con_str_2: `<path d="M0,14 C-6,6 -10,-2 -8,-10 C-6,-16 -2,-18 0,-14 C2,-18 6,-16 8,-10 C10,-2 6,6 0,14 Z" fill="HI" opacity="0.85"/><path d="M0,8 C-3,2 -4,-4 -2,-8 C0,-12 2,-8 2,-4 C4,-8 4,-2 0,8 Z" fill="LO" opacity="0.4"/><path d="M0,2 C-1,-2 0,-6 1,-4 C2,-2 1,0 0,2 Z" fill="HI" opacity="0.5"/>`,
+con_str_3: `<path d="M0,16 C-8,6 -14,-4 -12,-12 C-10,-18 -4,-18 -2,-12 C0,-18 4,-20 6,-14 C10,-18 14,-14 12,-8 C10,0 4,10 0,16 Z" fill="HI" opacity="0.85"/><path d="M-2,10 C-6,2 -8,-4 -6,-10 C-4,-14 0,-12 0,-8 C2,-12 4,-10 4,-6 C6,-10 8,-6 6,-2 C4,4 0,8 -2,10 Z" fill="LO" opacity="0.4"/><circle cx="-2" cy="-4" r="2" fill="HI" opacity="0.3"/><circle cx="4" cy="-6" r="1.5" fill="HI" opacity="0.25"/>`,
+con_str_4: `<path d="M0,18 C-10,6 -18,-6 -16,-14 C-14,-20 -8,-18 -6,-12 C-4,-18 0,-22 2,-16 C4,-22 8,-20 10,-14 C14,-20 18,-16 16,-10 C14,-2 6,10 0,18 Z" fill="HI" opacity="0.85"/><path d="M-4,12 C-8,4 -12,-4 -10,-10 C-8,-14 -4,-12 -2,-8 C0,-14 4,-12 4,-8 C6,-14 10,-10 8,-6 C6,0 0,8 -4,12 Z" fill="LO" opacity="0.35"/><path d="M0,6 C-2,2 -4,-2 -2,-6 C0,-8 2,-6 2,-4 C4,-8 4,-4 2,0 L0,6 Z" fill="HI" opacity="0.3"/>`,
+con_str_5: `<path d="M0,-14 C-8,-16 -16,-8 -14,0 C-12,8 -4,16 0,18 C4,16 12,8 14,0 C16,-8 8,-16 0,-14 Z" fill="HI" opacity="0.15"/><path d="M-8,-8 C-6,-14 -2,-16 2,-14 L8,-12 L12,-4 L8,6 L2,12 L-4,10 L-10,4 L-12,-2 Z" fill="HI" opacity="0.7"/><path d="M0,-10 L4,-4 L2,4 L-4,6 L-8,0 L-4,-8 Z" fill="LO" opacity="0.35"/><path d="M10,0 L14,-4 L18,-2 L16,4 Z" fill="HI" opacity="0.6"/><path d="M-10,4 L-14,0 L-18,2 L-16,8 Z" fill="HI" opacity="0.5"/><circle cx="0" cy="-2" r="2" fill="HI" opacity="0.4"/>`,
+con_str_6: `<path d="M-14,0 C-14,-8 -8,-14 0,-14 C8,-14 14,-8 14,0 C14,8 8,14 0,14" fill="none" stroke="HI" stroke-width="2.5" opacity="0.8"/><path d="M0,14 C-8,14 -14,8 -14,0" fill="none" stroke="HI" stroke-width="2.5" opacity="0.5" stroke-dasharray="3 2"/><path d="M4,14 C4,10 8,8 8,4" fill="none" stroke="HI" stroke-width="1.5" opacity="0.4"/><path d="M0,-14 L0,-18" stroke="HI" stroke-width="2" opacity="0.6" stroke-linecap="round"/><circle cx="0" cy="-18" r="1.5" fill="HI" opacity="0.5"/><text x="0" y="3" text-anchor="middle" font-size="7" font-weight="800" fill="HI" opacity="0.8" font-family="Plus Jakarta Sans">∞</text>`,
+con_str_7: `<rect x="-14" y="-10" width="28" height="24" rx="4" fill="HI" opacity="0.15" stroke="HI" stroke-width="1.5" opacity="0.6"/><line x1="-14" y1="-2" x2="14" y2="-2" stroke="HI" stroke-width="1" opacity="0.4"/><path d="M-6,-8 L-6,-14" stroke="HI" stroke-width="2" opacity="0.5" stroke-linecap="round"/><path d="M6,-8 L6,-14" stroke="HI" stroke-width="2" opacity="0.5" stroke-linecap="round"/><path d="M-6,6 L-3,10 L6,2" stroke="HI" stroke-width="2.5" opacity="0.9" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="8" cy="-6" r="4" fill="HI" opacity="0.2"/>`,
+con_str_8: `<rect x="-14" y="-10" width="28" height="24" rx="4" fill="HI" opacity="0.15" stroke="HI" stroke-width="1.5" opacity="0.6"/><line x1="-14" y1="-2" x2="14" y2="-2" stroke="HI" stroke-width="1" opacity="0.4"/><path d="M-6,-8 L-6,-14" stroke="HI" stroke-width="2" opacity="0.5" stroke-linecap="round"/><path d="M6,-8 L6,-14" stroke="HI" stroke-width="2" opacity="0.5" stroke-linecap="round"/><circle cx="-4" cy="5" r="3" fill="HI" opacity="0.6"/><circle cx="4" cy="5" r="3" fill="HI" opacity="0.6"/><circle cx="-4" cy="5" r="1.5" fill="LO" opacity="0.5"/><circle cx="4" cy="5" r="1.5" fill="LO" opacity="0.5"/><path d="M10,-8 L12,-4 L8,-4 Z" fill="HI" opacity="0.6"/>`,
+
+// ── STRENGTH ──
+str_pr_1: `<path d="M-10,-14 L10,-14 L10,-6 C14,-6 16,-2 14,4 C12,8 8,8 6,6 L6,0 L-6,0 L-6,6 C-8,8 -12,8 -14,4 C-16,-2 -14,-6 -10,-6 Z" fill="HI" opacity="0.85"/><path d="M-4,6 L4,6 L3,12 L-3,12 Z" fill="LO" opacity="0.6"/><rect x="-6" y="12" width="12" height="4" rx="2" fill="HI" opacity="0.8"/><path d="M-2,-10 L0,-6 L2,-10 L4,-6 L2,0 L-2,0 L-4,-6 Z" fill="LO" opacity="0.5"/>`,
+str_pr_2: `<circle cx="0" cy="0" r="14" fill="none" stroke="HI" stroke-width="2" opacity="0.6"/><circle cx="0" cy="0" r="8" fill="none" stroke="HI" stroke-width="1.5" opacity="0.4"/><circle cx="0" cy="0" r="2" fill="HI" opacity="0.7"/><line x1="0" y1="-18" x2="0" y2="-10" stroke="HI" stroke-width="1.5" opacity="0.5"/><line x1="0" y1="10" x2="0" y2="18" stroke="HI" stroke-width="1.5" opacity="0.5"/><line x1="-18" y1="0" x2="-10" y2="0" stroke="HI" stroke-width="1.5" opacity="0.5"/><line x1="10" y1="0" x2="18" y2="0" stroke="HI" stroke-width="1.5" opacity="0.5"/><path d="M6,-10 L0,0 L10,-6 Z" fill="HI" opacity="0.6"/>`,
+str_pr_3: `<path d="M-6,18 L-4,2 L-8,4 L0,-18 L8,4 L4,2 L6,18 Z" fill="HI" opacity="0.85"/><path d="M0,-18 L-8,4 L-4,2 L0,-10 Z" fill="LO" opacity="0.3"/><path d="M-10,14 L-14,18 L-8,16 Z" fill="HI" opacity="0.5"/><path d="M10,14 L14,18 L8,16 Z" fill="HI" opacity="0.5"/><circle cx="0" cy="4" r="2" fill="LO" opacity="0.4"/><path d="M-6,18 L6,18" stroke="HI" stroke-width="1" opacity="0.3"/>`,
+str_pr_4: `<path d="M-4,-14 L-10,-14 L-10,-4 C-10,4 -4,10 0,14" fill="none" stroke="HI" stroke-width="2.5" opacity="0.7" stroke-linecap="round"/><path d="M4,-14 L10,-14 L10,-4 C10,4 4,10 0,14" fill="none" stroke="HI" stroke-width="2.5" opacity="0.7" stroke-linecap="round"/><path d="M-14,-14 L14,-14" stroke="HI" stroke-width="2" opacity="0.4"/><path d="M-12,-4 C-12,6 -6,14 0,18 C6,14 12,6 12,-4" fill="HI" opacity="0.15"/><circle cx="0" cy="0" r="4" fill="HI" opacity="0.6"/><path d="M-2,-1 L0,3 L4,-3" stroke="LO" stroke-width="2" opacity="0.6" fill="none" stroke-linecap="round"/>`,
+str_pr_5: `<path d="M-14,8 L-6,8 L-6,0 L6,-12 L6,-8 L14,-8" fill="none" stroke="HI" stroke-width="2.5" opacity="0.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M10,-12 L14,-8 L10,-4" fill="none" stroke="HI" stroke-width="2" opacity="0.6" stroke-linecap="round"/><text x="4" y="16" text-anchor="middle" font-size="7" font-weight="800" fill="HI" opacity="0.7" font-family="Plus Jakarta Sans">10%</text>`,
+str_pr_6: `<path d="M-14,8 L-6,8 L-6,-4 L6,-16 L6,-8 L14,-8" fill="none" stroke="HI" stroke-width="3" opacity="0.85" stroke-linecap="round" stroke-linejoin="round"/><path d="M10,-12 L14,-8 L10,-4" fill="none" stroke="HI" stroke-width="2.5" opacity="0.7" stroke-linecap="round"/><path d="M6,-16 L10,-12 L6,-8" fill="HI" opacity="0.3"/><text x="4" y="16" text-anchor="middle" font-size="7" font-weight="800" fill="HI" opacity="0.7" font-family="Plus Jakarta Sans">50%</text>`,
+
+// ── MUSCLES ──
+mus_chest: `<path d="M-16,-4 C-16,-12 -8,-16 0,-12 C8,-16 16,-12 16,-4 C16,4 8,12 0,16 C-8,12 -16,4 -16,-4 Z" fill="HI" opacity="0.8"/><path d="M0,-12 L0,16" stroke="LO" stroke-width="1" opacity="0.3"/><path d="M-8,-8 C-6,-10 -2,-10 0,-8" fill="none" stroke="LO" stroke-width="1.2" opacity="0.3"/><path d="M8,-8 C6,-10 2,-10 0,-8" fill="none" stroke="LO" stroke-width="1.2" opacity="0.3"/>`,
+mus_back: `<path d="M0,-16 L-10,-8 L-14,4 L-10,14 L-4,16 L0,12 L4,16 L10,14 L14,4 L10,-8 Z" fill="HI" opacity="0.75"/><path d="M0,-16 L0,12" stroke="LO" stroke-width="1.5" opacity="0.3"/><path d="M-6,-6 L-10,4" stroke="LO" stroke-width="1" opacity="0.2"/><path d="M6,-6 L10,4" stroke="LO" stroke-width="1" opacity="0.2"/><path d="M-4,-12 C-8,-8 -12,-2 -12,4" fill="none" stroke="LO" stroke-width="1" opacity="0.25"/>`,
+mus_shoulders: `<ellipse cx="-10" cy="-4" rx="8" ry="10" fill="HI" opacity="0.7" transform="rotate(15,-10,-4)"/><ellipse cx="10" cy="-4" rx="8" ry="10" fill="HI" opacity="0.7" transform="rotate(-15,10,-4)"/><path d="M-4,4 L4,4 L2,16 L-2,16 Z" fill="HI" opacity="0.5"/><circle cx="-10" cy="-6" r="3" fill="LO" opacity="0.3"/><circle cx="10" cy="-6" r="3" fill="LO" opacity="0.3"/>`,
+mus_biceps: `<path d="M-4,16 L-4,4 C-4,-4 -8,-8 -8,-14 C-8,-18 -4,-18 -2,-14 L2,-4 C4,0 8,-2 10,-6 C12,-10 14,-8 12,-4 L8,6 L6,16 Z" fill="HI" opacity="0.85"/><path d="M-2,-8 C0,-4 4,-2 6,0" fill="none" stroke="LO" stroke-width="1.5" opacity="0.3"/><ellipse cx="2" cy="-6" rx="4" ry="3" fill="LO" opacity="0.2"/>`,
+mus_triceps: `<path d="M4,16 L4,4 C4,-4 8,-8 8,-14 C8,-18 4,-18 2,-14 L-2,-4 C-4,0 -8,-2 -10,-6 C-12,-10 -14,-8 -12,-4 L-8,6 L-6,16 Z" fill="HI" opacity="0.85"/><path d="M2,-8 C0,-4 -4,-2 -6,0" fill="none" stroke="LO" stroke-width="1.5" opacity="0.3"/><path d="M-6,-4 L-8,2" stroke="LO" stroke-width="1" opacity="0.2"/>`,
+mus_quads: `<path d="M-8,-16 L-12,16 L-2,16 L0,-4 L2,16 L12,16 L8,-16 Z" fill="HI" opacity="0.8"/><path d="M0,-4 L0,16" stroke="LO" stroke-width="1" opacity="0.25"/><path d="M-8,-16 L8,-16" stroke="HI" stroke-width="1.5" opacity="0.4"/><path d="M-6,0 L-10,12" stroke="LO" stroke-width="1" opacity="0.2"/><path d="M6,0 L10,12" stroke="LO" stroke-width="1" opacity="0.2"/>`,
+mus_hams: `<path d="M-8,-16 L-12,8 C-12,14 -8,16 -4,16 L0,12 L4,16 C8,16 12,14 12,8 L8,-16 Z" fill="HI" opacity="0.8"/><path d="M0,-16 L0,12" stroke="LO" stroke-width="1.5" opacity="0.3"/><path d="M-6,-2 C-8,4 -8,10 -6,14" fill="none" stroke="LO" stroke-width="1" opacity="0.2"/><path d="M6,-2 C8,4 8,10 6,14" fill="none" stroke="LO" stroke-width="1" opacity="0.2"/>`,
+mus_glutes: `<ellipse cx="-6" cy="0" rx="10" ry="12" fill="HI" opacity="0.7"/><ellipse cx="6" cy="0" rx="10" ry="12" fill="HI" opacity="0.7"/><path d="M0,-12 L0,12" stroke="LO" stroke-width="1.5" opacity="0.3"/><ellipse cx="-6" cy="0" rx="6" ry="8" fill="LO" opacity="0.15"/><ellipse cx="6" cy="0" rx="6" ry="8" fill="LO" opacity="0.15"/>`,
+mus_calves: `<path d="M-6,-16 L-8,-4 C-10,4 -8,12 -4,16 L4,16 C8,12 10,4 8,-4 L6,-16 Z" fill="HI" opacity="0.8"/><path d="M0,-16 L0,16" stroke="LO" stroke-width="1" opacity="0.2"/><path d="M-6,0 C-4,4 -2,8 -2,14" fill="none" stroke="LO" stroke-width="1" opacity="0.25"/><ellipse cx="0" cy="-2" rx="4" ry="6" fill="LO" opacity="0.15"/>`,
+mus_abs: `<rect x="-10" y="-16" width="20" height="32" rx="4" fill="HI" opacity="0.2" stroke="HI" stroke-width="1" opacity="0.5"/><line x1="0" y1="-14" x2="0" y2="14" stroke="HI" stroke-width="1" opacity="0.4"/><rect x="-8" y="-12" width="7" height="6" rx="1.5" fill="HI" opacity="0.6"/><rect x="1" y="-12" width="7" height="6" rx="1.5" fill="HI" opacity="0.6"/><rect x="-8" y="-4" width="7" height="6" rx="1.5" fill="HI" opacity="0.55"/><rect x="1" y="-4" width="7" height="6" rx="1.5" fill="HI" opacity="0.55"/><rect x="-8" y="4" width="7" height="6" rx="1.5" fill="HI" opacity="0.5"/><rect x="1" y="4" width="7" height="6" rx="1.5" fill="HI" opacity="0.5"/>`,
+mus_upper: `<circle cx="0" cy="-14" r="5" fill="HI" opacity="0.7"/><path d="M-4,-10 L-12,-2 L-16,8 L-12,8 L-8,0 L-6,10 L-2,10 L-2,-8 Z" fill="HI" opacity="0.65"/><path d="M4,-10 L12,-2 L16,8 L12,8 L8,0 L6,10 L2,10 L2,-8 Z" fill="HI" opacity="0.65"/><line x1="-2" y1="10" x2="-2" y2="16" stroke="HI" stroke-width="1" opacity="0.3"/><line x1="2" y1="10" x2="2" y2="16" stroke="HI" stroke-width="1" opacity="0.3"/>`,
+mus_lower: `<path d="M-6,-10 L-8,4 L-12,16 L-8,16 L-4,6 L0,0 L4,6 L8,16 L12,16 L8,4 L6,-10 Z" fill="HI" opacity="0.75"/><path d="M0,-10 L0,0" stroke="LO" stroke-width="1" opacity="0.3"/><rect x="-6" y="-14" width="12" height="4" rx="2" fill="HI" opacity="0.5"/>`,
+mus_full: `<circle cx="0" cy="-14" r="5" fill="HI" opacity="0.7"/><rect x="-3" y="-10" width="6" height="14" rx="2" fill="HI" opacity="0.6"/><path d="M-3,-8 L-12,0 L-10,2 L-3,-4" fill="HI" opacity="0.55"/><path d="M3,-8 L12,0 L10,2 L3,-4" fill="HI" opacity="0.55"/><path d="M-2,4 L-6,16 L-2,16 L0,8" fill="HI" opacity="0.55"/><path d="M2,4 L6,16 L2,16 L0,8" fill="HI" opacity="0.55"/><circle cx="0" cy="-14" r="2" fill="LO" opacity="0.3"/>`,
+mus_balance: `<path d="M0,-16 L0,8" stroke="HI" stroke-width="2" opacity="0.7"/><path d="M-16,0 L16,0" stroke="HI" stroke-width="2" opacity="0.7"/><path d="M-16,0 L-12,10 L-8,10 L-12,0" fill="HI" opacity="0.5"/><path d="M16,0 L12,10 L8,10 L12,0" fill="HI" opacity="0.5"/><path d="M-12,10 C-12,14 -8,16 -10,10" fill="none" stroke="HI" stroke-width="1" opacity="0.4"/><path d="M-12,10 L-8,10" stroke="HI" stroke-width="1.5" opacity="0.5"/><path d="M8,10 L12,10" stroke="HI" stroke-width="1.5" opacity="0.5"/><circle cx="0" cy="-16" r="2" fill="HI" opacity="0.6"/><rect x="-2" y="8" width="4" height="8" rx="1" fill="HI" opacity="0.5"/>`,
+
+// ── EQUIPMENT ──
+eq_dumbbell: `<rect x="-18" y="-6" width="8" height="12" rx="2" fill="HI" opacity="0.85"/><rect x="10" y="-6" width="8" height="12" rx="2" fill="HI" opacity="0.85"/><rect x="-12" y="-8" width="4" height="16" rx="1" fill="LO" opacity="0.5"/><rect x="8" y="-8" width="4" height="16" rx="1" fill="LO" opacity="0.5"/><rect x="-8" y="-3" width="16" height="6" rx="3" fill="HI" opacity="0.7"/><line x1="-16" y1="0" x2="-12" y2="0" stroke="LO" stroke-width="0.8" opacity="0.3"/><line x1="12" y1="0" x2="16" y2="0" stroke="LO" stroke-width="0.8" opacity="0.3"/>`,
+eq_barbell: `<rect x="-20" y="-4" width="40" height="8" rx="4" fill="HI" opacity="0.5"/><rect x="-18" y="-10" width="6" height="20" rx="2" fill="HI" opacity="0.8"/><rect x="12" y="-10" width="6" height="20" rx="2" fill="HI" opacity="0.8"/><rect x="-14" y="-8" width="4" height="16" rx="1" fill="LO" opacity="0.4"/><rect x="10" y="-8" width="4" height="16" rx="1" fill="LO" opacity="0.4"/><circle cx="-20" cy="0" r="3" fill="HI" opacity="0.5"/><circle cx="20" cy="0" r="3" fill="HI" opacity="0.5"/>`,
+eq_cable: `<circle cx="0" cy="-10" r="8" fill="none" stroke="HI" stroke-width="2" opacity="0.7"/><circle cx="0" cy="-10" r="3" fill="HI" opacity="0.5"/><path d="M0,-2 L0,12" stroke="HI" stroke-width="2" opacity="0.7"/><rect x="-6" y="12" width="12" height="6" rx="2" fill="HI" opacity="0.6"/><path d="M-6,10 L-10,6" stroke="HI" stroke-width="1" opacity="0.3"/><path d="M6,10 L10,6" stroke="HI" stroke-width="1" opacity="0.3"/>`,
+eq_machine: `<circle cx="0" cy="0" r="12" fill="none" stroke="HI" stroke-width="2" opacity="0.6"/><circle cx="0" cy="0" r="4" fill="HI" opacity="0.5"/><path d="M0,-12 L0,-16" stroke="HI" stroke-width="2" opacity="0.7" stroke-linecap="round"/><path d="M12,0 L16,0" stroke="HI" stroke-width="2" opacity="0.7" stroke-linecap="round"/><path d="M0,12 L0,16" stroke="HI" stroke-width="2" opacity="0.7" stroke-linecap="round"/><path d="M-12,0 L-16,0" stroke="HI" stroke-width="2" opacity="0.7" stroke-linecap="round"/><path d="M8,-8 L12,-12" stroke="HI" stroke-width="1.5" opacity="0.5" stroke-linecap="round"/><path d="M-8,8 L-12,12" stroke="HI" stroke-width="1.5" opacity="0.5" stroke-linecap="round"/>`,
+eq_bodyweight: `<circle cx="0" cy="-14" r="4" fill="HI" opacity="0.7"/><path d="M-12,6 L-8,-2 L0,-6 L8,-2 L12,6" fill="none" stroke="HI" stroke-width="2" opacity="0.7" stroke-linecap="round"/><path d="M-12,6 L-16,14" stroke="HI" stroke-width="2" opacity="0.6" stroke-linecap="round"/><path d="M12,6 L16,14" stroke="HI" stroke-width="2" opacity="0.6" stroke-linecap="round"/><path d="M0,-6 L0,8" stroke="HI" stroke-width="2" opacity="0.6"/><path d="M0,8 L-6,18" stroke="HI" stroke-width="2" opacity="0.5" stroke-linecap="round"/><path d="M0,8 L6,18" stroke="HI" stroke-width="2" opacity="0.5" stroke-linecap="round"/>`,
+eq_kettlebell: `<circle cx="0" cy="4" r="12" fill="HI" opacity="0.8"/><circle cx="0" cy="4" r="8" fill="LO" opacity="0.25"/><path d="M-6,-8 C-6,-16 6,-16 6,-8" fill="none" stroke="HI" stroke-width="3" opacity="0.7" stroke-linecap="round"/><rect x="-4" y="-10" width="8" height="4" rx="2" fill="HI" opacity="0.6"/><circle cx="0" cy="6" r="2" fill="LO" opacity="0.3"/>`,
+eq_arsenal: `<rect x="-14" y="-4" width="6" height="14" rx="1" fill="HI" opacity="0.7"/><rect x="-6" y="-8" width="12" height="4" rx="2" fill="HI" opacity="0.6"/><circle cx="10" cy="2" r="6" fill="HI" opacity="0.65"/><path d="M7,-4 C7,-8 13,-8 13,-4" fill="none" stroke="HI" stroke-width="2" opacity="0.5"/><path d="M-8,12 L-4,12 L0,8" stroke="HI" stroke-width="1.5" opacity="0.4" stroke-linecap="round"/>`,
+eq_minimalist: `<circle cx="0" cy="-10" r="6" fill="HI" opacity="0.7"/><path d="M0,-4 L0,8" stroke="HI" stroke-width="2" opacity="0.6"/><path d="M-8,0 L8,0" stroke="HI" stroke-width="2" opacity="0.5" stroke-linecap="round"/><path d="M0,8 L-4,18" stroke="HI" stroke-width="2" opacity="0.5" stroke-linecap="round"/><path d="M0,8 L4,18" stroke="HI" stroke-width="2" opacity="0.5" stroke-linecap="round"/><circle cx="0" cy="0" r="16" fill="none" stroke="HI" stroke-width="1" opacity="0.2" stroke-dasharray="2 4"/>`,
+
+// ── VARIETY ──
+var_cur: `<circle cx="-2" cy="-2" r="10" fill="none" stroke="HI" stroke-width="2.5" opacity="0.8"/><circle cx="-2" cy="-2" r="4" fill="HI" opacity="0.25"/><path d="M6,6 L14,14" stroke="HI" stroke-width="3" opacity="0.8" stroke-linecap="round"/><circle cx="10" cy="-8" r="2" fill="HI" opacity="0.5"/><circle cx="12" cy="-4" r="1.5" fill="HI" opacity="0.4"/>`,
+var_exp: `<circle cx="0" cy="0" r="14" fill="none" stroke="HI" stroke-width="1.5" opacity="0.5"/><path d="M0,-16 L2,-6 L0,0 L-2,-6 Z" fill="HI" opacity="0.8"/><path d="M0,16 L-2,6 L0,0 L2,6 Z" fill="HI" opacity="0.6"/><path d="M-16,0 L-6,-2 L0,0 L-6,2 Z" fill="HI" opacity="0.5"/><path d="M16,0 L6,2 L0,0 L6,-2 Z" fill="HI" opacity="0.5"/><circle cx="0" cy="0" r="3" fill="HI" opacity="0.5"/>`,
+var_adv: `<path d="M-14,14 L-14,-10 L14,-10 L14,14 Z" fill="HI" opacity="0.15" stroke="HI" stroke-width="1.5" opacity="0.5"/><path d="M-14,-10 L0,-6 L14,-10" fill="LO" opacity="0.2"/><circle cx="-4" cy="2" r="3" fill="HI" opacity="0.6"/><path d="M-4,2 L4,6 L8,-2 L12,4" stroke="HI" stroke-width="1.5" opacity="0.7" fill="none" stroke-linecap="round"/><circle cx="12" cy="4" r="2" fill="HI" opacity="0.5"/>`,
+var_enc: `<path d="M-12,-12 L-4,-14 L-4,14 L-12,12 Z" fill="HI" opacity="0.7"/><path d="M-4,-14 L12,-10 L12,10 L-4,14 Z" fill="HI" opacity="0.5"/><path d="M-4,-14 L-4,14" stroke="LO" stroke-width="1" opacity="0.4"/><line x1="0" y1="-10" x2="8" y2="-8" stroke="LO" stroke-width="1" opacity="0.3"/><line x1="0" y1="-4" x2="8" y2="-2" stroke="LO" stroke-width="1" opacity="0.3"/><line x1="0" y1="2" x2="8" y2="4" stroke="LO" stroke-width="1" opacity="0.3"/><circle cx="4" cy="-4" r="6" fill="HI" opacity="0.15"/>`,
+var_jack: `<rect x="-10" y="-14" width="14" height="20" rx="2" fill="HI" opacity="0.7" transform="rotate(-10)"/><rect x="-4" y="-14" width="14" height="20" rx="2" fill="LO" opacity="0.4" transform="rotate(10)"/><circle cx="-4" cy="-4" r="3" fill="LO" opacity="0.5"/><path d="M2,4 L6,0 L10,4 L6,8 Z" fill="HI" opacity="0.6"/>`,
+var_cham: `<path d="M-8,-4 C-14,-4 -16,2 -12,6 C-8,10 -2,8 0,4 C2,8 8,10 12,6 C16,2 14,-4 8,-4 C8,-10 4,-14 0,-14 C-4,-14 -8,-10 -8,-4 Z" fill="HI" opacity="0.75"/><circle cx="-4" cy="-4" r="2.5" fill="LO" opacity="0.5"/><circle cx="-4" cy="-4" r="1" fill="HI" opacity="0.6"/><path d="M8,-2 C12,-2 16,0 18,2" stroke="HI" stroke-width="1.5" opacity="0.5" fill="none" stroke-linecap="round"/>`,
+
+// ── SOCIAL ──
+soc_friend1: `<circle cx="-8" cy="-6" r="5" fill="HI" opacity="0.7"/><path d="M-14,6 C-14,0 -10,-2 -8,0 C-6,-2 -2,0 -2,6" fill="HI" opacity="0.5"/><circle cx="8" cy="-6" r="5" fill="HI" opacity="0.7"/><path d="M2,6 C2,0 6,-2 8,0 C10,-2 14,0 14,6" fill="HI" opacity="0.5"/><circle cx="0" cy="-10" r="4" fill="HI" opacity="0.55"/><path d="M-4,2 L4,2" stroke="HI" stroke-width="1" opacity="0.3"/>`,
+soc_friend2: `<circle cx="0" cy="-4" r="6" fill="HI" opacity="0.7"/><path d="M-8,8 C-8,2 -4,0 0,2 C4,0 8,2 8,8" fill="HI" opacity="0.5"/><path d="M8,-12 L10,-8 L14,-10 L12,-6 L16,-4 L12,-2 L14,2 L10,0 L8,4 L6,0 L2,2 L4,-2 L0,-4 L4,-6 L2,-10 L6,-8 Z" fill="HI" opacity="0.6"/>`,
+soc_friend3: `<path d="M-8,4 L-16,-8 L-14,-10 L-6,0 L-6,-4 L8,-4 L8,12 L-8,12 Z" fill="HI" opacity="0.8"/><path d="M8,-4 L8,12" stroke="LO" stroke-width="1" opacity="0.3"/><path d="M10,0 C14,-2 16,2 14,4" stroke="HI" stroke-width="1.5" opacity="0.4" fill="none"/><path d="M10,4 C16,2 18,6 14,8" stroke="HI" stroke-width="1" opacity="0.3" fill="none"/>`,
+soc_react1: `<path d="M0,16 C-16,4 -16,-8 -8,-14 C-2,-18 0,-12 0,-12 C0,-12 2,-18 8,-14 C16,-8 16,4 0,16 Z" fill="HI" opacity="0.15"/><path d="M-6,-2 L0,-8 L6,-2 L0,16 Z" fill="HI" opacity="0.7"/><path d="M0,-8 L-6,-2 L0,4 Z" fill="LO" opacity="0.3"/><circle cx="-2" cy="-4" r="1.5" fill="HI" opacity="0.4"/>`,
+soc_react2: `<path d="M0,14 C-14,4 -14,-6 -8,-12 C-4,-16 0,-10 0,-10 C0,-10 4,-16 8,-12 C14,-6 14,4 0,14 Z" fill="HI" opacity="0.8"/><path d="M0,-6 C-2,-4 -6,0 -6,4 C-6,8 -2,10 0,10 C2,10 6,8 6,4 C6,0 2,-4 0,-6 Z" fill="LO" opacity="0.3"/>`,
+soc_share: `<circle cx="-8" cy="0" r="4" fill="HI" opacity="0.7"/><circle cx="8" cy="-8" r="4" fill="HI" opacity="0.7"/><circle cx="8" cy="8" r="4" fill="HI" opacity="0.7"/><line x1="-4" y1="-2" x2="4" y2="-6" stroke="HI" stroke-width="1.5" opacity="0.5"/><line x1="-4" y1="2" x2="4" y2="6" stroke="HI" stroke-width="1.5" opacity="0.5"/>`,
+soc_inspire: `<path d="M0,8 C-10,2 -10,-6 -6,-10 C-2,-14 0,-8 0,-8 C0,-8 2,-14 6,-10 C10,-6 10,2 0,8 Z" fill="HI" opacity="0.7"/><path d="M-10,10 C-6,8 -2,12 0,10 C2,12 6,8 10,10" fill="none" stroke="HI" stroke-width="2" opacity="0.6" stroke-linecap="round"/><path d="M-8,14 C-4,12 4,12 8,14" fill="none" stroke="HI" stroke-width="1.5" opacity="0.4" stroke-linecap="round"/>`,
+
+// ── SPECIAL ──
+sp_early: `<circle cx="0" cy="4" r="10" fill="HI" opacity="0.3"/><path d="M-18,10 L18,10" stroke="HI" stroke-width="1.5" opacity="0.4"/><path d="M0,-8 L0,4" stroke="HI" stroke-width="2" opacity="0.7"/><path d="M-8,4 L0,-4 L8,4" fill="none" stroke="HI" stroke-width="2" opacity="0.7" stroke-linecap="round"/><path d="M-14,6 L-10,0" stroke="HI" stroke-width="1" opacity="0.4"/><path d="M14,6 L10,0" stroke="HI" stroke-width="1" opacity="0.4"/><path d="M-12,10 L-14,16" stroke="HI" stroke-width="1" opacity="0.3"/><path d="M12,10 L14,16" stroke="HI" stroke-width="1" opacity="0.3"/>`,
+sp_early_bird: `<circle cx="0" cy="0" r="10" fill="HI" opacity="0.7"/><circle cx="0" cy="0" r="6" fill="LO" opacity="0.3"/><path d="M-14,-8 L-8,-4" stroke="HI" stroke-width="1.5" opacity="0.5" stroke-linecap="round"/><path d="M-12,-14 L-6,-8" stroke="HI" stroke-width="1.5" opacity="0.5" stroke-linecap="round"/><path d="M-4,-16 L-2,-10" stroke="HI" stroke-width="1.5" opacity="0.5" stroke-linecap="round"/><path d="M4,-16 L2,-10" stroke="HI" stroke-width="1.5" opacity="0.5" stroke-linecap="round"/><path d="M14,-8 L8,-4" stroke="HI" stroke-width="1.5" opacity="0.5" stroke-linecap="round"/><path d="M12,-14 L6,-8" stroke="HI" stroke-width="1.5" opacity="0.5" stroke-linecap="round"/>`,
+sp_night_owl: `<path d="M-12,4 C-12,-8 -4,-16 4,-16 C-2,-12 0,-6 0,0 C0,6 -4,12 -8,14 C-2,14 4,12 8,8 C4,14 -4,18 -12,14 C-14,12 -14,8 -12,4 Z" fill="HI" opacity="0.75"/><circle cx="-4" cy="0" r="1.5" fill="LO" opacity="0.5"/><circle cx="4" cy="-6" r="1" fill="HI" opacity="0.4"/><circle cx="8" cy="-10" r="0.8" fill="HI" opacity="0.3"/>`,
+sp_ironman: `<path d="M0,-16 L-14,0 L-10,4 L-4,0 L0,16 L4,0 L10,4 L14,0 Z" fill="HI" opacity="0.8"/><path d="M0,-16 L-14,0 L-10,4 L0,-4 Z" fill="LO" opacity="0.25"/><circle cx="0" cy="-4" r="4" fill="HI" opacity="0.5"/><path d="M-2,-6 L0,-2 L2,-6" fill="none" stroke="LO" stroke-width="1.5" opacity="0.4" stroke-linecap="round"/>`,
+sp_marathon: `<circle cx="0" cy="0" r="14" fill="none" stroke="HI" stroke-width="2" opacity="0.7"/><circle cx="0" cy="0" r="10" fill="none" stroke="HI" stroke-width="0.8" opacity="0.3"/><path d="M0,0 L0,-10" stroke="HI" stroke-width="2" opacity="0.8" stroke-linecap="round"/><path d="M0,0 L8,4" stroke="HI" stroke-width="1.5" opacity="0.6" stroke-linecap="round"/><circle cx="0" cy="0" r="2" fill="HI" opacity="0.6"/><path d="M0,-18 L0,-14" stroke="HI" stroke-width="2" opacity="0.5"/>`,
+sp_weekend: `<rect x="-14" y="-10" width="28" height="24" rx="4" fill="HI" opacity="0.15" stroke="HI" stroke-width="1.5" opacity="0.6"/><line x1="-14" y1="-2" x2="14" y2="-2" stroke="HI" stroke-width="1" opacity="0.4"/><path d="M-6,-8 L-6,-14" stroke="HI" stroke-width="2" opacity="0.5" stroke-linecap="round"/><path d="M6,-8 L6,-14" stroke="HI" stroke-width="2" opacity="0.5" stroke-linecap="round"/><path d="M-4,4 L-8,8 L-4,12 L0,8 Z" fill="HI" opacity="0.6"/><path d="M4,4 L0,8 L4,12 L8,8 Z" fill="HI" opacity="0.6"/><path d="M4,4 L8,8 L4,12 L0,8 Z" fill="LO" opacity="0.2"/>`,
+sp_newyear: `<path d="M0,-18 L2,-8 L0,18" stroke="HI" stroke-width="2" opacity="0.6" stroke-linecap="round"/><path d="M-4,-14 L-8,-6 L-12,4" stroke="HI" stroke-width="1.5" opacity="0.4" stroke-linecap="round"/><path d="M4,-14 L8,-6 L12,4" stroke="HI" stroke-width="1.5" opacity="0.4" stroke-linecap="round"/><circle cx="0" cy="-18" r="3" fill="HI" opacity="0.7"/><circle cx="-12" cy="4" r="2" fill="HI" opacity="0.5"/><circle cx="12" cy="4" r="2" fill="HI" opacity="0.5"/><circle cx="-8" cy="-6" r="1.5" fill="HI" opacity="0.4"/><circle cx="8" cy="-6" r="1.5" fill="HI" opacity="0.4"/><circle cx="-4" cy="12" r="1" fill="HI" opacity="0.3"/><circle cx="4" cy="12" r="1" fill="HI" opacity="0.3"/>`,
+sp_king: `<path d="M-16,6 L-18,-10 L-10,-2 L-4,-14 L0,-4 L4,-14 L10,-2 L18,-10 L16,6 Z" fill="HI" opacity="0.9"/><path d="M-16,6 L16,6 L14,14 L-14,14 Z" fill="LO" opacity="0.6"/><circle cx="-18" cy="-10" r="3" fill="HI" opacity="0.7"/><circle cx="-4" cy="-14" r="3" fill="HI" opacity="0.75"/><circle cx="4" cy="-14" r="3" fill="HI" opacity="0.75"/><circle cx="18" cy="-10" r="3" fill="HI" opacity="0.7"/><circle cx="0" cy="-4" r="2" fill="HI" opacity="0.6"/><rect x="-8" y="8" width="4" height="4" rx="1" fill="HI" opacity="0.5"/><rect x="-2" y="8" width="4" height="4" rx="1" fill="HI" opacity="0.5"/><rect x="4" y="8" width="4" height="4" rx="1" fill="HI" opacity="0.5"/>`,
+};
+
+// ── Category config ──
+const CATS = [
+  {id:'volume',name:'Volume',color:'#f97316',bg:'rgba(249,115,22,0.12)',badges:['vol_ton_1','vol_ton_2','vol_ton_3','vol_ton_4','vol_ton_5','vol_ton_6','vol_ton_7','vol_ton_8','vol_ses_1','vol_ses_2','vol_ses_3','vol_ses_4','vol_ses_5','vol_ses_6']},
+  {id:'consistency',name:'Régularité',color:'#ef4444',bg:'rgba(239,68,68,0.12)',badges:['con_str_1','con_str_2','con_str_3','con_str_4','con_str_5','con_str_6','con_str_7','con_str_8']},
+  {id:'strength',name:'Force',color:'#eab308',bg:'rgba(234,179,8,0.12)',badges:['str_pr_1','str_pr_2','str_pr_3','str_pr_4','str_pr_5','str_pr_6']},
+  {id:'muscles',name:'Muscles',color:'#22c55e',bg:'rgba(34,197,94,0.12)',badges:['mus_chest','mus_back','mus_shoulders','mus_biceps','mus_triceps','mus_quads','mus_hams','mus_glutes','mus_calves','mus_abs','mus_upper','mus_lower','mus_full','mus_balance']},
+  {id:'equipment',name:'Équipement',color:'#3b82f6',bg:'rgba(59,130,246,0.12)',badges:['eq_dumbbell','eq_barbell','eq_cable','eq_machine','eq_bodyweight','eq_kettlebell','eq_arsenal','eq_minimalist']},
+  {id:'variety',name:'Variété',color:'#a855f7',bg:'rgba(168,85,247,0.12)',badges:['var_cur','var_exp','var_adv','var_enc','var_jack','var_cham']},
+  {id:'social',name:'Social',color:'#ec4899',bg:'rgba(236,72,153,0.12)',badges:['soc_friend1','soc_friend2','soc_friend3','soc_react1','soc_react2','soc_share','soc_inspire']},
+  {id:'special',name:'Spécial',color:'#f59e0b',bg:'rgba(245,158,11,0.12)',badges:['sp_early','sp_early_bird','sp_night_owl','sp_ironman','sp_marathon','sp_weekend','sp_newyear','sp_king']},
+];
+
+// Badge metadata
+const BADGES = {
+vol_ton_1:{n:'Première Tonne',t:'br'},vol_ton_2:{n:'Déménageur',t:'br'},vol_ton_3:{n:'Titan',t:'sv'},vol_ton_4:{n:'Atlas',t:'sv'},vol_ton_5:{n:'Hercule',t:'gd'},vol_ton_6:{n:'Colosse',t:'gd'},vol_ton_7:{n:'Légende',t:'pt'},vol_ton_8:{n:'Immortel',t:'pt'},
+vol_ses_1:{n:'Premier Pas',t:'br'},vol_ses_2:{n:'Habitué',t:'br'},vol_ses_3:{n:'Régulier',t:'sv'},vol_ses_4:{n:'Vétéran',t:'sv'},vol_ses_5:{n:'Centurion',t:'gd'},vol_ses_6:{n:'Spartan',t:'pt'},
+con_str_1:{n:'Étincelle',t:'br'},con_str_2:{n:'Flamme',t:'br'},con_str_3:{n:'Brasier',t:'sv'},con_str_4:{n:'Inferno',t:'sv'},con_str_5:{n:'Phénix',t:'gd'},con_str_6:{n:'Éternel',t:'pt'},con_str_7:{n:'Semaine Parfaite',t:'br'},con_str_8:{n:'Mois Parfait',t:'gd'},
+str_pr_1:{n:'Premier PR',t:'br'},str_pr_2:{n:'Chasseur',t:'br'},str_pr_3:{n:'Machine à PRs',t:'sv'},str_pr_4:{n:'Inarrêtable',t:'gd'},str_pr_5:{n:'Club +10%',t:'sv'},str_pr_6:{n:'Club +50%',t:'gd'},
+mus_chest:{n:'Pectoraux',t:'sv'},mus_back:{n:'Dos',t:'sv'},mus_shoulders:{n:'Épaules',t:'sv'},mus_biceps:{n:'Biceps',t:'sv'},mus_triceps:{n:'Triceps',t:'sv'},mus_quads:{n:'Quadriceps',t:'sv'},mus_hams:{n:'Ischio-jambiers',t:'sv'},mus_glutes:{n:'Fessiers',t:'sv'},mus_calves:{n:'Mollets',t:'sv'},mus_abs:{n:'Abdos',t:'sv'},mus_upper:{n:'Architecte Haut',t:'gd'},mus_lower:{n:'Pilier Bas',t:'gd'},mus_full:{n:'Full Body',t:'pt'},mus_balance:{n:'Équilibre',t:'pt'},
+eq_dumbbell:{n:'Haltères',t:'sv'},eq_barbell:{n:'Barre',t:'sv'},eq_cable:{n:'Câbles',t:'sv'},eq_machine:{n:'Machines',t:'sv'},eq_bodyweight:{n:'Poids du Corps',t:'sv'},eq_kettlebell:{n:'Kettlebell',t:'sv'},eq_arsenal:{n:'Arsenal',t:'gd'},eq_minimalist:{n:'Minimaliste',t:'gd'},
+var_cur:{n:'Curieux',t:'br'},var_exp:{n:'Explorateur',t:'sv'},var_adv:{n:'Aventurier',t:'gd'},var_enc:{n:'Encyclopédie',t:'pt'},var_jack:{n:'Touche-à-Tout',t:'sv'},var_cham:{n:'Caméléon',t:'gd'},
+soc_friend1:{n:'Sociable',t:'br'},soc_friend2:{n:'Populaire',t:'sv'},soc_friend3:{n:'Influenceur',t:'gd'},soc_react1:{n:'Encourageant',t:'br'},soc_react2:{n:'Supporter',t:'sv'},soc_share:{n:'Partageur',t:'br'},soc_inspire:{n:'Inspirant',t:'sv'},
+sp_early:{n:'Early Adopter',t:'gd'},sp_early_bird:{n:'Lève-Tôt',t:'br'},sp_night_owl:{n:'Noctambule',t:'br'},sp_ironman:{n:'Iron Man',t:'gd'},sp_marathon:{n:'Marathonien',t:'sv'},sp_weekend:{n:'Guerrier Weekend',t:'sv'},sp_newyear:{n:'Nouvel An',t:'br'},sp_king:{n:'Le Roi',t:'pt'},
+};
+
+// Generate tick marks SVG string
+function ticks(ring,n=36){
+  let s='';
+  for(let i=0;i<n;i++){
+    const a=(i/n)*360;
+    const major=i%(n/4)===0;
+    const y1=major?6:8, y2=major?13:11, w=major?1.8:0.8, o=major?0.5:0.3;
+    s+=`<line x1="50" y1="${y1}" x2="50" y2="${y2}" stroke="${ring}" stroke-width="${w}" opacity="${o}" transform="rotate(${a},50,50)"/>`;
+  }
+  return s;
+}
+
+// Build a badge SVG
+function badge(id, unlocked=true){
+  const b=BADGES[id], t=T[b.t];
+  const iconSvg = (ICONS[id]||'').replace(/HI/g,t.hi).replace(/LO/g,t.lo);
+
+  if(!unlocked){
+    return `<svg width="86" height="86" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="44" fill="rgba(255,255,255,0.02)"/>
+      <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1.5"/>
+      <circle cx="50" cy="50" r="38" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="0.8"/>
+      ${ticks('rgba(255,255,255,0.08)',36)}
+      <g transform="translate(50,50) scale(0.5)" opacity="0.15">${iconSvg.replace(/opacity="[^"]*"/g,'opacity="0.4"')}</g>
+    </svg>`;
+  }
+
+  return `<svg width="86" height="86" viewBox="0 0 100 100" style="--g:${t.glow}">
+    <circle cx="50" cy="50" r="44" fill="${t.fill}" opacity="0.15"/>
+    <circle cx="50" cy="50" r="44" fill="none" stroke="${t.ring}" stroke-width="2.5" opacity="0.8"/>
+    <circle cx="50" cy="50" r="38" fill="none" stroke="${t.ring}" stroke-width="1" opacity="0.35"/>
+    ${ticks(t.hi,36)}
+    <g transform="translate(50,50) scale(0.55)" filter="${t.filter}">${iconSvg}</g>
+  </svg>`;
+}
+
+// Render
+let html='';
+CATS.forEach(cat=>{
+  html+=`<div class="cat-section">
+    <div class="cat-header">
+      <div class="cat-header-icon" style="background:${cat.bg}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${cat.color}" stroke-width="2.5"><circle cx="12" cy="12" r="1"/></svg>
+      </div>
+      <div class="cat-header-title">${cat.name}</div>
+      <div class="cat-header-count">${cat.badges.length} badges</div>
+    </div>
+    <div class="badge-grid">`;
+
+  cat.badges.forEach(bid=>{
+    const b=BADGES[bid], tier=b.t;
+    const tierNames={br:'Bronze',sv:'Silver',gd:'Gold',pt:'Platinum'};
+    const tierColors={br:'var(--bronze)',sv:'var(--silver)',gd:'var(--gold)',pt:'var(--plat)'};
+    html+=`<div class="badge-cell unlocked">
+      <div class="badge-wrap">${badge(bid,true)}<div class="shine"></div></div>
+      <div class="name">${b.n}</div>
+      <span class="tier-tag" style="background:${T[tier].bg};color:${tierColors[tier]}">${tierNames[tier]}</span>
+    </div>`;
+  });
+
+  html+=`</div></div><div class="divider"></div>`;
+});
+
+document.write(html);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,95 @@
+export default {
+  home: {
+    greeting: {
+      morning: 'BON MATIN',
+      afternoon: 'BON APRÈS-MIDI',
+      evening: 'BONSOIR',
+    },
+    stats: {
+      recovery: 'RÉCUP',
+      steps: 'STEPS',
+    },
+    weekly: {
+      title: 'CETTE SEMAINE',
+      streak: 'sem',
+      goalReached: 'objectif atteint !',
+      days: ['L', 'M', 'M', 'J', 'V', 'S', 'D'],
+    },
+    friends: {
+      title: 'amis',
+      recent: 'RÉCENT',
+      viewAll: 'Voir tout',
+    },
+    recommended: {
+      title: 'Recommandés',
+      viewAll: 'Voir tout',
+    },
+    browse: {
+      title: 'Parcourir les entraînements',
+      subtitle: 'disponibles',
+    },
+    workoutCard: {
+      mins: 'mins',
+      kcal: 'kcal',
+    },
+  },
+  tabs: {
+    home: 'Home',
+    trophies: 'Trophées',
+    workouts: 'Workouts',
+    prefs: 'Prefs',
+  },
+  levels: {
+    beginner: 'DÉBUTANT',
+    intermediate: 'INTERMÉDIAIRE',
+    advanced: 'AVANCÉ',
+  },
+  workoutTypes: {
+    express: 'Express',
+    complete: 'Complet',
+  },
+  workouts: {
+    title: 'Workouts',
+    presets: 'Presets',
+    custom: 'Custom',
+    filters: {
+      level: 'Niveau',
+      focus: 'Focus',
+      equipment: 'Équipement',
+      duration: 'Durée',
+    },
+    exercises: 'exercices',
+    noCustom: 'Aucun workout personnalisé',
+    noCustomDesc: 'Créez votre premier workout personnalisé',
+    createWorkout: 'Créer un workout',
+  },
+  recovery: {
+    title: 'Récupération',
+    score: 'SCORE',
+    excellent: 'Excellent état',
+    partial: 'Récup. partielle',
+    restNeeded: 'Repos conseillé',
+    front: 'Avant',
+    back: 'Dos',
+    weeklyVolume: 'VOLUME HEBDO',
+    status: 'Statut',
+    lastSession: 'Dernière séance',
+    weeklySets: 'Séries (sem.)',
+  },
+  trophies: {
+    title: 'Trophées',
+    summary: 'Résumé',
+    unlocked: 'Débloqués',
+    locked: 'À débloquer',
+    allCategories: 'Toutes',
+    points: 'points',
+    badges: 'badges',
+    nextLevel: 'Prochain niveau',
+    progress: 'Progression',
+    secret: 'Secret',
+    closeTo: 'Presque débloqué',
+  },
+  placeholders: {
+    comingSoon: 'Bientôt disponible',
+  },
+};

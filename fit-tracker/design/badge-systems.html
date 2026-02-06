@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Badge System Propositions — Onset Fitness</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #050505;
+  --card: rgba(255,255,255,0.04);
+  --border: rgba(255,255,255,0.06);
+  --text: #fff;
+  --muted: rgba(120,120,130,1);
+  --label: rgba(160,150,140,1);
+  --primary: #f97316;
+  --bronze: #CD7F32;
+  --silver: #C0C0C0;
+  --gold: #FFD700;
+  --platinum: #E5E4E2;
+  --bronze-dark: #8B5A2B;
+  --silver-dark: #808080;
+  --gold-dark: #B8960F;
+  --platinum-dark: #A0A0A0;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  min-height: 100vh;
+}
+
+/* Tab Switcher */
+.tab-bar {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; gap: 4px;
+  padding: 12px 16px;
+  background: rgba(5,5,5,0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+.tab-btn {
+  flex: 1; padding: 10px 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.tab-btn.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Section headers */
+.section-title {
+  text-align: center;
+  padding: 40px 20px 8px;
+  font-size: 28px;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--primary), #eab308);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.section-sub {
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  padding: 0 20px 32px;
+  line-height: 1.5;
+}
+
+/* Badge showcase grid */
+.badge-row {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding: 16px 12px;
+  flex-wrap: wrap;
+}
+.badge-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 120px;
+}
+.badge-label {
+  font-size: 11px;
+  color: var(--label);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+.badge-name {
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 600;
+  text-align: center;
+}
+.tier-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 6px;
+}
+
+.divider {
+  height: 1px;
+  margin: 32px 20px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+}
+
+/* ═══════════════════════════════════════
+   SYSTEM A — "FORGE" (Embossed Medallions)
+   ═══════════════════════════════════════ */
+
+.forge-badge {
+  width: 100px; height: 100px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.forge-badge svg { position: absolute; top: 0; left: 0; }
+
+/* Idle glow animation */
+@keyframes forgeGlow {
+  0%, 100% { filter: drop-shadow(0 0 8px var(--glow-color)); }
+  50% { filter: drop-shadow(0 0 18px var(--glow-color)); }
+}
+.forge-badge.unlocked {
+  animation: forgeGlow 3s ease-in-out infinite;
+}
+
+/* Shine sweep */
+@keyframes forgeShineSweep {
+  0% { transform: translateX(-100%) rotate(25deg); }
+  100% { transform: translateX(200%) rotate(25deg); }
+}
+.forge-shine {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  pointer-events: none;
+}
+.forge-shine::after {
+  content: '';
+  position: absolute;
+  top: -20%; left: -40%;
+  width: 40%; height: 140%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  animation: forgeShineSweep 4s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+/* Locked state */
+.forge-badge.locked { opacity: 0.5; filter: saturate(0); }
+
+/* ═══════════════════════════════════════
+   SYSTEM B — "CRYSTAL" (Faceted Gems)
+   ═══════════════════════════════════════ */
+
+.crystal-badge {
+  width: 100px; height: 100px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.crystal-badge svg { position: absolute; top: 0; left: 0; }
+
+@keyframes crystalPulse {
+  0%, 100% { filter: drop-shadow(0 0 6px var(--glow-color)) brightness(1); }
+  50% { filter: drop-shadow(0 0 14px var(--glow-color)) brightness(1.1); }
+}
+.crystal-badge.unlocked {
+  animation: crystalPulse 4s ease-in-out infinite;
+}
+
+@keyframes crystalRotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.crystal-ring {
+  position: absolute;
+  top: 0; left: 0;
+  animation: crystalRotate 20s linear infinite;
+}
+
+.crystal-badge.locked { opacity: 0.4; filter: saturate(0) brightness(0.6); }
+
+/* ═══════════════════════════════════════
+   SYSTEM C — "RELIC" (Ancient Artifacts)
+   ═══════════════════════════════════════ */
+
+.relic-badge {
+  width: 100px; height: 100px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.relic-badge svg { position: absolute; top: 0; left: 0; }
+
+@keyframes relicFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes relicGlow {
+  0%, 100% { filter: drop-shadow(0 0 10px var(--glow-color)); }
+  50% { filter: drop-shadow(0 0 22px var(--glow-color)); }
+}
+.relic-badge.unlocked {
+  animation: relicFloat 5s ease-in-out infinite, relicGlow 3s ease-in-out infinite;
+}
+
+@keyframes relicRuneSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(-360deg); }
+}
+.relic-rune-ring {
+  position: absolute; top: 0; left: 0;
+  animation: relicRuneSpin 30s linear infinite;
+}
+
+/* Particle effect for unlocked relics */
+@keyframes relicParticle {
+  0% { opacity: 0; transform: translateY(0) scale(0.5); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-30px) scale(0); }
+}
+.relic-particles {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+}
+.relic-particle {
+  position: absolute;
+  width: 3px; height: 3px;
+  border-radius: 50%;
+  animation: relicParticle 2.5s ease-out infinite;
+}
+
+.relic-badge.locked { opacity: 0.4; filter: saturate(0) brightness(0.5); }
+
+/* Animation showcase */
+.anim-section {
+  padding: 20px;
+}
+.anim-title {
+  color: var(--label);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+/* Unlock animation */
+@keyframes unlockBurst {
+  0% { transform: scale(0.5); opacity: 0; filter: brightness(3); }
+  40% { transform: scale(1.2); opacity: 1; filter: brightness(1.5); }
+  60% { transform: scale(0.95); }
+  100% { transform: scale(1); opacity: 1; filter: brightness(1); }
+}
+@keyframes unlockRing {
+  0% { transform: scale(0.5); opacity: 0; }
+  50% { transform: scale(1.5); opacity: 0.6; }
+  100% { transform: scale(2); opacity: 0; }
+}
+.unlock-demo {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+}
+.unlock-badge {
+  animation: unlockBurst 1.5s ease-out infinite;
+}
+.unlock-ring-effect {
+  position: absolute;
+  width: 100px; height: 100px;
+  border: 2px solid var(--primary);
+  border-radius: 50%;
+  animation: unlockRing 1.5s ease-out infinite;
+}
+
+/* Info box */
+.info-box {
+  margin: 16px 20px;
+  padding: 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+.info-box h4 {
+  color: var(--primary);
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.info-box p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.info-box ul {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.8;
+  padding-left: 16px;
+}
+</style>
+</head>
+<body>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="showTab('forge')">A — Forge</button>
+  <button class="tab-btn" onclick="showTab('crystal')">B — Crystal</button>
+  <button class="tab-btn" onclick="showTab('relic')">C — Relic</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SYSTEM A — "FORGE" (Embossed Medallions)
+     ═══════════════════════════════════════════════════════ -->
+<div id="forge" class="tab-content active">
+  <h2 class="section-title">System A — Forge</h2>
+  <p class="section-sub">Embossed metallic medallions with layered depth.<br>Inspired by military medals & luxury watchmaking.</p>
+
+  <div class="info-box">
+    <h4>Design Philosophy</h4>
+    <ul>
+      <li>Multi-ring construction: outer frame → decorative ring → inner emblem</li>
+      <li>Metallic SVG gradients per tier (bronze/silver/gold/platinum)</li>
+      <li>Embossed center icon with shadow depth</li>
+      <li>Tick marks like a chronograph bezel</li>
+      <li>Shine sweep animation on unlocked badges</li>
+      <li>Soft glow pulse matching tier color</li>
+    </ul>
+  </div>
+
+  <!-- Tier showcase -->
+  <div class="anim-title">4 Tiers — Unlocked State</div>
+  <div class="badge-row">
+    <!-- BRONZE -->
+    <div class="badge-col">
+      <div class="forge-badge unlocked" style="--glow-color: rgba(205,127,50,0.5)">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <defs>
+            <radialGradient id="fb-bg" cx="40%" cy="35%"><stop offset="0%" stop-color="#D4956A"/><stop offset="60%" stop-color="#CD7F32"/><stop offset="100%" stop-color="#8B5A2B"/></radialGradient>
+            <linearGradient id="fb-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#E8B878"/><stop offset="50%" stop-color="#CD7F32"/><stop offset="100%" stop-color="#8B4513"/></linearGradient>
+            <radialGradient id="fb-inner" cx="45%" cy="40%"><stop offset="0%" stop-color="#E8C898"/><stop offset="50%" stop-color="#CD7F32"/><stop offset="100%" stop-color="#6B3A1F"/></radialGradient>
+            <filter id="fb-emboss"><feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#000" flood-opacity="0.4"/><feDropShadow dx="0" dy="-0.5" stdDeviation="0.5" flood-color="#E8C898" flood-opacity="0.3"/></filter>
+          </defs>
+          <!-- Outer ring -->
+          <circle cx="50" cy="50" r="46" fill="none" stroke="url(#fb-ring)" stroke-width="3" opacity="0.8"/>
+          <!-- Tick marks (36) -->
+          <g opacity="0.4">
+            <line x1="50" y1="6" x2="50" y2="12" stroke="#E8B878" stroke-width="2" transform="rotate(0,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(10,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(20,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(30,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(40,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(50,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(60,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(70,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(80,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="12" stroke="#E8B878" stroke-width="2" transform="rotate(90,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(100,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(110,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(120,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(130,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(140,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(150,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(160,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(170,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="12" stroke="#E8B878" stroke-width="2" transform="rotate(180,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(190,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(200,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(210,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(220,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(230,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(240,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(250,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(260,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="12" stroke="#E8B878" stroke-width="2" transform="rotate(270,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(280,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(290,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(300,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(310,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(320,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(330,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(340,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#CD7F32" stroke-width="1" transform="rotate(350,50,50)"/>
+          </g>
+          <!-- Inner circle bg -->
+          <circle cx="50" cy="50" r="36" fill="url(#fb-inner)" opacity="0.2"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="url(#fb-ring)" stroke-width="1.5" opacity="0.6"/>
+          <!-- Icon: Footprint (Premier Pas) -->
+          <g filter="url(#fb-emboss)" transform="translate(50,50) scale(0.7)">
+            <path d="M-8,-18 C-6,-22 -2,-24 2,-22 C6,-20 8,-16 6,-12 L4,-4 C3,-1 0,2 -3,2 C-6,2 -8,0 -9,-3 Z" fill="#E8C898" opacity="0.9"/>
+            <path d="M6,-18 C8,-22 12,-22 14,-18 C16,-14 14,-10 12,-8 L8,-2 C6,1 3,2 1,0 C-1,-2 0,-4 2,-6 Z" fill="#E8C898" opacity="0.9"/>
+            <ellipse cx="-6" cy="8" rx="8" ry="12" fill="#E8C898" opacity="0.85" transform="rotate(-10,-6,8)"/>
+            <ellipse cx="-6" cy="8" rx="5" ry="9" fill="#CD7F32" opacity="0.4" transform="rotate(-10,-6,8)"/>
+            <circle cx="-12" cy="-10" r="3" fill="#E8C898" opacity="0.7"/>
+            <circle cx="-15" cy="-4" r="2.5" fill="#E8C898" opacity="0.6"/>
+            <circle cx="-16" cy="3" r="2.5" fill="#E8C898" opacity="0.55"/>
+            <circle cx="-14" cy="10" r="2" fill="#E8C898" opacity="0.5"/>
+          </g>
+        </svg>
+        <div class="forge-shine"></div>
+      </div>
+      <span class="tier-label" style="background:rgba(205,127,50,0.15);color:var(--bronze)">Bronze</span>
+      <span class="badge-name">Premier Pas</span>
+    </div>
+
+    <!-- SILVER -->
+    <div class="badge-col">
+      <div class="forge-badge unlocked" style="--glow-color: rgba(192,192,192,0.5)">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <defs>
+            <linearGradient id="fs-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#E8E8E8"/><stop offset="50%" stop-color="#C0C0C0"/><stop offset="100%" stop-color="#808080"/></linearGradient>
+            <radialGradient id="fs-inner" cx="45%" cy="40%"><stop offset="0%" stop-color="#F0F0F0"/><stop offset="50%" stop-color="#C0C0C0"/><stop offset="100%" stop-color="#606060"/></radialGradient>
+            <filter id="fs-emboss"><feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#000" flood-opacity="0.4"/><feDropShadow dx="0" dy="-0.5" stdDeviation="0.5" flood-color="#F0F0F0" flood-opacity="0.3"/></filter>
+          </defs>
+          <circle cx="50" cy="50" r="46" fill="none" stroke="url(#fs-ring)" stroke-width="3" opacity="0.8"/>
+          <g opacity="0.35">
+            <line x1="50" y1="6" x2="50" y2="12" stroke="#E8E8E8" stroke-width="2" transform="rotate(0,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(10,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(20,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(30,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(40,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(50,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(60,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(70,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(80,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="12" stroke="#E8E8E8" stroke-width="2" transform="rotate(90,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(100,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(110,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(120,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(130,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(140,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(150,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(160,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(170,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="12" stroke="#E8E8E8" stroke-width="2" transform="rotate(180,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(190,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(200,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(210,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(220,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(230,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(240,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(250,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(260,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="12" stroke="#E8E8E8" stroke-width="2" transform="rotate(270,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(280,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(290,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(300,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(310,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(320,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(330,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(340,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#C0C0C0" stroke-width="1" transform="rotate(350,50,50)"/>
+          </g>
+          <circle cx="50" cy="50" r="36" fill="url(#fs-inner)" opacity="0.15"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="url(#fs-ring)" stroke-width="1.5" opacity="0.5"/>
+          <!-- Icon: Mountain (Titan) -->
+          <g filter="url(#fs-emboss)" transform="translate(50,50)">
+            <path d="M-18,14 L-4,-16 L0,-8 L6,-16 L20,14 Z" fill="#E0E0E0" opacity="0.9"/>
+            <path d="M-4,-16 L0,-8 L6,-16 L2,-6 Z" fill="#F8F8F8" opacity="0.7"/>
+            <path d="M-18,14 L-4,-16 L-2,-12 L-12,14 Z" fill="#A0A0A0" opacity="0.4"/>
+            <line x1="-18" y1="14" x2="20" y2="14" stroke="#C0C0C0" stroke-width="1" opacity="0.6"/>
+          </g>
+        </svg>
+        <div class="forge-shine"></div>
+      </div>
+      <span class="tier-label" style="background:rgba(192,192,192,0.15);color:var(--silver)">Silver</span>
+      <span class="badge-name">Titan</span>
+    </div>
+
+    <!-- GOLD -->
+    <div class="badge-col">
+      <div class="forge-badge unlocked" style="--glow-color: rgba(255,215,0,0.5)">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <defs>
+            <linearGradient id="fg-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FFE878"/><stop offset="30%" stop-color="#FFD700"/><stop offset="70%" stop-color="#B8960F"/><stop offset="100%" stop-color="#FFE878"/></linearGradient>
+            <radialGradient id="fg-inner" cx="40%" cy="35%"><stop offset="0%" stop-color="#FFF0A0"/><stop offset="50%" stop-color="#FFD700"/><stop offset="100%" stop-color="#8B6914"/></radialGradient>
+            <filter id="fg-emboss"><feDropShadow dx="0" dy="1" stdDeviation="1.2" flood-color="#000" flood-opacity="0.5"/><feDropShadow dx="0" dy="-0.5" stdDeviation="0.5" flood-color="#FFF0A0" flood-opacity="0.4"/></filter>
+          </defs>
+          <circle cx="50" cy="50" r="46" fill="none" stroke="url(#fg-ring)" stroke-width="3.5" opacity="0.9"/>
+          <g opacity="0.5">
+            <line x1="50" y1="5" x2="50" y2="12" stroke="#FFE878" stroke-width="2.5" transform="rotate(0,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(10,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(20,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(30,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(40,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(50,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(60,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(70,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(80,50,50)"/>
+            <line x1="50" y1="5" x2="50" y2="12" stroke="#FFE878" stroke-width="2.5" transform="rotate(90,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(100,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(110,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(120,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(130,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(140,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(150,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(160,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(170,50,50)"/>
+            <line x1="50" y1="5" x2="50" y2="12" stroke="#FFE878" stroke-width="2.5" transform="rotate(180,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(190,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(200,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(210,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(220,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(230,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(240,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(250,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(260,50,50)"/>
+            <line x1="50" y1="5" x2="50" y2="12" stroke="#FFE878" stroke-width="2.5" transform="rotate(270,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(280,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(290,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(300,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(310,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(320,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(330,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(340,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#FFD700" stroke-width="1" transform="rotate(350,50,50)"/>
+          </g>
+          <circle cx="50" cy="50" r="36" fill="url(#fg-inner)" opacity="0.2"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="url(#fg-ring)" stroke-width="2" opacity="0.7"/>
+          <!-- Icon: Zap (Hercule) -->
+          <g filter="url(#fg-emboss)" transform="translate(50,48)">
+            <path d="M-2,-20 L-10,4 L-2,2 L-6,22 L12,-4 L4,-2 L8,-20 Z" fill="#FFE878" opacity="0.95"/>
+            <path d="M-2,-20 L8,-20 L4,-2 L12,-4 Z" fill="#FFF0A0" opacity="0.5"/>
+          </g>
+        </svg>
+        <div class="forge-shine"></div>
+      </div>
+      <span class="tier-label" style="background:rgba(255,215,0,0.15);color:var(--gold)">Gold</span>
+      <span class="badge-name">Hercule</span>
+    </div>
+
+    <!-- PLATINUM -->
+    <div class="badge-col">
+      <div class="forge-badge unlocked" style="--glow-color: rgba(200,200,255,0.5)">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <defs>
+            <linearGradient id="fp-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#F0F0FF"/><stop offset="30%" stop-color="#D0D0E8"/><stop offset="60%" stop-color="#A0A0C0"/><stop offset="100%" stop-color="#F0F0FF"/></linearGradient>
+            <radialGradient id="fp-inner" cx="40%" cy="35%"><stop offset="0%" stop-color="#F8F8FF"/><stop offset="50%" stop-color="#D0D0E0"/><stop offset="100%" stop-color="#707088"/></radialGradient>
+            <filter id="fp-emboss"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#000" flood-opacity="0.5"/><feDropShadow dx="0" dy="-1" stdDeviation="1" flood-color="#F8F8FF" flood-opacity="0.5"/></filter>
+            <filter id="fp-glow"><feGaussianBlur stdDeviation="2" result="blur"/><feComposite in="SourceGraphic" in2="blur" operator="over"/></filter>
+          </defs>
+          <circle cx="50" cy="50" r="46" fill="none" stroke="url(#fp-ring)" stroke-width="4" opacity="0.9"/>
+          <!-- Double ring -->
+          <circle cx="50" cy="50" r="42" fill="none" stroke="url(#fp-ring)" stroke-width="0.5" opacity="0.3"/>
+          <g opacity="0.5">
+            <line x1="50" y1="4" x2="50" y2="13" stroke="#F0F0FF" stroke-width="2.5" transform="rotate(0,50,50)"/>
+            <line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(10,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(20,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(30,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(40,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(50,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(60,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(70,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(80,50,50)"/>
+            <line x1="50" y1="4" x2="50" y2="13" stroke="#F0F0FF" stroke-width="2.5" transform="rotate(90,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(100,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(110,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(120,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(130,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(140,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(150,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(160,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(170,50,50)"/>
+            <line x1="50" y1="4" x2="50" y2="13" stroke="#F0F0FF" stroke-width="2.5" transform="rotate(180,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(190,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(200,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(210,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(220,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(230,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(240,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(250,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(260,50,50)"/>
+            <line x1="50" y1="4" x2="50" y2="13" stroke="#F0F0FF" stroke-width="2.5" transform="rotate(270,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(280,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(290,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(300,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(310,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(320,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(330,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(340,50,50)"/><line x1="50" y1="6" x2="50" y2="10" stroke="#D0D0E8" stroke-width="1.2" transform="rotate(350,50,50)"/>
+          </g>
+          <circle cx="50" cy="50" r="36" fill="url(#fp-inner)" opacity="0.15"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="url(#fp-ring)" stroke-width="2" opacity="0.6"/>
+          <!-- Icon: Crown (Légende) -->
+          <g filter="url(#fp-emboss)" transform="translate(50,50)">
+            <path d="M-16,8 L-18,-8 L-8,-2 L0,-14 L8,-2 L18,-8 L16,8 Z" fill="#E8E8FF" opacity="0.95"/>
+            <path d="M-16,8 L16,8 L14,14 L-14,14 Z" fill="#D0D0E8" opacity="0.9"/>
+            <circle cx="-18" cy="-8" r="2.5" fill="#F0F0FF" opacity="0.8"/>
+            <circle cx="0" cy="-14" r="2.5" fill="#F0F0FF" opacity="0.8"/>
+            <circle cx="18" cy="-8" r="2.5" fill="#F0F0FF" opacity="0.8"/>
+            <path d="M-16,8 L-18,-8 L-8,-2 L0,-14" fill="#F8F8FF" opacity="0.3"/>
+          </g>
+        </svg>
+        <div class="forge-shine"></div>
+      </div>
+      <span class="tier-label" style="background:rgba(200,200,255,0.15);color:var(--platinum)">Platinum</span>
+      <span class="badge-name">Légende</span>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Locked vs Unlocked -->
+  <div class="anim-title">Locked vs Unlocked States</div>
+  <div class="badge-row">
+    <div class="badge-col">
+      <div class="forge-badge locked" style="--glow-color: transparent">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+          <g opacity="0.2"><line x1="50" y1="6" x2="50" y2="12" stroke="rgba(255,255,255,0.2)" stroke-width="2" transform="rotate(0,50,50)"/><line x1="50" y1="6" x2="50" y2="12" stroke="rgba(255,255,255,0.2)" stroke-width="2" transform="rotate(90,50,50)"/><line x1="50" y1="6" x2="50" y2="12" stroke="rgba(255,255,255,0.2)" stroke-width="2" transform="rotate(180,50,50)"/><line x1="50" y1="6" x2="50" y2="12" stroke="rgba(255,255,255,0.2)" stroke-width="2" transform="rotate(270,50,50)"/></g>
+          <circle cx="50" cy="50" r="36" fill="rgba(255,255,255,0.03)"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+          <!-- Locked icon silhouette -->
+          <g transform="translate(50,48)" opacity="0.25">
+            <path d="M-8,-18 C-6,-22 -2,-24 2,-22 C6,-20 8,-16 6,-12 L4,-4 C3,-1 0,2 -3,2 C-6,2 -8,0 -9,-3 Z" fill="#888"/>
+            <ellipse cx="-6" cy="8" rx="8" ry="12" fill="#888" transform="rotate(-10,-6,8)"/>
+            <circle cx="-12" cy="-10" r="3" fill="#888"/><circle cx="-15" cy="-4" r="2.5" fill="#888"/><circle cx="-16" cy="3" r="2.5" fill="#888"/>
+          </g>
+        </svg>
+      </div>
+      <span class="badge-label">Locked</span>
+      <span class="badge-name" style="color:var(--muted)">Premier Pas</span>
+    </div>
+    <div class="badge-col">
+      <div class="forge-badge unlocked" style="--glow-color: rgba(205,127,50,0.5)">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <defs>
+            <radialGradient id="fb-inner2" cx="45%" cy="40%"><stop offset="0%" stop-color="#E8C898"/><stop offset="50%" stop-color="#CD7F32"/><stop offset="100%" stop-color="#6B3A1F"/></radialGradient>
+            <linearGradient id="fb-ring2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#E8B878"/><stop offset="50%" stop-color="#CD7F32"/><stop offset="100%" stop-color="#8B4513"/></linearGradient>
+          </defs>
+          <circle cx="50" cy="50" r="46" fill="none" stroke="url(#fb-ring2)" stroke-width="3" opacity="0.8"/>
+          <circle cx="50" cy="50" r="36" fill="url(#fb-inner2)" opacity="0.2"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="url(#fb-ring2)" stroke-width="1.5" opacity="0.6"/>
+          <g transform="translate(50,48) scale(0.7)">
+            <path d="M-8,-18 C-6,-22 -2,-24 2,-22 C6,-20 8,-16 6,-12 L4,-4 C3,-1 0,2 -3,2 C-6,2 -8,0 -9,-3 Z" fill="#E8C898" opacity="0.9"/>
+            <ellipse cx="-6" cy="8" rx="8" ry="12" fill="#E8C898" opacity="0.85" transform="rotate(-10,-6,8)"/>
+            <ellipse cx="-6" cy="8" rx="5" ry="9" fill="#CD7F32" opacity="0.4" transform="rotate(-10,-6,8)"/>
+            <circle cx="-12" cy="-10" r="3" fill="#E8C898" opacity="0.7"/><circle cx="-15" cy="-4" r="2.5" fill="#E8C898" opacity="0.6"/><circle cx="-16" cy="3" r="2.5" fill="#E8C898" opacity="0.55"/>
+          </g>
+        </svg>
+        <div class="forge-shine"></div>
+      </div>
+      <span class="badge-label">Unlocked</span>
+      <span class="badge-name">Premier Pas</span>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- More badge examples -->
+  <div class="anim-title">Badge Variety — Unique Icons</div>
+  <div class="badge-row">
+    <div class="badge-col">
+      <div class="forge-badge unlocked" style="--glow-color: rgba(205,127,50,0.4)">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="46" fill="none" stroke="url(#fb-ring)" stroke-width="3" opacity="0.8"/>
+          <circle cx="50" cy="50" r="36" fill="url(#fb-inner)" opacity="0.2"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="url(#fb-ring)" stroke-width="1.5" opacity="0.6"/>
+          <!-- Trophy icon -->
+          <g filter="url(#fb-emboss)" transform="translate(50,50)">
+            <path d="M-10,-14 L10,-14 L10,-8 C14,-8 18,-4 16,2 C14,6 10,6 8,4 L8,-2 L-8,-2 L-8,4 C-10,6 -14,6 -16,2 C-18,-4 -14,-8 -10,-8 Z" fill="#E8C898" opacity="0.9"/>
+            <path d="M-6,4 L6,4 L4,10 L-4,10 Z" fill="#CD7F32" opacity="0.8"/>
+            <rect x="-8" y="10" width="16" height="4" rx="2" fill="#E8C898" opacity="0.9"/>
+            <path d="M-2,-10 L0,-6 L2,-10 L4,-6 L2,-2 L-2,-2 L-4,-6 Z" fill="#FFD700" opacity="0.7"/>
+          </g>
+        </svg>
+        <div class="forge-shine"></div>
+      </div>
+      <span class="badge-name">Premier PR</span>
+    </div>
+    <div class="badge-col">
+      <div class="forge-badge unlocked" style="--glow-color: rgba(205,127,50,0.4)">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="46" fill="none" stroke="url(#fb-ring)" stroke-width="3" opacity="0.8"/>
+          <circle cx="50" cy="50" r="36" fill="url(#fb-inner)" opacity="0.2"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="url(#fb-ring)" stroke-width="1.5" opacity="0.6"/>
+          <!-- Flame icon -->
+          <g filter="url(#fb-emboss)" transform="translate(50,50)">
+            <path d="M0,-18 C8,-10 14,0 10,10 C8,16 2,18 0,18 C-2,18 -8,16 -10,10 C-14,0 -8,-10 0,-18 Z" fill="#E8C898" opacity="0.9"/>
+            <path d="M0,-8 C4,-4 6,2 4,8 C2,12 0,14 -2,12 C-4,8 -4,2 0,-8 Z" fill="#FFD700" opacity="0.6"/>
+            <path d="M0,-2 C2,0 3,4 2,8 C1,10 0,10 -1,8 C-2,4 -1,0 0,-2 Z" fill="#FFF0A0" opacity="0.5"/>
+          </g>
+        </svg>
+        <div class="forge-shine"></div>
+      </div>
+      <span class="badge-name">Étincelle</span>
+    </div>
+    <div class="badge-col">
+      <div class="forge-badge unlocked" style="--glow-color: rgba(192,192,192,0.4)">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="46" fill="none" stroke="url(#fs-ring)" stroke-width="3" opacity="0.8"/>
+          <circle cx="50" cy="50" r="36" fill="url(#fs-inner)" opacity="0.15"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="url(#fs-ring)" stroke-width="1.5" opacity="0.5"/>
+          <!-- Dumbbell icon -->
+          <g filter="url(#fs-emboss)" transform="translate(50,50)">
+            <rect x="-20" y="-4" width="8" height="8" rx="2" fill="#E0E0E0" opacity="0.9"/>
+            <rect x="12" y="-4" width="8" height="8" rx="2" fill="#E0E0E0" opacity="0.9"/>
+            <rect x="-14" y="-6" width="4" height="12" rx="1" fill="#C0C0C0" opacity="0.8"/>
+            <rect x="10" y="-6" width="4" height="12" rx="1" fill="#C0C0C0" opacity="0.8"/>
+            <rect x="-10" y="-2" width="20" height="4" rx="2" fill="#D0D0D0" opacity="0.9"/>
+          </g>
+        </svg>
+        <div class="forge-shine"></div>
+      </div>
+      <span class="badge-name">Maître Haltères</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SYSTEM B — "CRYSTAL" (Faceted Gems)
+     ═══════════════════════════════════════════════════════ -->
+<div id="crystal" class="tab-content">
+  <h2 class="section-title">System B — Crystal</h2>
+  <p class="section-sub">Hexagonal gem-cut badges with prismatic light.<br>Inspired by gemstones & holographic materials.</p>
+
+  <div class="info-box">
+    <h4>Design Philosophy</h4>
+    <ul>
+      <li>Hexagonal shape — distinctive, game-achievement feel</li>
+      <li>Faceted inner surfaces with light refraction effect</li>
+      <li>Rotating orbital ring of small dots around unlocked badges</li>
+      <li>Prismatic shimmer animation on hover/unlock</li>
+      <li>Inner icon etched with depth shadow</li>
+      <li>Frosted glass effect for locked state</li>
+    </ul>
+  </div>
+
+  <div class="anim-title">4 Tiers — Unlocked State</div>
+  <div class="badge-row">
+    <!-- BRONZE Crystal -->
+    <div class="badge-col">
+      <div class="crystal-badge unlocked" style="--glow-color: rgba(205,127,50,0.4)">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <defs>
+            <linearGradient id="cb-hex" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#D4956A"/><stop offset="50%" stop-color="#CD7F32"/><stop offset="100%" stop-color="#8B5A2B"/></linearGradient>
+            <linearGradient id="cb-facet" x1="0" y1="0" x2="0.5" y2="1"><stop offset="0%" stop-color="#E8C898" stop-opacity="0.3"/><stop offset="100%" stop-color="#8B5A2B" stop-opacity="0.1"/></linearGradient>
+            <filter id="cb-glow"><feGaussianBlur stdDeviation="3" result="blur"/><feFlood flood-color="#CD7F32" flood-opacity="0.3"/><feComposite in2="blur" operator="in"/><feComposite in="SourceGraphic"/></filter>
+          </defs>
+          <!-- Hex shape -->
+          <polygon points="50,6 88,28 88,72 50,94 12,72 12,28" fill="url(#cb-hex)" opacity="0.15" stroke="url(#cb-hex)" stroke-width="2"/>
+          <!-- Faceted inner lines -->
+          <line x1="50" y1="6" x2="50" y2="94" stroke="#CD7F32" stroke-width="0.5" opacity="0.15"/>
+          <line x1="12" y1="28" x2="88" y2="72" stroke="#CD7F32" stroke-width="0.5" opacity="0.15"/>
+          <line x1="88" y1="28" x2="12" y2="72" stroke="#CD7F32" stroke-width="0.5" opacity="0.15"/>
+          <!-- Inner hex -->
+          <polygon points="50,20 74,35 74,65 50,80 26,65 26,35" fill="url(#cb-facet)" stroke="#CD7F32" stroke-width="1" opacity="0.6"/>
+          <!-- Facet highlights -->
+          <polygon points="50,20 74,35 50,50 26,35" fill="#E8C898" opacity="0.08"/>
+          <!-- Icon: Footprints -->
+          <g transform="translate(50,50) scale(0.55)" filter="url(#cb-glow)">
+            <path d="M-6,-18 C-4,-22 0,-24 4,-22 C8,-20 10,-16 8,-12 L6,-4 C5,-1 2,2 -1,2 C-4,2 -6,0 -7,-3 Z" fill="#E8C898"/>
+            <ellipse cx="-4" cy="8" rx="7" ry="11" fill="#E8C898" transform="rotate(-10,-4,8)"/>
+            <circle cx="-10" cy="-10" r="2.5" fill="#D4956A"/><circle cx="-13" cy="-4" r="2" fill="#D4956A"/><circle cx="-14" cy="3" r="2" fill="#D4956A"/>
+          </g>
+        </svg>
+        <!-- Orbital dots -->
+        <svg class="crystal-ring" width="100" height="100" viewBox="0 0 100 100" style="position:absolute;top:0;left:0">
+          <circle cx="50" cy="4" r="1.5" fill="#CD7F32" opacity="0.6"/>
+          <circle cx="88" cy="50" r="1.5" fill="#CD7F32" opacity="0.4"/>
+          <circle cx="50" cy="96" r="1.5" fill="#CD7F32" opacity="0.6"/>
+          <circle cx="12" cy="50" r="1.5" fill="#CD7F32" opacity="0.4"/>
+        </svg>
+      </div>
+      <span class="tier-label" style="background:rgba(205,127,50,0.15);color:var(--bronze)">Bronze</span>
+      <span class="badge-name">Premier Pas</span>
+    </div>
+
+    <!-- SILVER Crystal -->
+    <div class="badge-col">
+      <div class="crystal-badge unlocked" style="--glow-color: rgba(192,192,192,0.4)">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <defs>
+            <linearGradient id="cs-hex" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#E0E0E0"/><stop offset="50%" stop-color="#C0C0C0"/><stop offset="100%" stop-color="#808080"/></linearGradient>
+          </defs>
+          <polygon points="50,6 88,28 88,72 50,94 12,72 12,28" fill="url(#cs-hex)" opacity="0.12" stroke="url(#cs-hex)" stroke-width="2"/>
+          <line x1="50" y1="6" x2="50" y2="94" stroke="#C0C0C0" stroke-width="0.5" opacity="0.15"/>
+          <line x1="12" y1="28" x2="88" y2="72" stroke="#C0C0C0" stroke-width="0.5" opacity="0.15"/>
+          <line x1="88" y1="28" x2="12" y2="72" stroke="#C0C0C0" stroke-width="0.5" opacity="0.15"/>
+          <polygon points="50,20 74,35 74,65 50,80 26,65 26,35" fill="rgba(192,192,192,0.08)" stroke="#C0C0C0" stroke-width="1" opacity="0.5"/>
+          <polygon points="50,20 74,35 50,50 26,35" fill="#E0E0E0" opacity="0.06"/>
+          <!-- Mountain icon -->
+          <g transform="translate(50,50) scale(0.6)">
+            <path d="M-22,16 L-6,-18 L0,-6 L8,-18 L24,16 Z" fill="#D0D0D0" opacity="0.9"/>
+            <path d="M-6,-18 L0,-6 L8,-18 L2,-8 Z" fill="#E8E8E8" opacity="0.6"/>
+            <path d="M-22,16 L-6,-18 L-3,-12 L-14,16 Z" fill="#A0A0A0" opacity="0.3"/>
+          </g>
+        </svg>
+        <svg class="crystal-ring" width="100" height="100" viewBox="0 0 100 100" style="position:absolute;top:0;left:0">
+          <circle cx="50" cy="4" r="1.5" fill="#C0C0C0" opacity="0.5"/><circle cx="88" cy="50" r="1.5" fill="#C0C0C0" opacity="0.3"/><circle cx="50" cy="96" r="1.5" fill="#C0C0C0" opacity="0.5"/><circle cx="12" cy="50" r="1.5" fill="#C0C0C0" opacity="0.3"/>
+        </svg>
+      </div>
+      <span class="tier-label" style="background:rgba(192,192,192,0.15);color:var(--silver)">Silver</span>
+      <span class="badge-name">Titan</span>
+    </div>
+
+    <!-- GOLD Crystal -->
+    <div class="badge-col">
+      <div class="crystal-badge unlocked" style="--glow-color: rgba(255,215,0,0.4)">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <defs>
+            <linearGradient id="cg-hex" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FFE878"/><stop offset="50%" stop-color="#FFD700"/><stop offset="100%" stop-color="#B8960F"/></linearGradient>
+          </defs>
+          <polygon points="50,6 88,28 88,72 50,94 12,72 12,28" fill="url(#cg-hex)" opacity="0.15" stroke="url(#cg-hex)" stroke-width="2.5"/>
+          <line x1="50" y1="6" x2="50" y2="94" stroke="#FFD700" stroke-width="0.5" opacity="0.2"/>
+          <line x1="12" y1="28" x2="88" y2="72" stroke="#FFD700" stroke-width="0.5" opacity="0.2"/>
+          <line x1="88" y1="28" x2="12" y2="72" stroke="#FFD700" stroke-width="0.5" opacity="0.2"/>
+          <polygon points="50,20 74,35 74,65 50,80 26,65 26,35" fill="rgba(255,215,0,0.08)" stroke="#FFD700" stroke-width="1.5" opacity="0.6"/>
+          <polygon points="50,20 74,35 50,50 26,35" fill="#FFE878" opacity="0.08"/>
+          <!-- Lightning icon -->
+          <g transform="translate(50,48) scale(0.6)">
+            <path d="M-2,-22 L-12,4 L-2,2 L-6,24 L14,-4 L4,-2 L8,-22 Z" fill="#FFE878" opacity="0.95"/>
+            <path d="M-2,-22 L8,-22 L4,-2 L14,-4 Z" fill="#FFF8D0" opacity="0.4"/>
+          </g>
+        </svg>
+        <svg class="crystal-ring" width="100" height="100" viewBox="0 0 100 100" style="position:absolute;top:0;left:0">
+          <circle cx="50" cy="4" r="2" fill="#FFD700" opacity="0.6"/><circle cx="88" cy="50" r="2" fill="#FFD700" opacity="0.4"/><circle cx="50" cy="96" r="2" fill="#FFD700" opacity="0.6"/><circle cx="12" cy="50" r="2" fill="#FFD700" opacity="0.4"/><circle cx="76" cy="16" r="1" fill="#FFE878" opacity="0.3"/><circle cx="76" cy="84" r="1" fill="#FFE878" opacity="0.3"/>
+        </svg>
+      </div>
+      <span class="tier-label" style="background:rgba(255,215,0,0.15);color:var(--gold)">Gold</span>
+      <span class="badge-name">Hercule</span>
+    </div>
+
+    <!-- PLATINUM Crystal -->
+    <div class="badge-col">
+      <div class="crystal-badge unlocked" style="--glow-color: rgba(200,200,255,0.5)">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <defs>
+            <linearGradient id="cp-hex" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#F0F0FF"/><stop offset="50%" stop-color="#D0D0E8"/><stop offset="100%" stop-color="#A0A0C0"/></linearGradient>
+          </defs>
+          <polygon points="50,6 88,28 88,72 50,94 12,72 12,28" fill="url(#cp-hex)" opacity="0.12" stroke="url(#cp-hex)" stroke-width="3"/>
+          <polygon points="50,10 85,30 85,70 50,90 15,70 15,30" fill="none" stroke="url(#cp-hex)" stroke-width="0.5" opacity="0.3"/>
+          <line x1="50" y1="6" x2="50" y2="94" stroke="#D0D0E8" stroke-width="0.5" opacity="0.2"/>
+          <line x1="12" y1="28" x2="88" y2="72" stroke="#D0D0E8" stroke-width="0.5" opacity="0.2"/>
+          <line x1="88" y1="28" x2="12" y2="72" stroke="#D0D0E8" stroke-width="0.5" opacity="0.2"/>
+          <polygon points="50,20 74,35 74,65 50,80 26,65 26,35" fill="rgba(200,200,255,0.06)" stroke="#D0D0E8" stroke-width="1.5" opacity="0.6"/>
+          <polygon points="50,20 74,35 50,50 26,35" fill="#F0F0FF" opacity="0.06"/>
+          <!-- Crown icon -->
+          <g transform="translate(50,50) scale(0.6)">
+            <path d="M-18,8 L-20,-10 L-10,-4 L0,-16 L10,-4 L20,-10 L18,8 Z" fill="#E8E8FF" opacity="0.95"/>
+            <path d="M-18,8 L18,8 L16,14 L-16,14 Z" fill="#D0D0E8" opacity="0.9"/>
+            <circle cx="-20" cy="-10" r="2.5" fill="#F0F0FF" opacity="0.7"/>
+            <circle cx="0" cy="-16" r="2.5" fill="#F0F0FF" opacity="0.7"/>
+            <circle cx="20" cy="-10" r="2.5" fill="#F0F0FF" opacity="0.7"/>
+          </g>
+        </svg>
+        <svg class="crystal-ring" width="100" height="100" viewBox="0 0 100 100" style="position:absolute;top:0;left:0">
+          <circle cx="50" cy="3" r="2" fill="#D0D0E8" opacity="0.6"/><circle cx="90" cy="50" r="2" fill="#D0D0E8" opacity="0.4"/><circle cx="50" cy="97" r="2" fill="#D0D0E8" opacity="0.6"/><circle cx="10" cy="50" r="2" fill="#D0D0E8" opacity="0.4"/><circle cx="78" cy="14" r="1.2" fill="#E8E8FF" opacity="0.3"/><circle cx="78" cy="86" r="1.2" fill="#E8E8FF" opacity="0.3"/><circle cx="22" cy="14" r="1.2" fill="#E8E8FF" opacity="0.3"/><circle cx="22" cy="86" r="1.2" fill="#E8E8FF" opacity="0.3"/>
+        </svg>
+      </div>
+      <span class="tier-label" style="background:rgba(200,200,255,0.15);color:var(--platinum)">Platinum</span>
+      <span class="badge-name">Légende</span>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="anim-title">Locked State</div>
+  <div class="badge-row">
+    <div class="badge-col">
+      <div class="crystal-badge locked">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <polygon points="50,6 88,28 88,72 50,94 12,72 12,28" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="1.5"/>
+          <polygon points="50,20 74,35 74,65 50,80 26,65 26,35" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.04)" stroke-width="0.8"/>
+          <g transform="translate(50,50) scale(0.55)" opacity="0.2">
+            <path d="M-6,-18 C-4,-22 0,-24 4,-22 C8,-20 10,-16 8,-12 L6,-4 C5,-1 2,2 -1,2 C-4,2 -6,0 -7,-3 Z" fill="#888"/>
+            <ellipse cx="-4" cy="8" rx="7" ry="11" fill="#888" transform="rotate(-10,-4,8)"/>
+          </g>
+        </svg>
+      </div>
+      <span class="badge-name" style="color:var(--muted)">Locked Badge</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SYSTEM C — "RELIC" (Ancient Artifacts)
+     ═══════════════════════════════════════════════════════ -->
+<div id="relic" class="tab-content">
+  <h2 class="section-title">System C — Relic</h2>
+  <p class="section-sub">Ancient artifact medallions with mystical energy.<br>Inspired by mythological seals & arcane symbols.</p>
+
+  <div class="info-box">
+    <h4>Design Philosophy</h4>
+    <ul>
+      <li>Circular medallion with ornate runic border ring</li>
+      <li>Inner icon rendered as an engraved seal/emblem</li>
+      <li>Slowly rotating outer rune ring on unlocked badges</li>
+      <li>Floating particle effect (energy wisps)</li>
+      <li>Deep emboss with inner glow for depth</li>
+      <li>Each tier has distinct energy color & intensity</li>
+    </ul>
+  </div>
+
+  <div class="anim-title">4 Tiers — Unlocked State</div>
+  <div class="badge-row">
+    <!-- BRONZE Relic -->
+    <div class="badge-col">
+      <div class="relic-badge unlocked" style="--glow-color: rgba(205,127,50,0.5)">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <defs>
+            <radialGradient id="rb-bg" cx="50%" cy="45%"><stop offset="0%" stop-color="#2A1A0A"/><stop offset="100%" stop-color="#0A0A0A"/></radialGradient>
+            <linearGradient id="rb-rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#E8B878"/><stop offset="50%" stop-color="#CD7F32"/><stop offset="100%" stop-color="#6B3A1F"/></linearGradient>
+          </defs>
+          <!-- Background -->
+          <circle cx="50" cy="50" r="44" fill="url(#rb-bg)"/>
+          <!-- Outer ornate ring -->
+          <circle cx="50" cy="50" r="44" fill="none" stroke="url(#rb-rim)" stroke-width="3"/>
+          <circle cx="50" cy="50" r="40" fill="none" stroke="#CD7F32" stroke-width="0.5" opacity="0.3"/>
+          <!-- Rune marks -->
+          <g opacity="0.5">
+            <rect x="48" y="4" width="4" height="6" rx="1" fill="#CD7F32" transform="rotate(0,50,50)"/>
+            <rect x="48" y="4" width="4" height="6" rx="1" fill="#CD7F32" transform="rotate(45,50,50)"/>
+            <rect x="48" y="4" width="4" height="6" rx="1" fill="#CD7F32" transform="rotate(90,50,50)"/>
+            <rect x="48" y="4" width="4" height="6" rx="1" fill="#CD7F32" transform="rotate(135,50,50)"/>
+            <rect x="48" y="4" width="4" height="6" rx="1" fill="#CD7F32" transform="rotate(180,50,50)"/>
+            <rect x="48" y="4" width="4" height="6" rx="1" fill="#CD7F32" transform="rotate(225,50,50)"/>
+            <rect x="48" y="4" width="4" height="6" rx="1" fill="#CD7F32" transform="rotate(270,50,50)"/>
+            <rect x="48" y="4" width="4" height="6" rx="1" fill="#CD7F32" transform="rotate(315,50,50)"/>
+          </g>
+          <!-- Small decorative dots between runes -->
+          <g opacity="0.3">
+            <circle cx="50" cy="8" r="1" fill="#E8B878" transform="rotate(22.5,50,50)"/>
+            <circle cx="50" cy="8" r="1" fill="#E8B878" transform="rotate(67.5,50,50)"/>
+            <circle cx="50" cy="8" r="1" fill="#E8B878" transform="rotate(112.5,50,50)"/>
+            <circle cx="50" cy="8" r="1" fill="#E8B878" transform="rotate(157.5,50,50)"/>
+            <circle cx="50" cy="8" r="1" fill="#E8B878" transform="rotate(202.5,50,50)"/>
+            <circle cx="50" cy="8" r="1" fill="#E8B878" transform="rotate(247.5,50,50)"/>
+            <circle cx="50" cy="8" r="1" fill="#E8B878" transform="rotate(292.5,50,50)"/>
+            <circle cx="50" cy="8" r="1" fill="#E8B878" transform="rotate(337.5,50,50)"/>
+          </g>
+          <!-- Inner circle -->
+          <circle cx="50" cy="50" r="30" fill="none" stroke="#CD7F32" stroke-width="1" opacity="0.4"/>
+          <!-- Icon: Footprint seal -->
+          <g transform="translate(50,48) scale(0.6)">
+            <path d="M-6,-18 C-4,-22 0,-24 4,-22 C8,-20 10,-16 8,-12 L6,-4 C5,-1 2,2 -1,2 C-4,2 -6,0 -7,-3 Z" fill="#CD7F32" opacity="0.8"/>
+            <ellipse cx="-4" cy="8" rx="7" ry="11" fill="#CD7F32" opacity="0.7" transform="rotate(-10,-4,8)"/>
+            <ellipse cx="-4" cy="8" rx="4" ry="7" fill="#E8B878" opacity="0.3" transform="rotate(-10,-4,8)"/>
+            <circle cx="-10" cy="-10" r="2.5" fill="#CD7F32" opacity="0.6"/>
+            <circle cx="-13" cy="-4" r="2" fill="#CD7F32" opacity="0.55"/>
+            <circle cx="-14" cy="3" r="2" fill="#CD7F32" opacity="0.5"/>
+          </g>
+        </svg>
+        <!-- Rotating rune ring -->
+        <svg class="relic-rune-ring" width="100" height="100" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="47" fill="none" stroke="#CD7F32" stroke-width="0.3" opacity="0.2" stroke-dasharray="4 8"/>
+        </svg>
+        <!-- Particles -->
+        <div class="relic-particles">
+          <div class="relic-particle" style="left:20%;top:30%;background:#CD7F32;animation-delay:0s"></div>
+          <div class="relic-particle" style="left:70%;top:20%;background:#E8B878;animation-delay:0.8s"></div>
+          <div class="relic-particle" style="left:40%;top:60%;background:#CD7F32;animation-delay:1.6s"></div>
+        </div>
+      </div>
+      <span class="tier-label" style="background:rgba(205,127,50,0.15);color:var(--bronze)">Bronze</span>
+      <span class="badge-name">Premier Pas</span>
+    </div>
+
+    <!-- SILVER Relic -->
+    <div class="badge-col">
+      <div class="relic-badge unlocked" style="--glow-color: rgba(192,192,192,0.5)">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <defs>
+            <radialGradient id="rs-bg" cx="50%" cy="45%"><stop offset="0%" stop-color="#1A1A2A"/><stop offset="100%" stop-color="#0A0A0A"/></radialGradient>
+            <linearGradient id="rs-rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#E0E0E0"/><stop offset="50%" stop-color="#C0C0C0"/><stop offset="100%" stop-color="#808080"/></linearGradient>
+          </defs>
+          <circle cx="50" cy="50" r="44" fill="url(#rs-bg)"/>
+          <circle cx="50" cy="50" r="44" fill="none" stroke="url(#rs-rim)" stroke-width="3"/>
+          <circle cx="50" cy="50" r="40" fill="none" stroke="#C0C0C0" stroke-width="0.5" opacity="0.3"/>
+          <g opacity="0.4">
+            <rect x="48" y="4" width="4" height="6" rx="1" fill="#C0C0C0" transform="rotate(0,50,50)"/><rect x="48" y="4" width="4" height="6" rx="1" fill="#C0C0C0" transform="rotate(45,50,50)"/><rect x="48" y="4" width="4" height="6" rx="1" fill="#C0C0C0" transform="rotate(90,50,50)"/><rect x="48" y="4" width="4" height="6" rx="1" fill="#C0C0C0" transform="rotate(135,50,50)"/><rect x="48" y="4" width="4" height="6" rx="1" fill="#C0C0C0" transform="rotate(180,50,50)"/><rect x="48" y="4" width="4" height="6" rx="1" fill="#C0C0C0" transform="rotate(225,50,50)"/><rect x="48" y="4" width="4" height="6" rx="1" fill="#C0C0C0" transform="rotate(270,50,50)"/><rect x="48" y="4" width="4" height="6" rx="1" fill="#C0C0C0" transform="rotate(315,50,50)"/>
+          </g>
+          <circle cx="50" cy="50" r="30" fill="none" stroke="#C0C0C0" stroke-width="1" opacity="0.3"/>
+          <!-- Mountain seal -->
+          <g transform="translate(50,50) scale(0.55)">
+            <path d="M-22,16 L-6,-18 L0,-6 L8,-18 L24,16 Z" fill="#C0C0C0" opacity="0.8"/>
+            <path d="M-6,-18 L0,-6 L8,-18 L2,-8 Z" fill="#E0E0E0" opacity="0.5"/>
+          </g>
+        </svg>
+        <svg class="relic-rune-ring" width="100" height="100" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="47" fill="none" stroke="#C0C0C0" stroke-width="0.3" opacity="0.2" stroke-dasharray="4 8"/>
+        </svg>
+        <div class="relic-particles">
+          <div class="relic-particle" style="left:25%;top:25%;background:#C0C0C0;animation-delay:0s"></div>
+          <div class="relic-particle" style="left:65%;top:35%;background:#E0E0E0;animation-delay:1s"></div>
+        </div>
+      </div>
+      <span class="tier-label" style="background:rgba(192,192,192,0.15);color:var(--silver)">Silver</span>
+      <span class="badge-name">Titan</span>
+    </div>
+
+    <!-- GOLD Relic -->
+    <div class="badge-col">
+      <div class="relic-badge unlocked" style="--glow-color: rgba(255,215,0,0.5)">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <defs>
+            <radialGradient id="rg-bg" cx="50%" cy="45%"><stop offset="0%" stop-color="#2A1A00"/><stop offset="100%" stop-color="#0A0A0A"/></radialGradient>
+            <linearGradient id="rg-rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FFE878"/><stop offset="50%" stop-color="#FFD700"/><stop offset="100%" stop-color="#8B6914"/></linearGradient>
+          </defs>
+          <circle cx="50" cy="50" r="44" fill="url(#rg-bg)"/>
+          <circle cx="50" cy="50" r="44" fill="none" stroke="url(#rg-rim)" stroke-width="3.5"/>
+          <circle cx="50" cy="50" r="40" fill="none" stroke="#FFD700" stroke-width="0.5" opacity="0.4"/>
+          <g opacity="0.6">
+            <rect x="48" y="3" width="4" height="7" rx="1" fill="#FFD700" transform="rotate(0,50,50)"/><rect x="48" y="3" width="4" height="7" rx="1" fill="#FFD700" transform="rotate(45,50,50)"/><rect x="48" y="3" width="4" height="7" rx="1" fill="#FFD700" transform="rotate(90,50,50)"/><rect x="48" y="3" width="4" height="7" rx="1" fill="#FFD700" transform="rotate(135,50,50)"/><rect x="48" y="3" width="4" height="7" rx="1" fill="#FFD700" transform="rotate(180,50,50)"/><rect x="48" y="3" width="4" height="7" rx="1" fill="#FFD700" transform="rotate(225,50,50)"/><rect x="48" y="3" width="4" height="7" rx="1" fill="#FFD700" transform="rotate(270,50,50)"/><rect x="48" y="3" width="4" height="7" rx="1" fill="#FFD700" transform="rotate(315,50,50)"/>
+          </g>
+          <g opacity="0.4">
+            <circle cx="50" cy="7" r="1.2" fill="#FFE878" transform="rotate(22.5,50,50)"/><circle cx="50" cy="7" r="1.2" fill="#FFE878" transform="rotate(67.5,50,50)"/><circle cx="50" cy="7" r="1.2" fill="#FFE878" transform="rotate(112.5,50,50)"/><circle cx="50" cy="7" r="1.2" fill="#FFE878" transform="rotate(157.5,50,50)"/><circle cx="50" cy="7" r="1.2" fill="#FFE878" transform="rotate(202.5,50,50)"/><circle cx="50" cy="7" r="1.2" fill="#FFE878" transform="rotate(247.5,50,50)"/><circle cx="50" cy="7" r="1.2" fill="#FFE878" transform="rotate(292.5,50,50)"/><circle cx="50" cy="7" r="1.2" fill="#FFE878" transform="rotate(337.5,50,50)"/>
+          </g>
+          <circle cx="50" cy="50" r="30" fill="none" stroke="#FFD700" stroke-width="1.2" opacity="0.4"/>
+          <!-- Lightning seal -->
+          <g transform="translate(50,48) scale(0.55)">
+            <path d="M-2,-22 L-12,4 L-2,2 L-6,24 L14,-4 L4,-2 L8,-22 Z" fill="#FFD700" opacity="0.85"/>
+            <path d="M-2,-22 L8,-22 L4,-2 L14,-4 Z" fill="#FFE878" opacity="0.4"/>
+          </g>
+        </svg>
+        <svg class="relic-rune-ring" width="100" height="100" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="47" fill="none" stroke="#FFD700" stroke-width="0.4" opacity="0.25" stroke-dasharray="4 8"/>
+        </svg>
+        <div class="relic-particles">
+          <div class="relic-particle" style="left:20%;top:20%;background:#FFD700;animation-delay:0s"></div>
+          <div class="relic-particle" style="left:75%;top:30%;background:#FFE878;animation-delay:0.6s"></div>
+          <div class="relic-particle" style="left:35%;top:70%;background:#FFD700;animation-delay:1.2s"></div>
+          <div class="relic-particle" style="left:60%;top:15%;background:#FFE878;animation-delay:1.8s"></div>
+        </div>
+      </div>
+      <span class="tier-label" style="background:rgba(255,215,0,0.15);color:var(--gold)">Gold</span>
+      <span class="badge-name">Hercule</span>
+    </div>
+
+    <!-- PLATINUM Relic -->
+    <div class="badge-col">
+      <div class="relic-badge unlocked" style="--glow-color: rgba(200,200,255,0.6)">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <defs>
+            <radialGradient id="rp-bg" cx="50%" cy="45%"><stop offset="0%" stop-color="#1A1A30"/><stop offset="100%" stop-color="#0A0A10"/></radialGradient>
+            <linearGradient id="rp-rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#F0F0FF"/><stop offset="30%" stop-color="#D0D0E8"/><stop offset="70%" stop-color="#A0A0C0"/><stop offset="100%" stop-color="#F0F0FF"/></linearGradient>
+          </defs>
+          <circle cx="50" cy="50" r="44" fill="url(#rp-bg)"/>
+          <circle cx="50" cy="50" r="44" fill="none" stroke="url(#rp-rim)" stroke-width="4"/>
+          <circle cx="50" cy="50" r="41" fill="none" stroke="#D0D0E8" stroke-width="0.5" opacity="0.3"/>
+          <circle cx="50" cy="50" r="40" fill="none" stroke="#D0D0E8" stroke-width="0.3" opacity="0.2"/>
+          <g opacity="0.6">
+            <rect x="47.5" y="2" width="5" height="8" rx="1.5" fill="#D0D0E8" transform="rotate(0,50,50)"/><rect x="47.5" y="2" width="5" height="8" rx="1.5" fill="#D0D0E8" transform="rotate(30,50,50)"/><rect x="47.5" y="2" width="5" height="8" rx="1.5" fill="#D0D0E8" transform="rotate(60,50,50)"/><rect x="47.5" y="2" width="5" height="8" rx="1.5" fill="#D0D0E8" transform="rotate(90,50,50)"/><rect x="47.5" y="2" width="5" height="8" rx="1.5" fill="#D0D0E8" transform="rotate(120,50,50)"/><rect x="47.5" y="2" width="5" height="8" rx="1.5" fill="#D0D0E8" transform="rotate(150,50,50)"/><rect x="47.5" y="2" width="5" height="8" rx="1.5" fill="#D0D0E8" transform="rotate(180,50,50)"/><rect x="47.5" y="2" width="5" height="8" rx="1.5" fill="#D0D0E8" transform="rotate(210,50,50)"/><rect x="47.5" y="2" width="5" height="8" rx="1.5" fill="#D0D0E8" transform="rotate(240,50,50)"/><rect x="47.5" y="2" width="5" height="8" rx="1.5" fill="#D0D0E8" transform="rotate(270,50,50)"/><rect x="47.5" y="2" width="5" height="8" rx="1.5" fill="#D0D0E8" transform="rotate(300,50,50)"/><rect x="47.5" y="2" width="5" height="8" rx="1.5" fill="#D0D0E8" transform="rotate(330,50,50)"/>
+          </g>
+          <circle cx="50" cy="50" r="30" fill="none" stroke="#D0D0E8" stroke-width="1.5" opacity="0.4"/>
+          <!-- Crown seal -->
+          <g transform="translate(50,50) scale(0.55)">
+            <path d="M-18,8 L-20,-10 L-10,-4 L0,-16 L10,-4 L20,-10 L18,8 Z" fill="#D0D0E8" opacity="0.9"/>
+            <path d="M-18,8 L18,8 L16,14 L-16,14 Z" fill="#A0A0C0" opacity="0.8"/>
+            <circle cx="-20" cy="-10" r="2.5" fill="#F0F0FF" opacity="0.7"/>
+            <circle cx="0" cy="-16" r="3" fill="#F0F0FF" opacity="0.8"/>
+            <circle cx="20" cy="-10" r="2.5" fill="#F0F0FF" opacity="0.7"/>
+          </g>
+        </svg>
+        <svg class="relic-rune-ring" width="100" height="100" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="48" fill="none" stroke="#D0D0E8" stroke-width="0.4" opacity="0.2" stroke-dasharray="3 6"/>
+          <circle cx="50" cy="50" r="49" fill="none" stroke="#F0F0FF" stroke-width="0.2" opacity="0.15" stroke-dasharray="2 10"/>
+        </svg>
+        <div class="relic-particles">
+          <div class="relic-particle" style="left:15%;top:25%;background:#D0D0E8;animation-delay:0s"></div>
+          <div class="relic-particle" style="left:80%;top:20%;background:#F0F0FF;animation-delay:0.5s"></div>
+          <div class="relic-particle" style="left:30%;top:65%;background:#D0D0E8;animation-delay:1s"></div>
+          <div class="relic-particle" style="left:65%;top:75%;background:#F0F0FF;animation-delay:1.5s"></div>
+          <div class="relic-particle" style="left:50%;top:10%;background:#E8E8FF;animation-delay:2s"></div>
+        </div>
+      </div>
+      <span class="tier-label" style="background:rgba(200,200,255,0.15);color:var(--platinum)">Platinum</span>
+      <span class="badge-name">Légende</span>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="anim-title">Locked State</div>
+  <div class="badge-row">
+    <div class="badge-col">
+      <div class="relic-badge locked">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="44" fill="rgba(10,10,10,0.8)"/>
+          <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="2"/>
+          <g opacity="0.15">
+            <rect x="48" y="4" width="4" height="6" rx="1" fill="#555" transform="rotate(0,50,50)"/><rect x="48" y="4" width="4" height="6" rx="1" fill="#555" transform="rotate(90,50,50)"/><rect x="48" y="4" width="4" height="6" rx="1" fill="#555" transform="rotate(180,50,50)"/><rect x="48" y="4" width="4" height="6" rx="1" fill="#555" transform="rotate(270,50,50)"/>
+          </g>
+          <circle cx="50" cy="50" r="30" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="0.8"/>
+          <g transform="translate(50,48) scale(0.6)" opacity="0.15">
+            <path d="M-6,-18 C-4,-22 0,-24 4,-22 C8,-20 10,-16 8,-12 L6,-4" fill="#666"/>
+            <ellipse cx="-4" cy="8" rx="7" ry="11" fill="#666" transform="rotate(-10,-4,8)"/>
+          </g>
+        </svg>
+      </div>
+      <span class="badge-name" style="color:var(--muted)">Locked Relic</span>
+    </div>
+  </div>
+
+  <div style="height:80px"></div>
+</div>
+
+<script>
+function showTab(id) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>
