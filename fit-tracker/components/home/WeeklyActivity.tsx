@@ -1,5 +1,6 @@
-import { View, Text, StyleSheet } from 'react-native';
-import { Calendar, Flame } from 'lucide-react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Calendar, Flame, ChevronRight } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { mockWeekly } from '@/lib/mock-data';
 import i18n from '@/lib/i18n';
@@ -8,10 +9,11 @@ import fr from '@/lib/translations/fr';
 const DAYS = fr.home.weekly.days;
 
 export function WeeklyActivity() {
+  const router = useRouter();
   const { completedDays, currentDayIndex, streak } = mockWeekly;
 
   return (
-    <View style={styles.container}>
+    <Pressable style={styles.container} onPress={() => router.push('/stats')}>
       <View style={styles.card}>
         {/* Header row */}
         <View style={styles.headerRow}>
@@ -23,11 +25,14 @@ export function WeeklyActivity() {
               {i18n.t('home.weekly.title')}
             </Text>
           </View>
-          <View style={styles.streakBadge}>
-            <Flame size={12} color="#f97316" strokeWidth={2.5} />
-            <Text style={styles.streakText}>
-              {streak} {i18n.t('home.weekly.streak')}
-            </Text>
+          <View style={styles.headerRight}>
+            <View style={styles.streakBadge}>
+              <Flame size={12} color="#f97316" strokeWidth={2.5} />
+              <Text style={styles.streakText}>
+                {streak} {i18n.t('home.weekly.streak')}
+              </Text>
+            </View>
+            <ChevronRight size={16} color="rgba(120,120,130,1)" strokeWidth={2} />
           </View>
         </View>
 
@@ -50,7 +55,7 @@ export function WeeklyActivity() {
                   style={[
                     styles.dayLabel,
                     isCompleted && styles.dayLabelActive,
-                    isToday && !isCompleted && styles.dayLabelToday,
+                    isToday && styles.dayLabelToday,
                   ]}
                 >
                   {day}
@@ -61,7 +66,7 @@ export function WeeklyActivity() {
         </View>
 
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -94,6 +99,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(74, 222, 128, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   headerLabel: {
     color: 'rgba(200,200,210,1)',
@@ -141,7 +151,7 @@ const styles = StyleSheet.create({
   dayToday: {
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: 'rgba(249, 115, 22, 0.5)',
+    borderColor: '#f97316',
   },
   dayLabel: {
     color: 'rgba(120,120,130,1)',

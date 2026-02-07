@@ -17,6 +17,10 @@ export type Equipment =
   | 'machine'
   | 'body weight'
   | 'kettlebell'
+  | 'resistance band'
+  | 'ez bar'
+  | 'smith machine'
+  | 'trap bar'
   | 'other';
 
 export type Category = 'push' | 'pull' | 'legs' | 'core' | 'cardio';

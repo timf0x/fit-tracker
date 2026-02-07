@@ -113,6 +113,7 @@ export function FilterPills({ filters, activeFilters, onFilterChange }: FilterPi
 const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 24,
+    paddingBottom: 14,
     gap: 8,
   },
   pill: {

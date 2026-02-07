@@ -3,7 +3,7 @@ import { Spacing } from '@/constants/theme';
 import { HeaderGreeting } from '@/components/home/HeaderGreeting';
 import { StatsRow } from '@/components/home/StatsRow';
 import { WeeklyActivity } from '@/components/home/WeeklyActivity';
-import { FriendsCard } from '@/components/home/FriendsCard';
+import { VolumeCard } from '@/components/home/VolumeCard';
 import { RecommendedSection } from '@/components/home/RecommendedSection';
 import { BrowseButton } from '@/components/home/BrowseButton';
 
@@ -22,7 +22,7 @@ export default function HomeScreen() {
         <HeaderGreeting />
         <StatsRow />
         <WeeklyActivity />
-        <FriendsCard />
+        <VolumeCard />
         <RecommendedSection />
         <BrowseButton />
       </ScrollView>
@@ -33,7 +33,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#050505',
+    backgroundColor: '#0C0C0C',
     position: 'relative',
     overflow: 'hidden',
   },

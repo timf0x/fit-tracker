@@ -9,11 +9,12 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle as SvgCircle, Line } from 'react-native-svg';
 import {
   Trophy,
-  Lock,
+  ArrowLeft,
   X,
   Flame,
   Target,
@@ -80,7 +81,7 @@ import {
 import { Fonts } from '@/constants/theme';
 import { ALL_BADGES, BADGE_CATEGORIES, TIER_CONFIG, USER_LEVELS } from '@/data/badges';
 import { MOCK_UNLOCKED_BADGE_IDS } from '@/lib/mock-data';
-import type { BadgeCategory, BadgeProgress, BadgeTier } from '@/types';
+import type { BadgeProgress, BadgeTier } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -162,14 +163,12 @@ function BadgeRing({
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
-        {/* Background circle */}
         <SvgCircle
           cx={center}
           cy={center}
           r={ringRadius - 6}
           fill={isUnlocked ? `${tierColor}18` : 'rgba(255,255,255,0.03)'}
         />
-        {/* Ring */}
         <SvgCircle
           cx={center}
           cy={center}
@@ -178,7 +177,6 @@ function BadgeRing({
           strokeWidth={1.5}
           fill="transparent"
         />
-        {/* Tick marks */}
         {Array.from({ length: tickCount }).map((_, i) => {
           const angle = (i / tickCount) * 2 * Math.PI - Math.PI / 2;
           const isMajor = i % 9 === 0;
@@ -202,7 +200,7 @@ function BadgeRing({
 }
 
 // ── Badge Card (4-col grid item) ──
-const BADGE_SIZE = (SCREEN_WIDTH - 48 - 36) / 4; // 4 cols, 24px padding each side, 12px * 3 gaps
+const BADGE_SIZE = (SCREEN_WIDTH - 48 - 36) / 4;
 
 function BadgeCard({ progress, onPress }: { progress: BadgeProgress; onPress: () => void }) {
   const { badge, isUnlocked, progressPercent } = progress;
@@ -212,14 +210,12 @@ function BadgeCard({ progress, onPress }: { progress: BadgeProgress; onPress: ()
 
   return (
     <Pressable style={[styles.badgeCard, { width: BADGE_SIZE }]} onPress={onPress}>
-      {/* Glow for unlocked */}
       {isUnlocked && (
         <View
           style={[styles.badgeGlow, { shadowColor: tierColor }]}
           pointerEvents="none"
         />
       )}
-
       <BadgeRing size={ringSize} isUnlocked={isUnlocked} tierColor={tierColor}>
         <IconComp
           size={ringSize * 0.35}
@@ -227,16 +223,12 @@ function BadgeCard({ progress, onPress }: { progress: BadgeProgress; onPress: ()
           strokeWidth={isUnlocked ? 2.2 : 1.5}
         />
       </BadgeRing>
-
-      {/* Name */}
       <Text
         style={[styles.badgeName, !isUnlocked && { color: 'rgba(100,100,110,1)' }]}
         numberOfLines={2}
       >
         {badge.nameFr}
       </Text>
-
-      {/* Progress bar */}
       <View style={styles.progressBarBg}>
         {isUnlocked ? (
           <View style={[styles.tierDot, { backgroundColor: tierColor }]} />
@@ -311,12 +303,9 @@ function BadgeDetailModal({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
         <View style={styles.modalSheet}>
-          {/* Close */}
           <Pressable style={styles.modalClose} onPress={onClose}>
             <X size={22} color="rgba(160,150,140,1)" />
           </Pressable>
-
-          {/* Large badge ring */}
           <View style={styles.modalBadgeContainer}>
             {isUnlocked && (
               <View style={[styles.modalBadgeGlow, { shadowColor: tierColor, backgroundColor: `${tierColor}10` }]} />
@@ -329,8 +318,6 @@ function BadgeDetailModal({
               />
             </BadgeRing>
           </View>
-
-          {/* Tier + Category pills */}
           <View style={styles.modalMeta}>
             <View style={[styles.modalPill, { backgroundColor: `${tierColor}20`, borderColor: `${tierColor}40` }]}>
               <Text style={[styles.modalPillText, { color: tierColor }]}>{tierLabel.toUpperCase()}</Text>
@@ -344,14 +331,8 @@ function BadgeDetailModal({
               )}
             </View>
           </View>
-
-          {/* Name */}
           <Text style={styles.modalBadgeName}>{badge.nameFr}</Text>
-
-          {/* Description */}
           <Text style={styles.modalDescription}>{badge.descriptionFr}</Text>
-
-          {/* Unlocked date or progress */}
           {isUnlocked && unlockDate ? (
             <View style={styles.modalUnlockedPill}>
               <CheckCircle size={16} color="#4ADE80" strokeWidth={2.5} />
@@ -367,8 +348,6 @@ function BadgeDetailModal({
               <Text style={styles.modalProgressPct}>{Math.round(progressPercent)}%</Text>
             </View>
           )}
-
-          {/* Points */}
           <View style={styles.modalPointsRow}>
             <Sparkles size={16} color="#f97316" strokeWidth={2.5} />
             <Text style={styles.modalPointsText}>{badge.points} points</Text>
@@ -381,13 +360,13 @@ function BadgeDetailModal({
 
 // ── Main Screen ──
 export default function TrophiesScreen() {
+  const router = useRouter();
   const [detailBadge, setDetailBadge] = useState<BadgeProgress | null>(null);
   const [showDetail, setShowDetail] = useState(false);
 
   const allProgress = useMemo(() => buildMockProgress(), []);
   const summary = useMemo(() => buildMockSummary(allProgress), [allProgress]);
 
-  // Group by category
   const categorySections = useMemo(() => {
     return BADGE_CATEGORIES.map((cat) => {
       const badges = allProgress.filter((p) => p.badge.category === cat.id);
@@ -411,15 +390,18 @@ export default function TrophiesScreen() {
 
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          {/* Header */}
+          {/* Header with back button */}
           <View style={styles.header}>
+            <Pressable style={styles.backButton} onPress={() => router.back()}>
+              <ArrowLeft size={22} color="#fff" strokeWidth={2} />
+            </Pressable>
             <Trophy size={22} color="#f97316" strokeWidth={2.5} />
             <Text style={styles.headerTitle}>Trophées</Text>
+            <View style={{ width: 40 }} />
           </View>
 
           {/* Level Card */}
           <View style={styles.levelCard}>
-            {/* Top row */}
             <View style={styles.levelTop}>
               <View style={styles.levelIconBox}>
                 <LevelIcon size={28} color="#f97316" strokeWidth={2.2} />
@@ -433,8 +415,6 @@ export default function TrophiesScreen() {
                 <Text style={styles.levelPtsLabel}>pts</Text>
               </View>
             </View>
-
-            {/* Progress bar */}
             <View style={styles.levelProgressRow}>
               <View style={styles.levelProgressBarBg}>
                 <LinearGradient
@@ -453,11 +433,7 @@ export default function TrophiesScreen() {
                 </Text>
               )}
             </View>
-
-            {/* Divider */}
             <View style={styles.levelDivider} />
-
-            {/* Stats row */}
             <View style={styles.levelStatsRow}>
               <View style={styles.levelStatItem}>
                 <Text style={styles.levelStatNumber}>{summary.totalBadges}</Text>
@@ -500,7 +476,7 @@ export default function TrophiesScreen() {
             </View>
           ))}
 
-          <View style={{ height: 120 }} />
+          <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
 
@@ -517,12 +493,10 @@ export default function TrophiesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#050505',
+    backgroundColor: '#0C0C0C',
     position: 'relative',
     overflow: 'hidden',
   },
-
-  // Ambient orbs
   orbOrange: {
     position: 'absolute',
     top: -80,
@@ -562,10 +536,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.10,
     shadowRadius: 80,
   },
-
   scrollContent: { paddingBottom: 40 },
-
-  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -573,15 +544,23 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingTop: 12,
     paddingBottom: 16,
+    paddingHorizontal: 20,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
+    flex: 1,
     color: '#fff',
     fontSize: 20,
     fontFamily: Fonts?.bold,
     fontWeight: '700',
   },
-
-  // Level Card
   levelCard: {
     marginHorizontal: 20,
     backgroundColor: 'rgba(255,255,255,0.04)',
@@ -693,8 +672,6 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
   },
-
-  // Category sections
   catSection: {
     marginTop: 28,
     paddingHorizontal: 20,
@@ -725,8 +702,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
   },
-
-  // Badge Grid (4 columns)
   badgeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -780,8 +755,6 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
   },
-
-  // Modal (bottom sheet)
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',

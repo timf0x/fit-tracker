@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workout Cards — 3 Proposals</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #050505;
+    font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    color: #fff;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .page-header {
+    text-align: center;
+    padding: 60px 24px 20px;
+  }
+  .page-header h1 {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: rgba(160,150,140,1);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .page-header p {
+    font-size: 14px;
+    color: rgba(120,120,130,1);
+    font-weight: 500;
+    max-width: 420px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* ─── Phone Frame ─── */
+  .proposals-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 32px;
+    padding: 20px 24px 80px;
+  }
+
+  .proposal {
+    width: 375px;
+    flex-shrink: 0;
+  }
+
+  .proposal-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 0 4px;
+  }
+  .proposal-number {
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .proposal-label h2 {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: rgba(230,230,240,1);
+  }
+  .proposal-label .desc {
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(120,120,130,1);
+    margin-top: 1px;
+  }
+
+  .phone-frame {
+    background: #0a0a0a;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 40px;
+    padding: 24px 16px 32px;
+    position: relative;
+    overflow: hidden;
+  }
+  .phone-frame::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -80px;
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    background: rgba(249,115,22,0.06);
+    filter: blur(60px);
+  }
+  .phone-frame::after {
+    content: '';
+    position: absolute;
+    bottom: 10%; left: -100px;
+    width: 260px; height: 260px;
+    border-radius: 50%;
+    background: rgba(59,130,246,0.03);
+    filter: blur(80px);
+  }
+
+  .group-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: rgba(200,200,210,1);
+    letter-spacing: -0.2px;
+    margin-bottom: 10px;
+    padding: 0 4px;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .group-label .count {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(100,100,110,1);
+    background: rgba(255,255,255,0.04);
+    border-radius: 999px;
+    padding: 2px 10px;
+  }
+
+  .cards-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ─── CURRENT DESIGN ─── */
+  .card-current {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 20px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .card-current:hover {
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(255,255,255,0.1);
+  }
+  .card-current .icon-box {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    border: 1px solid;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .card-current .icon-box svg { width: 22px; height: 22px; }
+  .card-current .text { flex: 1; }
+  .card-current .text .name {
+    font-size: 15px; font-weight: 700;
+    color: rgba(230,230,240,1);
+    letter-spacing: -0.2px;
+  }
+  .card-current .text .sub {
+    font-size: 12px; font-weight: 500;
+    color: rgba(120,120,130,1);
+    margin-top: 3px;
+  }
+  .duration-badge {
+    display: flex; align-items: center; gap: 4px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 11px; font-weight: 700;
+    color: rgba(180,180,190,1);
+    flex-shrink: 0;
+  }
+  .duration-badge svg { width: 10px; height: 10px; }
+
+  /* ─────────────────────────────────────────────── */
+  /* PROPOSAL A — Monochrome Glyph                  */
+  /* ─────────────────────────────────────────────── */
+  .card-a {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 20px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+  .card-a:hover {
+    background: rgba(255,255,255,0.065);
+    border-color: rgba(255,255,255,0.1);
+  }
+  .card-a .icon-box {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .card-a .icon-box svg {
+    width: 20px; height: 20px;
+    stroke: rgba(200,200,210,0.6);
+    stroke-width: 1.8;
+    fill: none;
+  }
+  .card-a .text { flex: 1; }
+  .card-a .text .name {
+    font-size: 15px; font-weight: 700;
+    color: rgba(230,230,240,1);
+    letter-spacing: -0.2px;
+  }
+  .card-a .text .sub {
+    font-size: 12px; font-weight: 500;
+    color: rgba(120,120,130,1);
+    margin-top: 3px;
+  }
+
+  /* ─────────────────────────────────────────────── */
+  /* PROPOSAL B — Accent Edge + No Icon             */
+  /* ─────────────────────────────────────────────── */
+  .card-b {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 18px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative;
+  }
+  .card-b:hover {
+    background: rgba(255,255,255,0.065);
+    border-color: rgba(255,255,255,0.1);
+  }
+  .card-b .accent-edge {
+    width: 3px;
+    align-self: stretch;
+    border-radius: 0 2px 2px 0;
+    flex-shrink: 0;
+    opacity: 0.5;
+  }
+  .card-b .card-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 16px 16px 14px;
+  }
+  .card-b .text { flex: 1; }
+  .card-b .text .name {
+    font-size: 15px; font-weight: 700;
+    color: rgba(230,230,240,1);
+    letter-spacing: -0.2px;
+  }
+  .card-b .text .sub {
+    font-size: 12px; font-weight: 500;
+    color: rgba(120,120,130,1);
+    margin-top: 3px;
+  }
+  .card-b .text .tags {
+    display: flex; gap: 6px; margin-top: 8px;
+  }
+  .card-b .text .tag {
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.04);
+    color: rgba(140,140,150,1);
+  }
+
+  /* ─────────────────────────────────────────────── */
+  /* PROPOSAL C — Kinetic Gradient Orbs             */
+  /* ─────────────────────────────────────────────── */
+  .card-c {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 20px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+  .card-c:hover {
+    background: rgba(255,255,255,0.065);
+    border-color: rgba(255,255,255,0.1);
+  }
+  .card-c .orb {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .card-c .orb::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    animation: orbRotate 6s linear infinite;
+  }
+  .card-c .orb::after {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    border-radius: 50%;
+    background: #0d0d0d;
+  }
+  .card-c .orb svg {
+    width: 18px; height: 18px;
+    position: relative;
+    z-index: 1;
+    stroke-width: 2;
+    fill: none;
+  }
+  .card-c .text { flex: 1; }
+  .card-c .text .name {
+    font-size: 15px; font-weight: 700;
+    color: rgba(230,230,240,1);
+    letter-spacing: -0.2px;
+  }
+  .card-c .text .sub {
+    font-size: 12px; font-weight: 500;
+    color: rgba(120,120,130,1);
+    margin-top: 3px;
+  }
+
+  @keyframes orbRotate {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  /* Orb gradient variants */
+  .orb-push::before { background: conic-gradient(from 0deg, #ff704320, #ff704360, #ff704310, #ff704350, #ff704320); }
+  .orb-push svg { stroke: rgba(255,112,67,0.7); }
+
+  .orb-pull::before { background: conic-gradient(from 0deg, #42a5f520, #42a5f560, #42a5f510, #42a5f550, #42a5f520); }
+  .orb-pull svg { stroke: rgba(66,165,245,0.7); }
+
+  .orb-legs::before { background: conic-gradient(from 0deg, #66bb6a20, #66bb6a60, #66bb6a10, #66bb6a50, #66bb6a20); }
+  .orb-legs svg { stroke: rgba(102,187,106,0.7); }
+
+  .orb-core::before { background: conic-gradient(from 0deg, #fbbf2420, #fbbf2460, #fbbf2410, #fbbf2450, #fbbf2420); }
+  .orb-core svg { stroke: rgba(251,191,36,0.7); }
+
+  .orb-cardio::before { background: conic-gradient(from 0deg, #ff444420, #ff444460, #ff444410, #ff444450, #ff444420); }
+  .orb-cardio svg { stroke: rgba(255,68,68,0.7); }
+
+  /* ─── Verdict banner ─── */
+  .verdict-section {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+    text-align: center;
+  }
+  .verdict-section h3 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: rgba(100,100,110,1);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .verdict-grid {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .verdict-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    padding: 20px;
+    width: 240px;
+    text-align: left;
+  }
+  .verdict-card .v-letter {
+    font-size: 24px;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+  .verdict-card h4 {
+    font-size: 13px;
+    font-weight: 700;
+    color: rgba(220,220,230,1);
+    margin-bottom: 6px;
+  }
+  .verdict-card p {
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(120,120,130,1);
+    line-height: 1.6;
+  }
+  .verdict-card .pros {
+    margin-top: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(102,187,106,0.8);
+    line-height: 1.8;
+  }
+  .verdict-card .cons {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,75,75,0.7);
+    line-height: 1.8;
+  }
+
+  /* Separator */
+  .separator {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+    margin: 40px auto;
+    max-width: 600px;
+  }
+
+  /* SVG icons inline */
+  .icon-clock { display: inline-flex; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Workout List Cards</h1>
+  <p>3 propositions to replace the colored icon boxes with a more premium, kinetic aesthetic while keeping the dark design system intact.</p>
+</div>
+
+<div class="proposals-grid">
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- CURRENT                                     -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="proposal">
+    <div class="proposal-label">
+      <div class="proposal-number" style="background:rgba(255,75,75,0.12);color:#FF4B4B;">X</div>
+      <div>
+        <h2>Current Design</h2>
+        <div class="desc">Colored icon boxes + glow shadows</div>
+      </div>
+    </div>
+    <div class="phone-frame">
+      <div class="group-label">Intermédiaire <span class="count">4</span></div>
+      <div class="cards-stack">
+
+        <div class="card-current">
+          <div class="icon-box" style="background:rgba(255,112,67,0.08);border-color:rgba(255,112,67,0.19);box-shadow:0 0 12px rgba(255,112,67,0.25);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#ff7043" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+          </div>
+          <div class="text">
+            <div class="name">Push Power</div>
+            <div class="sub">Intermédiaire · 6 exercices</div>
+          </div>
+          <div class="duration-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            35m
+          </div>
+        </div>
+
+        <div class="card-current">
+          <div class="icon-box" style="background:rgba(66,165,245,0.08);border-color:rgba(66,165,245,0.19);box-shadow:0 0 12px rgba(66,165,245,0.25);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#42a5f5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><path d="m9 20 3-6 3 6"/><path d="m6 8 6 2 6-2"/><path d="M12 10v4"/></svg>
+          </div>
+          <div class="text">
+            <div class="name">Pull Destroyer</div>
+            <div class="sub">Intermédiaire · 5 exercices</div>
+          </div>
+          <div class="duration-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            30m
+          </div>
+        </div>
+
+        <div class="card-current">
+          <div class="icon-box" style="background:rgba(102,187,106,0.08);border-color:rgba(102,187,106,0.19);box-shadow:0 0 12px rgba(102,187,106,0.25);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#66bb6a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg>
+          </div>
+          <div class="text">
+            <div class="name">Leg Day Fury</div>
+            <div class="sub">Intermédiaire · 7 exercices</div>
+          </div>
+          <div class="duration-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            40m
+          </div>
+        </div>
+
+        <div class="card-current">
+          <div class="icon-box" style="background:rgba(251,191,36,0.08);border-color:rgba(251,191,36,0.19);box-shadow:0 0 12px rgba(251,191,36,0.25);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+          </div>
+          <div class="text">
+            <div class="name">Core Inferno</div>
+            <div class="sub">Intermédiaire · 5 exercices</div>
+          </div>
+          <div class="duration-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            25m
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- PROPOSAL A — Monochrome Glyph              -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="proposal">
+    <div class="proposal-label">
+      <div class="proposal-number" style="background:rgba(255,255,255,0.08);color:rgba(200,200,210,1);">A</div>
+      <div>
+        <h2>Monochrome Glyph</h2>
+        <div class="desc">Neutral glass icons — zero color, surgical clean</div>
+      </div>
+    </div>
+    <div class="phone-frame">
+      <div class="group-label">Intermédiaire <span class="count">4</span></div>
+      <div class="cards-stack">
+
+        <div class="card-a">
+          <div class="icon-box">
+            <svg viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="text">
+            <div class="name">Push Power</div>
+            <div class="sub">Intermédiaire · 6 exercices</div>
+          </div>
+          <div class="duration-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            35m
+          </div>
+        </div>
+
+        <div class="card-a">
+          <div class="icon-box">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1" stroke-linecap="round" stroke-linejoin="round"/><path d="m9 20 3-6 3 6" stroke-linecap="round" stroke-linejoin="round"/><path d="m6 8 6 2 6-2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 10v4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="text">
+            <div class="name">Pull Destroyer</div>
+            <div class="sub">Intermédiaire · 5 exercices</div>
+          </div>
+          <div class="duration-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            30m
+          </div>
+        </div>
+
+        <div class="card-a">
+          <div class="icon-box">
+            <svg viewBox="0 0 24 24"><path d="m8 3 4 8 5-5 5 15H2L8 3z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="text">
+            <div class="name">Leg Day Fury</div>
+            <div class="sub">Intermédiaire · 7 exercices</div>
+          </div>
+          <div class="duration-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            40m
+          </div>
+        </div>
+
+        <div class="card-a">
+          <div class="icon-box">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="text">
+            <div class="name">Core Inferno</div>
+            <div class="sub">Intermédiaire · 5 exercices</div>
+          </div>
+          <div class="duration-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            25m
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- PROPOSAL B — Accent Edge, No Icon          -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="proposal">
+    <div class="proposal-label">
+      <div class="proposal-number" style="background:rgba(255,107,53,0.12);color:#FF6B35;">B</div>
+      <div>
+        <h2>Accent Edge</h2>
+        <div class="desc">No icon — thin color strip + metadata tags</div>
+      </div>
+    </div>
+    <div class="phone-frame">
+      <div class="group-label">Intermédiaire <span class="count">4</span></div>
+      <div class="cards-stack">
+
+        <div class="card-b">
+          <div class="accent-edge" style="background:linear-gradient(180deg, #ff7043, #ff704380);"></div>
+          <div class="card-body">
+            <div class="text">
+              <div class="name">Push Power</div>
+              <div class="sub">6 exercices · Haltères + Barre</div>
+              <div class="tags">
+                <span class="tag">PUSH</span>
+                <span class="tag">35 MIN</span>
+              </div>
+            </div>
+            <div class="duration-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              35m
+            </div>
+          </div>
+        </div>
+
+        <div class="card-b">
+          <div class="accent-edge" style="background:linear-gradient(180deg, #42a5f5, #42a5f580);"></div>
+          <div class="card-body">
+            <div class="text">
+              <div class="name">Pull Destroyer</div>
+              <div class="sub">5 exercices · Câble + Barre</div>
+              <div class="tags">
+                <span class="tag">PULL</span>
+                <span class="tag">30 MIN</span>
+              </div>
+            </div>
+            <div class="duration-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              30m
+            </div>
+          </div>
+        </div>
+
+        <div class="card-b">
+          <div class="accent-edge" style="background:linear-gradient(180deg, #66bb6a, #66bb6a80);"></div>
+          <div class="card-body">
+            <div class="text">
+              <div class="name">Leg Day Fury</div>
+              <div class="sub">7 exercices · Barre + Machine</div>
+              <div class="tags">
+                <span class="tag">LEGS</span>
+                <span class="tag">40 MIN</span>
+              </div>
+            </div>
+            <div class="duration-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              40m
+            </div>
+          </div>
+        </div>
+
+        <div class="card-b">
+          <div class="accent-edge" style="background:linear-gradient(180deg, #fbbf24, #fbbf2480);"></div>
+          <div class="card-body">
+            <div class="text">
+              <div class="name">Core Inferno</div>
+              <div class="sub">5 exercices · Poids du corps</div>
+              <div class="tags">
+                <span class="tag">CORE</span>
+                <span class="tag">25 MIN</span>
+              </div>
+            </div>
+            <div class="duration-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              25m
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- PROPOSAL C — Kinetic Gradient Orbs         -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="proposal">
+    <div class="proposal-label">
+      <div class="proposal-number" style="background:rgba(66,165,245,0.12);color:#42a5f5;">C</div>
+      <div>
+        <h2>Kinetic Orbs</h2>
+        <div class="desc">Rotating conic-gradient ring + muted icon center</div>
+      </div>
+    </div>
+    <div class="phone-frame">
+      <div class="group-label">Intermédiaire <span class="count">4</span></div>
+      <div class="cards-stack">
+
+        <div class="card-c">
+          <div class="orb orb-push">
+            <svg viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="text">
+            <div class="name">Push Power</div>
+            <div class="sub">Intermédiaire · 6 exercices</div>
+          </div>
+          <div class="duration-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            35m
+          </div>
+        </div>
+
+        <div class="card-c">
+          <div class="orb orb-pull">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1" stroke-linecap="round" stroke-linejoin="round"/><path d="m9 20 3-6 3 6" stroke-linecap="round" stroke-linejoin="round"/><path d="m6 8 6 2 6-2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 10v4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="text">
+            <div class="name">Pull Destroyer</div>
+            <div class="sub">Intermédiaire · 5 exercices</div>
+          </div>
+          <div class="duration-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            30m
+          </div>
+        </div>
+
+        <div class="card-c">
+          <div class="orb orb-legs">
+            <svg viewBox="0 0 24 24"><path d="m8 3 4 8 5-5 5 15H2L8 3z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="text">
+            <div class="name">Leg Day Fury</div>
+            <div class="sub">Intermédiaire · 7 exercices</div>
+          </div>
+          <div class="duration-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            40m
+          </div>
+        </div>
+
+        <div class="card-c">
+          <div class="orb orb-core">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="text">
+            <div class="name">Core Inferno</div>
+            <div class="sub">Intermédiaire · 5 exercices</div>
+          </div>
+          <div class="duration-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            25m
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="separator"></div>
+
+<!-- ─── Verdict Section ─── -->
+<div class="verdict-section">
+  <h3>Trade-offs</h3>
+  <div class="verdict-grid">
+    <div class="verdict-card">
+      <div class="v-letter" style="color:rgba(200,200,210,0.4);">A</div>
+      <h4>Monochrome Glyph</h4>
+      <p>Kill all color on icons. Neutral frosted glass box, white glyph at 60% opacity. Surgical clean.</p>
+      <div class="pros">+ Instant premium feel<br>+ Zero visual noise<br>+ Easiest to implement</div>
+      <div class="cons">- Cards look samey at a glance<br>- Loses quick category scanning</div>
+    </div>
+    <div class="verdict-card">
+      <div class="v-letter" style="color:rgba(255,107,53,0.5);">B</div>
+      <h4>Accent Edge</h4>
+      <p>Remove icons entirely. 3px vertical gradient strip carries the color. Typography-first, editorial layout.</p>
+      <div class="pros">+ Most unique / editorial<br>+ Room for extra metadata tags<br>+ Very clean hierarchy</div>
+      <div class="cons">- Biggest departure from current<br>- Cards feel "text-heavy"</div>
+    </div>
+    <div class="verdict-card">
+      <div class="v-letter" style="color:rgba(66,165,245,0.5);">C</div>
+      <h4>Kinetic Orbs</h4>
+      <p>Rotating conic-gradient ring around a dark circle with a faint icon. Color stays but feels alive, not flat.</p>
+      <div class="pros">+ Most "kinetic" / premium<br>+ Keeps color identity<br>+ Animated = feels alive</div>
+      <div class="cons">- Animation cost on long lists<br>- Slightly more complex impl</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

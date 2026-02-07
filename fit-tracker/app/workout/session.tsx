@@ -1494,7 +1494,7 @@ export default function WorkoutSessionScreen() {
 const s = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#050505',
+    backgroundColor: '#0C0C0C',
   },
 
   // ─── Header ───
@@ -1678,7 +1678,7 @@ const s = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#050505',
+    backgroundColor: '#0C0C0C',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
@@ -1703,7 +1703,7 @@ const s = StyleSheet.create({
   },
   sheetContent: {
     flex: 1,
-    backgroundColor: '#050505',
+    backgroundColor: '#0C0C0C',
   },
   sheetDragBarTop: {
     width: 36,

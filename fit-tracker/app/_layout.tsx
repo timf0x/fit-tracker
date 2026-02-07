@@ -20,7 +20,7 @@ const OnsetDarkTheme = {
   colors: {
     ...DarkTheme.colors,
     primary: '#FF6B35',
-    background: '#0D0D0D',
+    background: '#0C0C0C',
     card: '#1A1A1A',
     text: '#FFFFFF',
     border: 'rgba(255, 255, 255, 0.05)',
@@ -54,6 +54,8 @@ export default function RootLayout() {
           <Stack.Screen name="recovery" options={{ headerShown: false }} />
           <Stack.Screen name="steps" options={{ headerShown: false }} />
           <Stack.Screen name="workout" options={{ headerShown: false }} />
+          <Stack.Screen name="trophies" options={{ headerShown: false }} />
+          <Stack.Screen name="stats" options={{ headerShown: false }} />
         </Stack>
         <StatusBar style="light" />
       </ThemeProvider>

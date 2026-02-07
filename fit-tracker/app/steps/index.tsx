@@ -294,7 +294,7 @@ export default function StepsScreen() {
                   cy={point.y}
                   r={index === chartData.points.length - 1 ? 5 : 3}
                   fill={point.steps >= GOAL_STEPS ? '#4ADE80' : '#3B82F6'}
-                  stroke="#050505"
+                  stroke="#0C0C0C"
                   strokeWidth={2}
                 />
               ))}
@@ -397,7 +397,7 @@ export default function StepsScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#050505',
+    backgroundColor: '#0C0C0C',
     position: 'relative',
     overflow: 'hidden',
   },

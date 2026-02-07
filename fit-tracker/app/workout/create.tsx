@@ -22,9 +22,11 @@ import {
   Check,
   ChevronDown,
   Minus as MinusIcon,
+  Info,
 } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { ExerciseIcon, CategoryIcon } from '@/components/ExerciseIcon';
+import { ExerciseInfoSheet } from '@/components/ExerciseInfoSheet';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { exercises as allExercises } from '@/data/exercises';
 import type { WorkoutExercise, Exercise, BodyPart, Equipment } from '@/types';
@@ -61,6 +63,10 @@ const EQUIPMENT_OPTIONS: { value: Equipment | 'all'; label: string }[] = [
   { value: 'machine', label: 'Machine' },
   { value: 'body weight', label: 'Poids du corps' },
   { value: 'kettlebell', label: 'Kettlebell' },
+  { value: 'resistance band', label: 'Bande élastique' },
+  { value: 'ez bar', label: 'Barre EZ' },
+  { value: 'smith machine', label: 'Smith machine' },
+  { value: 'trap bar', label: 'Trap bar' },
 ];
 
 interface SelectedExercise extends WorkoutExercise {
@@ -94,6 +100,9 @@ export default function CreateWorkoutScreen() {
   // Dropdown state
   const [showFocusDropdown, setShowFocusDropdown] = useState(false);
   const [showEquipmentDropdown, setShowEquipmentDropdown] = useState(false);
+
+  // Exercise info sheet state
+  const [infoExercise, setInfoExercise] = useState<Exercise | null>(null);
 
   // Parameter stepper state
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -338,13 +347,16 @@ export default function CreateWorkoutScreen() {
                   <Text style={s.exercisePickerName} numberOfLines={1}>{exercise.nameFr}</Text>
                   <Text style={s.exercisePickerTarget}>{exercise.target}</Text>
                 </View>
-                {isSelected ? (
-                  <View style={s.checkCircle}>
-                    <Check size={14} color="#fff" strokeWidth={3} />
-                  </View>
-                ) : (
-                  <Plus size={20} color="rgba(120,120,130,1)" strokeWidth={2} />
-                )}
+                <Pressable
+                  style={s.infoBtn}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    setInfoExercise(exercise);
+                  }}
+                  hitSlop={6}
+                >
+                  <Info size={16} color="rgba(140,140,150,1)" strokeWidth={2} />
+                </Pressable>
               </Pressable>
             );
           })}
@@ -382,6 +394,8 @@ export default function CreateWorkoutScreen() {
           onSelect={(v) => { setSelectedEquipment(v as any); setShowEquipmentDropdown(false); }}
           onClose={() => setShowEquipmentDropdown(false)}
         />
+
+        <ExerciseInfoSheet exercise={infoExercise} onClose={() => setInfoExercise(null)} />
       </View>
     );
   }
@@ -674,7 +688,7 @@ function DropdownModal({
 const s = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#050505',
+    backgroundColor: '#0C0C0C',
     position: 'relative',
     overflow: 'hidden',
   },
@@ -1032,11 +1046,11 @@ const s = StyleSheet.create({
     marginTop: 2,
     textTransform: 'capitalize',
   },
-  checkCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: Colors.primary,
+  infoBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     justifyContent: 'center',
     alignItems: 'center',
   },

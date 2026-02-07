@@ -12,7 +12,7 @@ export const Colors = {
   primaryLight: '#FF8A5C',
 
   // Background
-  background: '#0D0D0D',
+  background: '#0C0C0C',
   card: '#1A1A1A',
   cardElevated: '#1C1C1E',
   cardLight: '#242424',
@@ -65,7 +65,7 @@ export const Colors = {
 
   // Tab Bar
   tabBar: {
-    background: '#0D0D0D',
+    background: '#0C0C0C',
     border: 'rgba(255, 255, 255, 0.1)',
     active: '#FF6B35',
     inactive: '#6B7280',
@@ -74,7 +74,7 @@ export const Colors = {
   // Theme compat
   dark: {
     text: '#FFFFFF',
-    background: '#0D0D0D',
+    background: '#0C0C0C',
     tint: '#FF6B35',
     icon: '#9CA3AF',
     tabIconDefault: '#6B7280',
@@ -82,7 +82,7 @@ export const Colors = {
   },
   light: {
     text: '#FFFFFF',
-    background: '#0D0D0D',
+    background: '#0C0C0C',
     tint: '#FF6B35',
     icon: '#9CA3AF',
     tabIconDefault: '#6B7280',

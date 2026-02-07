@@ -1,13 +1,31 @@
+import { useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import {
   Flame,
+  Anchor,
+  Mountain,
+  Target,
   Dumbbell,
   Footprints,
   Zap,
   User,
   Clock,
 } from 'lucide-react-native';
+import Svg, {
+  Defs,
+  LinearGradient as SvgGradient,
+  Stop,
+  Circle,
+} from 'react-native-svg';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { Fonts } from '@/constants/theme';
+import { getCategoryIcon } from '@/constants/icons';
 import { Workout } from '@/types';
 import type { LucideIcon } from 'lucide-react-native';
 
@@ -22,12 +40,23 @@ const FOCUS_COLORS: Record<string, string> = {
   lower: '#66bb6a',
 };
 
-const ICON_MAP: Record<string, LucideIcon> = {
+const LUCIDE_MAP: Record<string, LucideIcon> = {
   flame: Flame,
-  barbell: Dumbbell,
-  walk: Footprints,
-  flash: Zap,
-  body: User,
+  anchor: Anchor,
+  mountain: Mountain,
+  target: Target,
+  zap: Zap,
+  user: User,
+  dumbbell: Dumbbell,
+  footprints: Footprints,
+};
+
+// Preset workouts use legacy icon names — map them to Lucide keys
+const LEGACY_ICON_ALIAS: Record<string, string> = {
+  body: 'user',
+  barbell: 'dumbbell',
+  walk: 'footprints',
+  flash: 'zap',
 };
 
 const LEVEL_LABELS: Record<string, string> = {
@@ -37,6 +66,67 @@ const LEVEL_LABELS: Record<string, string> = {
   all: 'Tous niveaux',
 };
 
+// ─── Kinetic Orb ─────────────────────────────────
+
+const ORB_SIZE = 48;
+const STROKE_W = 1.5;
+const ORB_R = (ORB_SIZE - STROKE_W) / 2;
+
+function KineticOrb({ color, icon: Icon }: { color: string; icon: LucideIcon }) {
+  const rotation = useSharedValue(0);
+
+  useEffect(() => {
+    rotation.value = withRepeat(
+      withTiming(360, { duration: 6000, easing: Easing.linear }),
+      -1,
+      false,
+    );
+  }, []);
+
+  const ringStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
+
+  return (
+    <View style={orbStyles.container}>
+      <Animated.View style={[StyleSheet.absoluteFill, ringStyle]}>
+        <Svg width={ORB_SIZE} height={ORB_SIZE}>
+          <Defs>
+            <SvgGradient id="g" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor={color} stopOpacity="0.12" />
+              <Stop offset="0.35" stopColor={color} stopOpacity="0.5" />
+              <Stop offset="0.55" stopColor={color} stopOpacity="0.06" />
+              <Stop offset="0.85" stopColor={color} stopOpacity="0.4" />
+              <Stop offset="1" stopColor={color} stopOpacity="0.1" />
+            </SvgGradient>
+          </Defs>
+          <Circle
+            cx={ORB_SIZE / 2}
+            cy={ORB_SIZE / 2}
+            r={ORB_R}
+            stroke="url(#g)"
+            strokeWidth={STROKE_W}
+            fill="#0d0d0d"
+          />
+        </Svg>
+      </Animated.View>
+      <Icon size={18} color={`${color}B3`} strokeWidth={2} />
+    </View>
+  );
+}
+
+const orbStyles = StyleSheet.create({
+  container: {
+    width: ORB_SIZE,
+    height: ORB_SIZE,
+    borderRadius: ORB_SIZE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
+
+// ─── Card ────────────────────────────────────────
+
 interface WorkoutListCardProps {
   workout: Workout;
   onPress?: () => void;
@@ -44,7 +134,10 @@ interface WorkoutListCardProps {
 
 export function WorkoutListCard({ workout, onPress }: WorkoutListCardProps) {
   const color = FOCUS_COLORS[workout.focus || 'full_body'] || '#ff7043';
-  const IconComponent = ICON_MAP[workout.icon || 'flame'] || Flame;
+  const iconKey = workout.icon || workout.focus || 'push';
+  // Resolve icon: legacy alias → direct Lucide name → category lookup
+  const resolvedLucide = LEGACY_ICON_ALIAS[iconKey] || iconKey;
+  const IconComponent = LUCIDE_MAP[resolvedLucide] || LUCIDE_MAP[getCategoryIcon(iconKey).icon] || Flame;
   const levelLabel = LEVEL_LABELS[workout.level] || workout.level;
 
   return (
@@ -55,18 +148,7 @@ export function WorkoutListCard({ workout, onPress }: WorkoutListCardProps) {
       ]}
       onPress={onPress}
     >
-      <View
-        style={[
-          styles.iconBox,
-          {
-            backgroundColor: `${color}14`,
-            borderColor: `${color}30`,
-            shadowColor: color,
-          },
-        ]}
-      >
-        <IconComponent size={22} color={color} strokeWidth={2.2} />
-      </View>
+      <KineticOrb color={color} icon={IconComponent} />
 
       <View style={styles.textContent}>
         <Text style={styles.name} numberOfLines={1}>
@@ -103,18 +185,6 @@ const styles = StyleSheet.create({
   cardPressed: {
     backgroundColor: 'rgba(255, 255, 255, 0.07)',
     borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  iconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 4,
   },
   textContent: {
     flex: 1,

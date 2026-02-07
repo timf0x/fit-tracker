@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, TextInput, StyleSheet } from 'react-native';
-import { Plus, Dumbbell, Search, X } from 'lucide-react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { Plus, Dumbbell, Search } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
@@ -80,7 +80,6 @@ export default function WorkoutsScreen() {
   const router = useRouter();
   const customWorkouts = useWorkoutStore((s) => s.customWorkouts);
   const [activeTab, setActiveTab] = useState(1);
-  const [searchQuery, setSearchQuery] = useState('');
   const [activeFilters, setActiveFilters] = useState<Record<string, string | null>>({});
   const isPresets = activeTab === 1;
 
@@ -92,16 +91,6 @@ export default function WorkoutsScreen() {
     if (!isPresets) return [];
 
     let results = presetWorkouts;
-
-    // Search filter
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      results = results.filter(w =>
-        w.nameFr.toLowerCase().includes(q) ||
-        w.name.toLowerCase().includes(q) ||
-        w.descriptionFr.toLowerCase().includes(q)
-      );
-    }
 
     // Level filter
     if (activeFilters.level) {
@@ -133,13 +122,13 @@ export default function WorkoutsScreen() {
     }
 
     return results;
-  }, [isPresets, searchQuery, activeFilters]);
+  }, [isPresets, activeFilters]);
 
   const hasActiveFilters = Object.values(activeFilters).some(v => v !== null && v !== undefined);
 
   const groupedWorkouts = useMemo((): WorkoutGroup[] => {
     // Don't group if any filters or search are active — show flat list
-    if (hasActiveFilters || searchQuery.trim()) {
+    if (hasActiveFilters) {
       return [{ level: 'results', label: `${filteredWorkouts.length} résultats`, workouts: filteredWorkouts }];
     }
 
@@ -150,7 +139,7 @@ export default function WorkoutsScreen() {
         workouts: filteredWorkouts.filter(w => w.level === level),
       }))
       .filter(g => g.workouts.length > 0);
-  }, [filteredWorkouts, hasActiveFilters, searchQuery]);
+  }, [filteredWorkouts, hasActiveFilters]);
 
   const activeFilterCount = Object.values(activeFilters).filter(Boolean).length;
 
@@ -160,67 +149,44 @@ export default function WorkoutsScreen() {
       <View style={styles.orbOrange} />
       <View style={styles.orbBlue} />
 
+      {/* Fixed Header */}
+      <View style={[styles.headerArea, { paddingTop: insets.top + 16 }]}>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.headerLabel}>MES WORKOUTS</Text>
+            <Text style={styles.headerTitle}>Entraînements</Text>
+          </View>
+          <Pressable style={styles.addButton} onPress={() => router.push('/workout/create')}>
+            <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
+          </Pressable>
+        </View>
+      </View>
+
+      {/* Fixed Segmented Control */}
+      <View style={styles.segmentWrapper}>
+        <SegmentedControl
+          tabs={TABS}
+          activeIndex={activeTab}
+          onTabChange={setActiveTab}
+        />
+      </View>
+
+      {/* Fixed Filters (Presets only) */}
+      {isPresets && (
+        <FilterPills
+          filters={FILTER_CONFIGS}
+          activeFilters={activeFilters}
+          onFilterChange={handleFilterChange}
+        />
+      )}
+
+      {/* Scrollable Content */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Header */}
-        <View style={[styles.headerArea, { paddingTop: insets.top + 16 }]}>
-          <View style={styles.headerRow}>
-            <View>
-              <Text style={styles.headerLabel}>MES WORKOUTS</Text>
-              <Text style={styles.headerTitle}>Entraînements</Text>
-            </View>
-            <Pressable style={styles.addButton} onPress={() => router.push('/workout/create')}>
-              <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Segmented Control */}
-        <View style={styles.segmentWrapper}>
-          <SegmentedControl
-            tabs={TABS}
-            activeIndex={activeTab}
-            onTabChange={setActiveTab}
-          />
-        </View>
-
-        {/* Search Bar (Presets only) */}
-        {isPresets && (
-          <View style={styles.searchWrapper}>
-            <View style={styles.searchBar}>
-              <Search size={16} color="rgba(120, 120, 130, 1)" strokeWidth={2} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Rechercher un workout..."
-                placeholderTextColor="rgba(100, 100, 110, 1)"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                autoCorrect={false}
-                autoCapitalize="none"
-              />
-              {searchQuery.length > 0 && (
-                <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
-                  <X size={16} color="rgba(120, 120, 130, 1)" strokeWidth={2} />
-                </Pressable>
-              )}
-            </View>
-          </View>
-        )}
-
-        {/* Filters (Presets only) */}
-        {isPresets && (
-          <FilterPills
-            filters={FILTER_CONFIGS}
-            activeFilters={activeFilters}
-            onFilterChange={handleFilterChange}
-          />
-        )}
-
-        {/* Content */}
         {isPresets ? (
           <View style={styles.list}>
             {groupedWorkouts.map((group) => (
@@ -292,7 +258,7 @@ export default function WorkoutsScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#050505',
+    backgroundColor: '#0C0C0C',
     position: 'relative',
     overflow: 'hidden',
   },
@@ -329,16 +295,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    paddingTop: 16,
     paddingBottom: 120,
-    gap: 16,
-    alignItems: 'stretch',
   },
 
   // Header
   headerArea: {
     paddingHorizontal: Spacing.lg,
     paddingTop: 0,
-    paddingBottom: 4,
+    paddingBottom: 12,
     position: 'relative',
     overflow: 'visible',
   },
@@ -376,30 +341,7 @@ const styles = StyleSheet.create({
   // Segment
   segmentWrapper: {
     paddingHorizontal: Spacing.lg,
-  },
-
-  // Search
-  searchWrapper: {
-    paddingHorizontal: Spacing.lg,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 10,
-  },
-  searchInput: {
-    flex: 1,
-    color: 'rgba(220, 220, 230, 1)',
-    fontSize: 14,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    padding: 0,
+    marginBottom: 16,
   },
 
   // List

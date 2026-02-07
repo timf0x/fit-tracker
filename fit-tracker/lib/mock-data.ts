@@ -10,30 +10,16 @@ export const mockStats = {
   stepsGoal: 10000,
 };
 
+// currentDayIndex: Mon=0 … Sun=6 (JS getDay() returns Sun=0, Mon=1 … Sat=6)
+const jsDay = new Date().getDay();
+const todayIndex = jsDay === 0 ? 6 : jsDay - 1;
+
 export const mockWeekly = {
   completedDays: [true, true, false, false, false, false, false], // L-D
-  currentDayIndex: 1, // Tuesday (0-indexed, Monday=0)
+  currentDayIndex: todayIndex,
   workoutsCompleted: 2,
   workoutsGoal: 3,
   streak: 0,
-};
-
-export const mockFriends = {
-  count: 3,
-  avatars: [
-    { type: 'image' as const, uri: null },
-    { type: 'initial' as const, letter: 'N', color: '#3B82F6' },
-    { type: 'initial' as const, letter: 'C', color: '#9333EA' },
-  ],
-  recentActivity: {
-    name: 'Chris',
-    activity: 'PushUp',
-  },
-  reactions: {
-    fire: 1,
-    thumbsUp: 0,
-    lightning: 1,
-  },
 };
 
 export const mockWorkouts = [

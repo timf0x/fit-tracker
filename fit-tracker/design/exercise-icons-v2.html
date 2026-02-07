@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Onset Fitness — Anatomical Silhouette Badges v2</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #050505;
+    color: #fff;
+    font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    padding: 48px 24px 100px;
+    min-height: 100vh;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 800;
+    text-align: center;
+    margin-bottom: 6px;
+    background: linear-gradient(135deg, #FF6B35 0%, #ff9a6c 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: rgba(255,255,255,0.35);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 56px;
+  }
+
+  /* ─── Showcase Grid ─── */
+  .showcase {
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    padding-left: 4px;
+  }
+
+  .icon-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 56px;
+  }
+
+  @media (max-width: 700px) {
+    .icon-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  .icon-card {
+    background: rgba(255,255,255,0.025);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 20px;
+    padding: 28px 16px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    transition: all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .icon-card:hover {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.08);
+    transform: translateY(-3px);
+  }
+
+  .icon-frame {
+    width: 80px;
+    height: 80px;
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .icon-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.75);
+    text-align: center;
+  }
+
+  .icon-bodypart {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.25);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-top: -8px;
+  }
+
+  /* ─── Size Scale Row ─── */
+  .scale-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 40px;
+    padding: 32px 28px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.04);
+    border-radius: 20px;
+    margin-bottom: 56px;
+  }
+
+  .scale-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .scale-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  /* ─── In-App Preview ─── */
+  .preview-section {
+    max-width: 420px;
+    margin: 0 auto 56px;
+  }
+
+  .phone-frame {
+    background: #0a0a0a;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 28px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .phone-frame::before {
+    content: '';
+    position: absolute;
+    top: -120px;
+    right: -60px;
+    width: 240px;
+    height: 240px;
+    background: radial-gradient(circle, rgba(255,107,53,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .phone-header {
+    text-align: center;
+    padding: 8px 0 20px;
+  }
+
+  .phone-header h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.85);
+  }
+
+  .exercise-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 16px;
+    margin-bottom: 10px;
+  }
+
+  .row-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .row-text { flex: 1; }
+
+  .row-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  .row-part {
+    font-size: 12px;
+    color: rgba(255,255,255,0.3);
+    margin-top: 2px;
+  }
+
+  .row-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+  }
+
+  .row-meta span {
+    font-size: 11px;
+    color: rgba(255,255,255,0.25);
+    font-weight: 500;
+  }
+
+  .row-meta strong {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    font-weight: 600;
+  }
+
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+    margin: 48px 0;
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* ─── Color Legend ─── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+    margin-bottom: 56px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  .legend-text {
+    font-size: 11px;
+    color: rgba(255,255,255,0.35);
+    font-weight: 500;
+    letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Anatomical Silhouette Badges</h1>
+<p class="subtitle">Premium Rework &mdash; v2</p>
+
+<!-- Color Legend -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background: #ff7043;"></div><span class="legend-text">Chest</span></div>
+  <div class="legend-item"><div class="legend-dot" style="background: #42a5f5;"></div><span class="legend-text">Back</span></div>
+  <div class="legend-item"><div class="legend-dot" style="background: #66bb6a;"></div><span class="legend-text">Legs</span></div>
+  <div class="legend-item"><div class="legend-dot" style="background: #ec407a;"></div><span class="legend-text">Arms</span></div>
+  <div class="legend-item"><div class="legend-dot" style="background: #ab47bc;"></div><span class="legend-text">Shoulders</span></div>
+  <div class="legend-item"><div class="legend-dot" style="background: #fbbf24;"></div><span class="legend-text">Core</span></div>
+</div>
+
+<div class="showcase">
+
+  <!-- ═══════════════════════════════════════════════
+       MAIN ICONS — 80×80 showcase
+       ═══════════════════════════════════════════════ -->
+
+  <div class="section-label">Full Size &mdash; 80px</div>
+
+  <div class="icon-grid">
+
+    <!-- ─── BENCH PRESS (Chest) ─── -->
+    <div class="icon-card">
+      <div class="icon-frame" style="background: rgba(255,112,67,0.07);">
+        <svg width="56" height="56" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="chestGlow" cx="55%" cy="45%" r="45%">
+              <stop offset="0%" stop-color="rgba(255,112,67,0.55)"/>
+              <stop offset="70%" stop-color="rgba(255,112,67,0.15)"/>
+              <stop offset="100%" stop-color="rgba(255,112,67,0)"/>
+            </radialGradient>
+            <linearGradient id="chestSilhouette" x1="50%" y1="0%" x2="50%" y2="100%">
+              <stop offset="0%" stop-color="rgba(255,255,255,0.45)"/>
+              <stop offset="100%" stop-color="rgba(255,255,255,0.15)"/>
+            </linearGradient>
+            <filter id="chestBloom" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+
+          <!-- Bench -->
+          <rect x="22" y="72" width="76" height="5" rx="2.5" fill="rgba(255,255,255,0.08)"/>
+          <rect x="28" y="77" width="5" height="14" rx="2" fill="rgba(255,255,255,0.05)"/>
+          <rect x="87" y="77" width="5" height="14" rx="2" fill="rgba(255,255,255,0.05)"/>
+          <!-- Rack posts -->
+          <rect x="20" y="20" width="4" height="57" rx="2" fill="rgba(255,255,255,0.06)"/>
+          <rect x="96" y="20" width="4" height="57" rx="2" fill="rgba(255,255,255,0.06)"/>
+
+          <!-- Body lying on bench — smooth silhouette -->
+          <!-- Head -->
+          <ellipse cx="86" cy="62" rx="7" ry="7.5" fill="url(#chestSilhouette)"/>
+          <!-- Neck -->
+          <rect x="78" y="60" width="8" height="5" rx="2" fill="rgba(255,255,255,0.25)"/>
+
+          <!-- Torso — chest highlighted -->
+          <path d="M38 58 C38 52, 42 48, 50 48 L72 48 C78 48, 80 52, 80 58 L80 72 L38 72Z" fill="rgba(255,255,255,0.12)"/>
+          <!-- CHEST HIGHLIGHT with glow -->
+          <path d="M42 52 C42 49, 46 46, 52 46 L68 46 C74 46, 78 49, 78 52 L78 64 C78 66, 74 68, 68 68 L52 68 C46 68, 42 66, 42 64Z" fill="url(#chestGlow)" filter="url(#chestBloom)"/>
+          <!-- Pec separation line -->
+          <line x1="60" y1="48" x2="60" y2="66" stroke="rgba(255,112,67,0.3)" stroke-width="0.8"/>
+          <!-- Pec definition curves -->
+          <path d="M48 50 Q54 55 60 53" stroke="rgba(255,112,67,0.2)" stroke-width="0.6" fill="none"/>
+          <path d="M72 50 Q66 55 60 53" stroke="rgba(255,112,67,0.2)" stroke-width="0.6" fill="none"/>
+
+          <!-- Hips/legs trailing -->
+          <path d="M38 72 L32 72 C28 72 26 74 26 78 L24 96" stroke="rgba(255,255,255,0.12)" stroke-width="6" stroke-linecap="round" fill="none"/>
+          <path d="M38 72 L34 78 C32 82 32 86 34 96" stroke="rgba(255,255,255,0.08)" stroke-width="5" stroke-linecap="round" fill="none"/>
+
+          <!-- Arms pushing barbell up -->
+          <!-- Upper arms -->
+          <path d="M46 52 C42 46, 38 40, 38 34" stroke="url(#chestSilhouette)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          <path d="M74 52 C78 46, 82 40, 82 34" stroke="url(#chestSilhouette)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          <!-- Forearms -->
+          <path d="M38 34 L38 28" stroke="rgba(255,255,255,0.35)" stroke-width="4.5" stroke-linecap="round"/>
+          <path d="M82 34 L82 28" stroke="rgba(255,255,255,0.35)" stroke-width="4.5" stroke-linecap="round"/>
+
+          <!-- Barbell -->
+          <line x1="14" y1="26" x2="106" y2="26" stroke="rgba(255,255,255,0.4)" stroke-width="3" stroke-linecap="round"/>
+          <!-- Plates -->
+          <rect x="8" y="18" width="8" height="16" rx="3" fill="rgba(255,112,67,0.45)" stroke="rgba(255,112,67,0.6)" stroke-width="0.8"/>
+          <rect x="104" y="18" width="8" height="16" rx="3" fill="rgba(255,112,67,0.45)" stroke="rgba(255,112,67,0.6)" stroke-width="0.8"/>
+          <!-- Inner plates -->
+          <rect x="16" y="20" width="5" height="12" rx="2" fill="rgba(255,112,67,0.25)"/>
+          <rect x="99" y="20" width="5" height="12" rx="2" fill="rgba(255,112,67,0.25)"/>
+        </svg>
+      </div>
+      <span class="icon-label">Bench Press</span>
+      <span class="icon-bodypart">Chest</span>
+    </div>
+
+    <!-- ─── BARBELL SQUAT (Legs) ─── -->
+    <div class="icon-card">
+      <div class="icon-frame" style="background: rgba(102,187,106,0.07);">
+        <svg width="56" height="56" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="quadGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="rgba(102,187,106,0.55)"/>
+              <stop offset="65%" stop-color="rgba(102,187,106,0.12)"/>
+              <stop offset="100%" stop-color="rgba(102,187,106,0)"/>
+            </radialGradient>
+            <linearGradient id="legSilhouette" x1="50%" y1="0%" x2="50%" y2="100%">
+              <stop offset="0%" stop-color="rgba(255,255,255,0.4)"/>
+              <stop offset="100%" stop-color="rgba(255,255,255,0.12)"/>
+            </linearGradient>
+            <filter id="legBloom" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+
+          <!-- Head -->
+          <ellipse cx="60" cy="16" rx="7.5" ry="8" fill="url(#legSilhouette)"/>
+
+          <!-- Barbell on shoulders -->
+          <line x1="16" y1="28" x2="104" y2="28" stroke="rgba(255,255,255,0.35)" stroke-width="3" stroke-linecap="round"/>
+          <rect x="8" y="21" width="10" height="14" rx="3.5" fill="rgba(102,187,106,0.4)" stroke="rgba(102,187,106,0.55)" stroke-width="0.8"/>
+          <rect x="102" y="21" width="10" height="14" rx="3.5" fill="rgba(102,187,106,0.4)" stroke="rgba(102,187,106,0.55)" stroke-width="0.8"/>
+          <rect x="18" y="23" width="6" height="10" rx="2" fill="rgba(102,187,106,0.2)"/>
+          <rect x="96" y="23" width="6" height="10" rx="2" fill="rgba(102,187,106,0.2)"/>
+
+          <!-- Arms gripping bar -->
+          <path d="M48 38 C44 34, 38 30, 32 28" stroke="rgba(255,255,255,0.25)" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+          <path d="M72 38 C76 34, 82 30, 88 28" stroke="rgba(255,255,255,0.25)" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+
+          <!-- Torso — squat position, slightly leaned forward -->
+          <path d="M48 30 C46 30, 44 32, 44 36 L42 56 C42 58, 44 60, 48 60 L72 60 C76 60, 78 58, 78 56 L76 36 C76 32, 74 30, 72 30Z" fill="rgba(255,255,255,0.1)"/>
+
+          <!-- QUADS HIGHLIGHTED — thick upper legs in squat -->
+          <!-- Left quad -->
+          <path d="M44 60 C40 62, 36 68, 32 78 C30 84, 32 86, 36 86 L46 84 C48 82, 48 76, 48 68Z" fill="url(#quadGlow)" filter="url(#legBloom)" stroke="rgba(102,187,106,0.4)" stroke-width="0.5"/>
+          <!-- Right quad -->
+          <path d="M76 60 C80 62, 84 68, 88 78 C90 84, 88 86, 84 86 L74 84 C72 82, 72 76, 72 68Z" fill="url(#quadGlow)" filter="url(#legBloom)" stroke="rgba(102,187,106,0.4)" stroke-width="0.5"/>
+          <!-- Quad separation lines -->
+          <path d="M42 64 Q44 74 38 84" stroke="rgba(102,187,106,0.2)" stroke-width="0.6" fill="none"/>
+          <path d="M78 64 Q76 74 82 84" stroke="rgba(102,187,106,0.2)" stroke-width="0.6" fill="none"/>
+
+          <!-- Lower legs (calves) -->
+          <path d="M34 86 C32 92, 30 100, 28 108" stroke="rgba(255,255,255,0.15)" stroke-width="5" stroke-linecap="round" fill="none"/>
+          <path d="M86 86 C88 92, 90 100, 92 108" stroke="rgba(255,255,255,0.15)" stroke-width="5" stroke-linecap="round" fill="none"/>
+
+          <!-- Feet -->
+          <path d="M24 108 L34 108" stroke="rgba(255,255,255,0.12)" stroke-width="4" stroke-linecap="round"/>
+          <path d="M86 108 L96 108" stroke="rgba(255,255,255,0.12)" stroke-width="4" stroke-linecap="round"/>
+
+          <!-- Floor line -->
+          <line x1="18" y1="112" x2="102" y2="112" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+        </svg>
+      </div>
+      <span class="icon-label">Barbell Squat</span>
+      <span class="icon-bodypart">Legs</span>
+    </div>
+
+    <!-- ─── PULL-UP (Back) ─── -->
+    <div class="icon-card">
+      <div class="icon-frame" style="background: rgba(66,165,245,0.07);">
+        <svg width="56" height="56" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="backGlow" cx="50%" cy="40%" r="45%">
+              <stop offset="0%" stop-color="rgba(66,165,245,0.55)"/>
+              <stop offset="65%" stop-color="rgba(66,165,245,0.12)"/>
+              <stop offset="100%" stop-color="rgba(66,165,245,0)"/>
+            </radialGradient>
+            <linearGradient id="backSilhouette" x1="50%" y1="0%" x2="50%" y2="100%">
+              <stop offset="0%" stop-color="rgba(255,255,255,0.4)"/>
+              <stop offset="100%" stop-color="rgba(255,255,255,0.12)"/>
+            </linearGradient>
+            <filter id="backBloom" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+
+          <!-- Pull-up bar -->
+          <line x1="10" y1="10" x2="110" y2="10" stroke="rgba(255,255,255,0.35)" stroke-width="4" stroke-linecap="round"/>
+          <!-- Bar bracket hints -->
+          <rect x="10" y="4" width="4" height="10" rx="1.5" fill="rgba(255,255,255,0.08)"/>
+          <rect x="106" y="4" width="4" height="10" rx="1.5" fill="rgba(255,255,255,0.08)"/>
+
+          <!-- Arms — reaching up, elbows bent (at the top of pull-up) -->
+          <!-- Upper arms -->
+          <path d="M48 42 C44 34, 38 22, 34 14" stroke="url(#backSilhouette)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          <path d="M72 42 C76 34, 82 22, 86 14" stroke="url(#backSilhouette)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          <!-- Forearms to bar -->
+          <path d="M34 14 C32 12, 32 10, 34 10" stroke="rgba(255,255,255,0.3)" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+          <path d="M86 14 C88 12, 88 10, 86 10" stroke="rgba(255,255,255,0.3)" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+          <!-- Hands gripping -->
+          <circle cx="34" cy="10" r="3" fill="rgba(255,255,255,0.25)"/>
+          <circle cx="86" cy="10" r="3" fill="rgba(255,255,255,0.25)"/>
+
+          <!-- Head (at bar level during top of pull-up) -->
+          <ellipse cx="60" cy="26" rx="7.5" ry="8" fill="url(#backSilhouette)"/>
+
+          <!-- BACK/LATS HIGHLIGHTED — V-taper torso -->
+          <path d="M46 38 C42 40, 38 44, 36 50 C34 58, 36 64, 40 68 L52 72 L60 74 L68 72 L80 68 C84 64, 86 58, 84 50 C82 44, 78 40, 74 38Z" fill="url(#backGlow)" filter="url(#backBloom)" stroke="rgba(66,165,245,0.4)" stroke-width="0.5"/>
+          <!-- Spine -->
+          <line x1="60" y1="38" x2="60" y2="72" stroke="rgba(66,165,245,0.3)" stroke-width="1" stroke-linecap="round"/>
+          <!-- Lat wing definition -->
+          <path d="M54 42 C46 48 40 56 40 66" stroke="rgba(66,165,245,0.18)" stroke-width="0.7" fill="none"/>
+          <path d="M66 42 C74 48 80 56 80 66" stroke="rgba(66,165,245,0.18)" stroke-width="0.7" fill="none"/>
+          <!-- Rhomboid hints -->
+          <path d="M56 44 Q58 50 60 48 Q62 50 64 44" stroke="rgba(66,165,245,0.12)" stroke-width="0.5" fill="none"/>
+
+          <!-- Lower body — torso extends to waist -->
+          <path d="M52 72 L48 74 C46 76, 46 78, 48 80" stroke="rgba(255,255,255,0.1)" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <path d="M68 72 L72 74 C74 76, 74 78, 72 80" stroke="rgba(255,255,255,0.1)" stroke-width="4" stroke-linecap="round" fill="none"/>
+
+          <!-- Legs hanging -->
+          <path d="M48 80 C46 88, 44 96, 42 106" stroke="rgba(255,255,255,0.1)" stroke-width="5" stroke-linecap="round" fill="none"/>
+          <path d="M72 80 C74 88, 76 96, 78 106" stroke="rgba(255,255,255,0.1)" stroke-width="5" stroke-linecap="round" fill="none"/>
+          <!-- Slight knee bend -->
+          <path d="M42 106 C40 110, 44 112, 46 110" stroke="rgba(255,255,255,0.07)" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+          <path d="M78 106 C80 110, 76 112, 74 110" stroke="rgba(255,255,255,0.07)" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+        </svg>
+      </div>
+      <span class="icon-label">Pull-Up</span>
+      <span class="icon-bodypart">Back</span>
+    </div>
+
+    <!-- ─── BICEP CURL (Upper Arms) ─── -->
+    <div class="icon-card">
+      <div class="icon-frame" style="background: rgba(236,64,122,0.07);">
+        <svg width="56" height="56" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="bicepGlow" cx="50%" cy="40%" r="40%">
+              <stop offset="0%" stop-color="rgba(236,64,122,0.6)"/>
+              <stop offset="60%" stop-color="rgba(236,64,122,0.15)"/>
+              <stop offset="100%" stop-color="rgba(236,64,122,0)"/>
+            </radialGradient>
+            <linearGradient id="armSilhouette" x1="50%" y1="0%" x2="50%" y2="100%">
+              <stop offset="0%" stop-color="rgba(255,255,255,0.4)"/>
+              <stop offset="100%" stop-color="rgba(255,255,255,0.12)"/>
+            </linearGradient>
+            <filter id="armBloom" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+
+          <!-- Head — slightly turned 3/4 view -->
+          <ellipse cx="60" cy="14" rx="8" ry="9" fill="url(#armSilhouette)"/>
+
+          <!-- Torso -->
+          <path d="M48 26 C46 26, 44 28, 44 32 L44 64 C44 68, 46 70, 50 70 L70 70 C74 70, 76 68, 76 64 L76 32 C76 28, 74 26, 72 26Z" fill="rgba(255,255,255,0.08)"/>
+
+          <!-- RIGHT ARM — curling up with dumbbell -->
+          <!-- Upper arm (stays at side) -->
+          <path d="M44 32 C38 34, 34 38, 32 44" stroke="rgba(255,255,255,0.25)" stroke-width="6" stroke-linecap="round" fill="none"/>
+          <!-- BICEP HIGHLIGHT — on the flexed arm -->
+          <ellipse cx="34" cy="38" rx="8" ry="10" fill="url(#bicepGlow)" filter="url(#armBloom)" transform="rotate(-15 34 38)"/>
+          <!-- Bicep peak definition -->
+          <path d="M30 32 C28 36, 30 42, 34 44" stroke="rgba(236,64,122,0.35)" stroke-width="0.7" fill="none"/>
+          <!-- Forearm curling up -->
+          <path d="M32 44 C30 40, 28 34, 30 28" stroke="rgba(255,255,255,0.3)" stroke-width="5" stroke-linecap="round" fill="none"/>
+          <!-- Dumbbell in right hand -->
+          <rect x="22" y="22" width="16" height="5" rx="2.5" fill="rgba(236,64,122,0.5)" stroke="rgba(236,64,122,0.65)" stroke-width="0.8"/>
+          <!-- Dumbbell handle -->
+          <line x1="28" y1="24.5" x2="32" y2="24.5" stroke="rgba(255,255,255,0.3)" stroke-width="2" stroke-linecap="round"/>
+
+          <!-- LEFT ARM — hanging with dumbbell -->
+          <path d="M76 32 C82 34, 86 40, 88 50" stroke="rgba(255,255,255,0.18)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          <path d="M88 50 L88 66" stroke="rgba(255,255,255,0.14)" stroke-width="4.5" stroke-linecap="round"/>
+          <!-- Left dumbbell hanging -->
+          <rect x="82" y="66" width="12" height="4" rx="2" fill="rgba(255,255,255,0.12)"/>
+
+          <!-- Legs -->
+          <path d="M50 70 L48 96 C48 100, 46 104, 44 108" stroke="rgba(255,255,255,0.1)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          <path d="M70 70 L72 96 C72 100, 74 104, 76 108" stroke="rgba(255,255,255,0.1)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          <!-- Feet -->
+          <path d="M44 108 L38 110" stroke="rgba(255,255,255,0.07)" stroke-width="4" stroke-linecap="round"/>
+          <path d="M76 108 L82 110" stroke="rgba(255,255,255,0.07)" stroke-width="4" stroke-linecap="round"/>
+
+          <!-- Floor -->
+          <line x1="28" y1="114" x2="92" y2="114" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+        </svg>
+      </div>
+      <span class="icon-label">Bicep Curl</span>
+      <span class="icon-bodypart">Arms</span>
+    </div>
+
+    <!-- ─── CRUNCH (Core) ─── -->
+    <div class="icon-card">
+      <div class="icon-frame" style="background: rgba(251,191,36,0.07);">
+        <svg width="56" height="56" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="coreGlow" cx="45%" cy="45%" r="40%">
+              <stop offset="0%" stop-color="rgba(251,191,36,0.55)"/>
+              <stop offset="60%" stop-color="rgba(251,191,36,0.12)"/>
+              <stop offset="100%" stop-color="rgba(251,191,36,0)"/>
+            </radialGradient>
+            <linearGradient id="coreSilhouette" x1="50%" y1="0%" x2="50%" y2="100%">
+              <stop offset="0%" stop-color="rgba(255,255,255,0.35)"/>
+              <stop offset="100%" stop-color="rgba(255,255,255,0.1)"/>
+            </linearGradient>
+            <filter id="coreBloom" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+
+          <!-- Floor / Mat -->
+          <rect x="10" y="86" width="100" height="3" rx="1.5" fill="rgba(255,255,255,0.04)"/>
+
+          <!-- Lower body on floor — legs bent -->
+          <!-- Thighs going up at angle -->
+          <path d="M68 86 C68 80, 72 72, 78 66" stroke="rgba(255,255,255,0.15)" stroke-width="6" stroke-linecap="round" fill="none"/>
+          <path d="M76 86 C76 80, 80 72, 86 66" stroke="rgba(255,255,255,0.12)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          <!-- Shins going back down -->
+          <path d="M78 66 C82 62, 88 64, 90 70" stroke="rgba(255,255,255,0.12)" stroke-width="5" stroke-linecap="round" fill="none"/>
+          <path d="M86 66 C90 62, 96 64, 98 70" stroke="rgba(255,255,255,0.1)" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+          <!-- Feet on floor -->
+          <path d="M90 70 L92 78" stroke="rgba(255,255,255,0.08)" stroke-width="4" stroke-linecap="round"/>
+          <path d="M98 70 L100 78" stroke="rgba(255,255,255,0.07)" stroke-width="3.5" stroke-linecap="round"/>
+
+          <!-- Lower back/hips on mat -->
+          <path d="M50 86 L70 86 C72 86, 74 84, 72 80" stroke="rgba(255,255,255,0.1)" stroke-width="6" stroke-linecap="round" fill="none"/>
+
+          <!-- CORE/ABS HIGHLIGHTED — the crunching section -->
+          <path d="M30 68 C34 72, 42 78, 50 82 L68 82 C66 78, 62 72, 56 66 L42 60 C36 60, 32 64, 30 68Z" fill="url(#coreGlow)" filter="url(#coreBloom)" stroke="rgba(251,191,36,0.35)" stroke-width="0.5"/>
+          <!-- Ab segment lines -->
+          <line x1="40" y1="66" x2="56" y2="78" stroke="rgba(251,191,36,0.2)" stroke-width="0.6"/>
+          <line x1="44" y1="64" x2="60" y2="76" stroke="rgba(251,191,36,0.15)" stroke-width="0.5"/>
+          <line x1="36" y1="70" x2="52" y2="82" stroke="rgba(251,191,36,0.15)" stroke-width="0.5"/>
+          <!-- Linea alba (center line) -->
+          <path d="M38 64 Q50 74 58 82" stroke="rgba(251,191,36,0.25)" stroke-width="0.8" fill="none"/>
+
+          <!-- Upper torso curling up -->
+          <path d="M30 68 C28 62, 24 56, 22 50" stroke="url(#coreSilhouette)" stroke-width="7" stroke-linecap="round" fill="none"/>
+
+          <!-- Head curling forward -->
+          <ellipse cx="22" cy="44" rx="7.5" ry="8" fill="url(#coreSilhouette)"/>
+
+          <!-- Arms behind head -->
+          <path d="M22 50 C18 48, 16 44, 18 40" stroke="rgba(255,255,255,0.2)" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <path d="M22 50 C26 48, 28 44, 26 40" stroke="rgba(255,255,255,0.2)" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <!-- Hands behind head -->
+          <path d="M18 40 C16 38, 18 36, 22 38" stroke="rgba(255,255,255,0.15)" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <path d="M26 40 C28 38, 26 36, 22 38" stroke="rgba(255,255,255,0.15)" stroke-width="3" stroke-linecap="round" fill="none"/>
+        </svg>
+      </div>
+      <span class="icon-label">Crunch</span>
+      <span class="icon-bodypart">Core</span>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SIZE SCALE
+       ═══════════════════════════════════════════════ -->
+
+  <div class="section-label">Size Scale &mdash; Bench Press at multiple sizes</div>
+
+  <div class="scale-row">
+    <div class="scale-item">
+      <div style="width: 96px; height: 96px; border-radius: 28px; background: rgba(255,112,67,0.07); display: flex; align-items: center; justify-content: center;">
+        <svg width="64" height="64" viewBox="0 0 120 120" fill="none">
+          <defs><radialGradient id="cg1" cx="55%" cy="45%" r="45%"><stop offset="0%" stop-color="rgba(255,112,67,0.55)"/><stop offset="100%" stop-color="rgba(255,112,67,0)"/></radialGradient><filter id="cb1" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="3"/></filter></defs>
+          <rect x="22" y="72" width="76" height="5" rx="2.5" fill="rgba(255,255,255,0.08)"/><rect x="20" y="20" width="4" height="57" rx="2" fill="rgba(255,255,255,0.06)"/><rect x="96" y="20" width="4" height="57" rx="2" fill="rgba(255,255,255,0.06)"/>
+          <ellipse cx="86" cy="62" rx="7" ry="7.5" fill="rgba(255,255,255,0.3)"/><rect x="78" y="60" width="8" height="5" rx="2" fill="rgba(255,255,255,0.25)"/>
+          <path d="M38 58 C38 52 42 48 50 48 L72 48 C78 48 80 52 80 58 L80 72 L38 72Z" fill="rgba(255,255,255,0.12)"/>
+          <path d="M42 52 C42 49 46 46 52 46 L68 46 C74 46 78 49 78 52 L78 64 C78 66 74 68 68 68 L52 68 C46 68 42 66 42 64Z" fill="url(#cg1)"/>
+          <line x1="60" y1="48" x2="60" y2="66" stroke="rgba(255,112,67,0.3)" stroke-width="0.8"/>
+          <path d="M46 52 C42 46 38 40 38 34" stroke="rgba(255,255,255,0.35)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          <path d="M74 52 C78 46 82 40 82 34" stroke="rgba(255,255,255,0.35)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          <path d="M38 34 L38 28" stroke="rgba(255,255,255,0.35)" stroke-width="4.5" stroke-linecap="round"/><path d="M82 34 L82 28" stroke="rgba(255,255,255,0.35)" stroke-width="4.5" stroke-linecap="round"/>
+          <line x1="14" y1="26" x2="106" y2="26" stroke="rgba(255,255,255,0.4)" stroke-width="3" stroke-linecap="round"/>
+          <rect x="8" y="18" width="8" height="16" rx="3" fill="rgba(255,112,67,0.45)"/><rect x="104" y="18" width="8" height="16" rx="3" fill="rgba(255,112,67,0.45)"/>
+        </svg>
+      </div>
+      <span class="scale-label">96px</span>
+    </div>
+
+    <div class="scale-item">
+      <div style="width: 64px; height: 64px; border-radius: 20px; background: rgba(255,112,67,0.07); display: flex; align-items: center; justify-content: center;">
+        <svg width="40" height="40" viewBox="0 0 120 120" fill="none">
+          <defs><radialGradient id="cg2" cx="55%" cy="45%" r="45%"><stop offset="0%" stop-color="rgba(255,112,67,0.55)"/><stop offset="100%" stop-color="rgba(255,112,67,0)"/></radialGradient></defs>
+          <rect x="22" y="72" width="76" height="5" rx="2.5" fill="rgba(255,255,255,0.08)"/>
+          <ellipse cx="86" cy="62" rx="7" ry="7.5" fill="rgba(255,255,255,0.3)"/>
+          <path d="M42 52 C42 49 46 46 52 46 L68 46 C74 46 78 49 78 52 L78 64 C78 66 74 68 68 68 L52 68 C46 68 42 66 42 64Z" fill="url(#cg2)"/>
+          <line x1="60" y1="48" x2="60" y2="66" stroke="rgba(255,112,67,0.3)" stroke-width="0.8"/>
+          <path d="M46 52 C42 46 38 40 38 34" stroke="rgba(255,255,255,0.35)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          <path d="M74 52 C78 46 82 40 82 34" stroke="rgba(255,255,255,0.35)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          <path d="M38 34 L38 28" stroke="rgba(255,255,255,0.35)" stroke-width="4.5" stroke-linecap="round"/><path d="M82 34 L82 28" stroke="rgba(255,255,255,0.35)" stroke-width="4.5" stroke-linecap="round"/>
+          <line x1="14" y1="26" x2="106" y2="26" stroke="rgba(255,255,255,0.4)" stroke-width="3" stroke-linecap="round"/>
+          <rect x="8" y="18" width="8" height="16" rx="3" fill="rgba(255,112,67,0.45)"/><rect x="104" y="18" width="8" height="16" rx="3" fill="rgba(255,112,67,0.45)"/>
+        </svg>
+      </div>
+      <span class="scale-label">64px</span>
+    </div>
+
+    <div class="scale-item">
+      <div style="width: 48px; height: 48px; border-radius: 14px; background: rgba(255,112,67,0.07); display: flex; align-items: center; justify-content: center;">
+        <svg width="30" height="30" viewBox="0 0 120 120" fill="none">
+          <defs><radialGradient id="cg3" cx="55%" cy="45%" r="45%"><stop offset="0%" stop-color="rgba(255,112,67,0.55)"/><stop offset="100%" stop-color="rgba(255,112,67,0)"/></radialGradient></defs>
+          <ellipse cx="86" cy="62" rx="7" ry="7.5" fill="rgba(255,255,255,0.3)"/>
+          <path d="M42 52 C42 49 46 46 52 46 L68 46 C74 46 78 49 78 52 L78 64 C78 66 74 68 68 68 L52 68 C46 68 42 66 42 64Z" fill="url(#cg3)"/>
+          <path d="M46 52 C42 46 38 40 38 34" stroke="rgba(255,255,255,0.35)" stroke-width="6" stroke-linecap="round" fill="none"/>
+          <path d="M74 52 C78 46 82 40 82 34" stroke="rgba(255,255,255,0.35)" stroke-width="6" stroke-linecap="round" fill="none"/>
+          <line x1="14" y1="26" x2="106" y2="26" stroke="rgba(255,255,255,0.4)" stroke-width="3.5" stroke-linecap="round"/>
+          <rect x="8" y="18" width="8" height="16" rx="3" fill="rgba(255,112,67,0.5)"/><rect x="104" y="18" width="8" height="16" rx="3" fill="rgba(255,112,67,0.5)"/>
+        </svg>
+      </div>
+      <span class="scale-label">48px</span>
+    </div>
+
+    <div class="scale-item">
+      <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(255,112,67,0.07); display: flex; align-items: center; justify-content: center;">
+        <svg width="22" height="22" viewBox="0 0 120 120" fill="none">
+          <defs><radialGradient id="cg4" cx="55%" cy="45%" r="45%"><stop offset="0%" stop-color="rgba(255,112,67,0.6)"/><stop offset="100%" stop-color="rgba(255,112,67,0)"/></radialGradient></defs>
+          <ellipse cx="86" cy="62" rx="8" ry="8" fill="rgba(255,255,255,0.3)"/>
+          <path d="M42 52 C42 49 46 46 52 46 L68 46 C74 46 78 49 78 52 L78 64 C78 66 74 68 68 68 L52 68 C46 68 42 66 42 64Z" fill="url(#cg4)"/>
+          <path d="M46 52 C42 46 38 40 38 34" stroke="rgba(255,255,255,0.4)" stroke-width="7" stroke-linecap="round" fill="none"/>
+          <path d="M74 52 C78 46 82 40 82 34" stroke="rgba(255,255,255,0.4)" stroke-width="7" stroke-linecap="round" fill="none"/>
+          <line x1="14" y1="26" x2="106" y2="26" stroke="rgba(255,255,255,0.45)" stroke-width="4" stroke-linecap="round"/>
+          <rect x="6" y="17" width="10" height="18" rx="4" fill="rgba(255,112,67,0.55)"/><rect x="104" y="17" width="10" height="18" rx="4" fill="rgba(255,112,67,0.55)"/>
+        </svg>
+      </div>
+      <span class="scale-label">36px</span>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ═══════════════════════════════════════════════
+       IN-APP PREVIEW
+       ═══════════════════════════════════════════════ -->
+
+  <div class="section-label" style="text-align: center;">In-App Preview</div>
+
+  <div class="preview-section">
+    <div class="phone-frame">
+      <div class="phone-header">
+        <h3>Premiers Pas Full Body</h3>
+      </div>
+
+      <!-- Bench Press row -->
+      <div class="exercise-row">
+        <div class="row-icon" style="background: rgba(255,112,67,0.07);">
+          <svg width="30" height="30" viewBox="0 0 120 120" fill="none">
+            <defs><radialGradient id="cg5" cx="55%" cy="45%" r="45%"><stop offset="0%" stop-color="rgba(255,112,67,0.55)"/><stop offset="100%" stop-color="rgba(255,112,67,0)"/></radialGradient></defs>
+            <ellipse cx="86" cy="62" rx="7" ry="7.5" fill="rgba(255,255,255,0.3)"/>
+            <path d="M42 52 C42 49 46 46 52 46 L68 46 C74 46 78 49 78 52 L78 64 C78 66 74 68 68 68 L52 68 C46 68 42 66 42 64Z" fill="url(#cg5)"/>
+            <path d="M46 52 C42 46 38 40 38 34" stroke="rgba(255,255,255,0.35)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+            <path d="M74 52 C78 46 82 40 82 34" stroke="rgba(255,255,255,0.35)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+            <line x1="14" y1="26" x2="106" y2="26" stroke="rgba(255,255,255,0.4)" stroke-width="3" stroke-linecap="round"/>
+            <rect x="8" y="18" width="8" height="16" rx="3" fill="rgba(255,112,67,0.45)"/><rect x="104" y="18" width="8" height="16" rx="3" fill="rgba(255,112,67,0.45)"/>
+          </svg>
+        </div>
+        <div class="row-text">
+          <div class="row-name">Pompes</div>
+          <div class="row-part">Pecs</div>
+        </div>
+        <div class="row-meta"><span>3 SERIES</span><strong>10 reps</strong></div>
+      </div>
+
+      <!-- Squat row -->
+      <div class="exercise-row">
+        <div class="row-icon" style="background: rgba(102,187,106,0.07);">
+          <svg width="30" height="30" viewBox="0 0 120 120" fill="none">
+            <defs><radialGradient id="qg5" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="rgba(102,187,106,0.55)"/><stop offset="100%" stop-color="rgba(102,187,106,0)"/></radialGradient></defs>
+            <ellipse cx="60" cy="16" rx="7.5" ry="8" fill="rgba(255,255,255,0.3)"/>
+            <line x1="16" y1="28" x2="104" y2="28" stroke="rgba(255,255,255,0.35)" stroke-width="3" stroke-linecap="round"/>
+            <rect x="8" y="21" width="10" height="14" rx="3.5" fill="rgba(102,187,106,0.4)"/><rect x="102" y="21" width="10" height="14" rx="3.5" fill="rgba(102,187,106,0.4)"/>
+            <path d="M48 30 C46 30 44 32 44 36 L42 56 C42 58 44 60 48 60 L72 60 C76 60 78 58 78 56 L76 36 C76 32 74 30 72 30Z" fill="rgba(255,255,255,0.1)"/>
+            <path d="M44 60 C40 62 36 68 32 78 C30 84 32 86 36 86 L46 84 C48 82 48 76 48 68Z" fill="url(#qg5)"/>
+            <path d="M76 60 C80 62 84 68 88 78 C90 84 88 86 84 86 L74 84 C72 82 72 76 72 68Z" fill="url(#qg5)"/>
+            <path d="M34 86 C32 92 30 100 28 108" stroke="rgba(255,255,255,0.15)" stroke-width="5" stroke-linecap="round" fill="none"/>
+            <path d="M86 86 C88 92 90 100 92 108" stroke="rgba(255,255,255,0.15)" stroke-width="5" stroke-linecap="round" fill="none"/>
+          </svg>
+        </div>
+        <div class="row-text">
+          <div class="row-name">Goblet squat</div>
+          <div class="row-part">Quads</div>
+        </div>
+        <div class="row-meta"><span>3 SERIES</span><strong>12 reps</strong></div>
+      </div>
+
+      <!-- Pull-Up row -->
+      <div class="exercise-row">
+        <div class="row-icon" style="background: rgba(66,165,245,0.07);">
+          <svg width="30" height="30" viewBox="0 0 120 120" fill="none">
+            <defs><radialGradient id="bg5" cx="50%" cy="40%" r="45%"><stop offset="0%" stop-color="rgba(66,165,245,0.55)"/><stop offset="100%" stop-color="rgba(66,165,245,0)"/></radialGradient></defs>
+            <line x1="10" y1="10" x2="110" y2="10" stroke="rgba(255,255,255,0.35)" stroke-width="4" stroke-linecap="round"/>
+            <circle cx="34" cy="10" r="3" fill="rgba(255,255,255,0.25)"/><circle cx="86" cy="10" r="3" fill="rgba(255,255,255,0.25)"/>
+            <path d="M48 42 C44 34 38 22 34 14" stroke="rgba(255,255,255,0.3)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+            <path d="M72 42 C76 34 82 22 86 14" stroke="rgba(255,255,255,0.3)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+            <ellipse cx="60" cy="26" rx="7.5" ry="8" fill="rgba(255,255,255,0.3)"/>
+            <path d="M46 38 C42 40 38 44 36 50 C34 58 36 64 40 68 L52 72 L60 74 L68 72 L80 68 C84 64 86 58 84 50 C82 44 78 40 74 38Z" fill="url(#bg5)"/>
+            <line x1="60" y1="38" x2="60" y2="72" stroke="rgba(66,165,245,0.3)" stroke-width="1" stroke-linecap="round"/>
+            <path d="M48 80 C46 88 44 96 42 106" stroke="rgba(255,255,255,0.1)" stroke-width="5" stroke-linecap="round" fill="none"/>
+            <path d="M72 80 C74 88 76 96 78 106" stroke="rgba(255,255,255,0.1)" stroke-width="5" stroke-linecap="round" fill="none"/>
+          </svg>
+        </div>
+        <div class="row-text">
+          <div class="row-name">Tractions</div>
+          <div class="row-part">Dos</div>
+        </div>
+        <div class="row-meta"><span>3 SERIES</span><strong>8 reps</strong></div>
+      </div>
+
+      <!-- Crunch row -->
+      <div class="exercise-row">
+        <div class="row-icon" style="background: rgba(251,191,36,0.07);">
+          <svg width="30" height="30" viewBox="0 0 120 120" fill="none">
+            <defs><radialGradient id="kg5" cx="45%" cy="45%" r="40%"><stop offset="0%" stop-color="rgba(251,191,36,0.55)"/><stop offset="100%" stop-color="rgba(251,191,36,0)"/></radialGradient></defs>
+            <rect x="10" y="86" width="100" height="3" rx="1.5" fill="rgba(255,255,255,0.04)"/>
+            <path d="M68 86 C68 80 72 72 78 66" stroke="rgba(255,255,255,0.15)" stroke-width="6" stroke-linecap="round" fill="none"/>
+            <path d="M78 66 C82 62 88 64 90 70" stroke="rgba(255,255,255,0.12)" stroke-width="5" stroke-linecap="round" fill="none"/>
+            <path d="M30 68 C34 72 42 78 50 82 L68 82 C66 78 62 72 56 66 L42 60 C36 60 32 64 30 68Z" fill="url(#kg5)"/>
+            <path d="M38 64 Q50 74 58 82" stroke="rgba(251,191,36,0.25)" stroke-width="0.8" fill="none"/>
+            <path d="M30 68 C28 62 24 56 22 50" stroke="rgba(255,255,255,0.25)" stroke-width="7" stroke-linecap="round" fill="none"/>
+            <ellipse cx="22" cy="44" rx="7.5" ry="8" fill="rgba(255,255,255,0.25)"/>
+          </svg>
+        </div>
+        <div class="row-text">
+          <div class="row-name">Crunch</div>
+          <div class="row-part">Abdos</div>
+        </div>
+        <div class="row-meta"><span>3 SERIES</span><strong>20 reps</strong></div>
+      </div>
+
+      <!-- Curl row -->
+      <div class="exercise-row">
+        <div class="row-icon" style="background: rgba(236,64,122,0.07);">
+          <svg width="30" height="30" viewBox="0 0 120 120" fill="none">
+            <defs><radialGradient id="ag5" cx="50%" cy="40%" r="40%"><stop offset="0%" stop-color="rgba(236,64,122,0.6)"/><stop offset="100%" stop-color="rgba(236,64,122,0)"/></radialGradient></defs>
+            <ellipse cx="60" cy="14" rx="8" ry="9" fill="rgba(255,255,255,0.3)"/>
+            <path d="M48 26 C46 26 44 28 44 32 L44 64 C44 68 46 70 50 70 L70 70 C74 70 76 68 76 64 L76 32 C76 28 74 26 72 26Z" fill="rgba(255,255,255,0.08)"/>
+            <path d="M44 32 C38 34 34 38 32 44" stroke="rgba(255,255,255,0.25)" stroke-width="6" stroke-linecap="round" fill="none"/>
+            <ellipse cx="34" cy="38" rx="8" ry="10" fill="url(#ag5)" transform="rotate(-15 34 38)"/>
+            <path d="M32 44 C30 40 28 34 30 28" stroke="rgba(255,255,255,0.3)" stroke-width="5" stroke-linecap="round" fill="none"/>
+            <rect x="22" y="22" width="16" height="5" rx="2.5" fill="rgba(236,64,122,0.5)"/>
+            <path d="M76 32 C82 34 86 40 88 50" stroke="rgba(255,255,255,0.18)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+            <path d="M88 50 L88 66" stroke="rgba(255,255,255,0.14)" stroke-width="4.5" stroke-linecap="round"/>
+            <path d="M50 70 L48 96" stroke="rgba(255,255,255,0.1)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+            <path d="M70 70 L72 96" stroke="rgba(255,255,255,0.1)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          </svg>
+        </div>
+        <div class="row-text">
+          <div class="row-name">Curl biceps</div>
+          <div class="row-part">Bras</div>
+        </div>
+        <div class="row-meta"><span>3 SERIES</span><strong>12 reps</strong></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

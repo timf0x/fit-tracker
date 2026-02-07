@@ -196,14 +196,65 @@ export const useWorkoutStore = create<WorkoutStoreState>()(
           }, 0);
         }, 0);
 
+        // Calculate streaks from unique workout dates
+        let currentStreak = 0;
+        let longestStreak = 0;
+
+        if (completed.length > 0) {
+          const uniqueDays = Array.from(
+            new Set(
+              completed.map((s) => {
+                const d = new Date(s.startTime);
+                return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+              })
+            )
+          )
+            .map((key) => {
+              const [y, m, d] = key.split('-').map(Number);
+              const date = new Date(y, m, d);
+              date.setHours(0, 0, 0, 0);
+              return date.getTime();
+            })
+            .sort((a, b) => b - a); // descending
+
+          const ONE_DAY = 86400000;
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const todayMs = today.getTime();
+
+          // Current streak: consecutive days from today or yesterday
+          if (uniqueDays[0] === todayMs || uniqueDays[0] === todayMs - ONE_DAY) {
+            currentStreak = 1;
+            for (let i = 1; i < uniqueDays.length; i++) {
+              if (uniqueDays[i] === uniqueDays[i - 1] - ONE_DAY) {
+                currentStreak++;
+              } else {
+                break;
+              }
+            }
+          }
+
+          // Longest streak: longest consecutive run in entire history
+          let run = 1;
+          for (let i = 1; i < uniqueDays.length; i++) {
+            if (uniqueDays[i] === uniqueDays[i - 1] - ONE_DAY) {
+              run++;
+            } else {
+              if (run > longestStreak) longestStreak = run;
+              run = 1;
+            }
+          }
+          if (run > longestStreak) longestStreak = run;
+        }
+
         set({
           stats: {
             totalWorkouts,
             totalMinutes,
             totalCalories,
             totalVolume: Math.round(totalVolume),
-            currentStreak: 0,
-            longestStreak: 0,
+            currentStreak,
+            longestStreak,
           },
         });
       },

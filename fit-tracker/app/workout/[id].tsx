@@ -7,7 +7,6 @@ import {
   Pressable,
   TextInput,
   Modal,
-  Image,
   ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -29,6 +28,7 @@ import {
 } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { ExerciseIcon } from '@/components/ExerciseIcon';
+import { ExerciseInfoSheet } from '@/components/ExerciseInfoSheet';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { exercises as allExercises, getExerciseById } from '@/data/exercises';
 import type { WorkoutExercise, Exercise, BodyPart, Equipment } from '@/types';
@@ -65,19 +65,11 @@ const EQUIPMENT_OPTIONS: { value: Equipment | 'all'; label: string }[] = [
   { value: 'machine', label: 'Machine' },
   { value: 'body weight', label: 'Poids du corps' },
   { value: 'kettlebell', label: 'Kettlebell' },
+  { value: 'resistance band', label: 'Bande élastique' },
+  { value: 'ez bar', label: 'Barre EZ' },
+  { value: 'smith machine', label: 'Smith machine' },
+  { value: 'trap bar', label: 'Trap bar' },
 ];
-
-const BODY_PART_LABELS: Record<string, string> = {
-  back: 'Dos',
-  shoulders: 'Épaules',
-  chest: 'Pectoraux',
-  'upper arms': 'Bras',
-  'lower arms': 'Avant-bras',
-  'upper legs': 'Jambes',
-  'lower legs': 'Mollets',
-  waist: 'Abdos',
-  cardio: 'Cardio',
-};
 
 // ─── Types ───
 
@@ -159,7 +151,6 @@ export default function WorkoutDetailScreen() {
   const [showFocusDropdown, setShowFocusDropdown] = useState(false);
   const [showEquipmentDropdown, setShowEquipmentDropdown] = useState(false);
   const [infoExercise, setInfoExercise] = useState<Exercise | null>(null);
-  const [infoTab, setInfoTab] = useState<'about' | 'guide'>('about');
 
   // Parameter stepper
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -523,145 +514,7 @@ export default function WorkoutDetailScreen() {
           onClose={() => setShowEquipmentDropdown(false)}
         />
 
-        {/* ─── Exercise Info Bottom Sheet ─── */}
-        <Modal
-          visible={infoExercise !== null}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setInfoExercise(null)}
-        >
-          <View style={s.infoSheetOverlay}>
-            <Pressable style={s.infoSheetDismiss} onPress={() => setInfoExercise(null)} />
-            <View style={s.infoSheet}>
-              {infoExercise && (
-                <>
-                  {/* Handle */}
-                  <View style={s.infoSheetHandleRow}>
-                    <View style={s.infoSheetHandle} />
-                  </View>
-
-                  {/* Header: name + close */}
-                  <View style={s.infoSheetHeader}>
-                    <Text style={s.infoSheetName}>{infoExercise.nameFr}</Text>
-                    <Pressable style={s.infoSheetClose} onPress={() => setInfoExercise(null)}>
-                      <X size={20} color="rgba(160,160,170,1)" strokeWidth={2} />
-                    </Pressable>
-                  </View>
-
-                  {/* Exercise visual */}
-                  <View style={s.infoSheetVisual}>
-                    {infoExercise.gifUrl ? (
-                      <Image
-                        source={{ uri: infoExercise.gifUrl }}
-                        style={s.infoSheetGif}
-                        resizeMode="contain"
-                      />
-                    ) : (
-                      <ExerciseIcon
-                        exerciseName={infoExercise.name}
-                        bodyPart={infoExercise.bodyPart}
-                        size={48}
-                        containerSize={120}
-                      />
-                    )}
-                  </View>
-
-                  {/* Tabs */}
-                  <View style={s.infoTabRow}>
-                    <Pressable
-                      style={[s.infoTab, infoTab === 'about' && s.infoTabActive]}
-                      onPress={() => setInfoTab('about')}
-                    >
-                      <Text style={[s.infoTabText, infoTab === 'about' && s.infoTabTextActive]}>À propos</Text>
-                    </Pressable>
-                    <Pressable
-                      style={[s.infoTab, infoTab === 'guide' && s.infoTabActive]}
-                      onPress={() => setInfoTab('guide')}
-                    >
-                      <Text style={[s.infoTabText, infoTab === 'guide' && s.infoTabTextActive]}>Guide</Text>
-                    </Pressable>
-                  </View>
-
-                  {/* Scrollable tab content */}
-                  <ScrollView
-                    style={s.infoTabScroll}
-                    contentContainerStyle={s.infoTabScrollContent}
-                    showsVerticalScrollIndicator={false}
-                    bounces={true}
-                  >
-                    {infoTab === 'about' ? (
-                      <>
-                        {/* Muscle cible */}
-                        <View style={s.infoRow}>
-                          <Text style={s.infoRowLabel}>Muscle cible</Text>
-                          <Text style={s.infoRowValue}>{infoExercise.target}</Text>
-                        </View>
-                        <View style={s.infoRowDivider} />
-
-                        {/* Groupe musculaire */}
-                        <View style={s.infoRow}>
-                          <Text style={s.infoRowLabel}>Groupe musculaire</Text>
-                          <Text style={s.infoRowValue}>{BODY_PART_LABELS[infoExercise.bodyPart] || infoExercise.bodyPart}</Text>
-                        </View>
-                        <View style={s.infoRowDivider} />
-
-                        {/* Équipement */}
-                        <View style={s.infoRow}>
-                          <Text style={s.infoRowLabel}>Équipement</Text>
-                          <Text style={s.infoRowValue}>{EQUIPMENT_OPTIONS.find(o => o.value === infoExercise.equipment)?.label || infoExercise.equipment}</Text>
-                        </View>
-                        <View style={s.infoRowDivider} />
-
-                        {/* Type */}
-                        <View style={s.infoRow}>
-                          <Text style={s.infoRowLabel}>Type</Text>
-                          <Text style={s.infoRowValue}>{infoExercise.isUnilateral ? 'Unilatéral' : 'Bilatéral'}</Text>
-                        </View>
-
-                        {/* Secondary muscles */}
-                        {infoExercise.secondaryMuscles && infoExercise.secondaryMuscles.length > 0 && (
-                          <>
-                            <View style={s.infoRowDivider} />
-                            <View style={s.infoRow}>
-                              <Text style={s.infoRowLabel}>Muscles secondaires</Text>
-                              <Text style={s.infoRowValue}>{infoExercise.secondaryMuscles.join(', ')}</Text>
-                            </View>
-                          </>
-                        )}
-
-                        {/* Conseils */}
-                        {infoExercise.description ? (
-                          <View style={s.infoTipCard}>
-                            <Text style={s.infoTipLabel}>CONSEILS DE FORME</Text>
-                            <Text style={s.infoTipText}>{infoExercise.description}</Text>
-                          </View>
-                        ) : null}
-                      </>
-                    ) : (
-                      <>
-                        {(infoExercise.instructions && infoExercise.instructions.length > 0
-                          ? infoExercise.instructions
-                          : infoExercise.description
-                              .split('.')
-                              .map(step => step.trim())
-                              .filter(step => step.length > 0)
-                              .map(step => `${step}.`)
-                        ).map((step, i) => (
-                          <View key={i} style={s.guideStep}>
-                            <View style={s.guideStepNumber}>
-                              <Text style={s.guideStepNumberText}>{i + 1}</Text>
-                            </View>
-                            <Text style={s.guideStepText}>{step}</Text>
-                          </View>
-                        ))}
-                      </>
-                    )}
-                  </ScrollView>
-                </>
-              )}
-            </View>
-          </View>
-        </Modal>
+        <ExerciseInfoSheet exercise={infoExercise} onClose={() => setInfoExercise(null)} />
       </View>
     );
   }
@@ -692,12 +545,14 @@ export default function WorkoutDetailScreen() {
           ]}
         >
           <View style={s.exerciseCardHeader}>
-            <ExerciseIcon
-              exerciseName={ex.exercise.name}
-              bodyPart={ex.exercise.bodyPart}
-              size={16}
-              containerSize={40}
-            />
+            <Pressable onPress={() => setInfoExercise(ex.exercise)}>
+              <ExerciseIcon
+                exerciseName={ex.exercise.name}
+                bodyPart={ex.exercise.bodyPart}
+                size={16}
+                containerSize={40}
+              />
+            </Pressable>
             <View style={s.exerciseCardInfo}>
               <Text style={s.exerciseCardName} numberOfLines={1}>
                 {ex.exercise.nameFr}
@@ -788,12 +643,14 @@ export default function WorkoutDetailScreen() {
           {selectedExercises.map((ex, index) => (
             <View key={ex.uid} style={s.exerciseCard}>
               <View style={s.exerciseCardHeader}>
-                <ExerciseIcon
-                  exerciseName={ex.exercise.name}
-                  bodyPart={ex.exercise.bodyPart}
-                  size={16}
-                  containerSize={40}
-                />
+                <Pressable onPress={() => setInfoExercise(ex.exercise)}>
+                  <ExerciseIcon
+                    exerciseName={ex.exercise.name}
+                    bodyPart={ex.exercise.bodyPart}
+                    size={16}
+                    containerSize={40}
+                  />
+                </Pressable>
                 <View style={s.exerciseCardInfo}>
                   <Text style={s.exerciseCardName} numberOfLines={1}>
                     {ex.exercise.nameFr}
@@ -1006,6 +863,8 @@ export default function WorkoutDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      <ExerciseInfoSheet exercise={infoExercise} onClose={() => setInfoExercise(null)} />
     </View>
   );
 }
@@ -1017,7 +876,7 @@ export default function WorkoutDetailScreen() {
 const s = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#050505',
+    backgroundColor: '#0C0C0C',
     position: 'relative',
     overflow: 'hidden',
   },
@@ -1521,192 +1380,6 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.06)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-
-  // ─── Exercise Info Bottom Sheet ───
-  infoSheetOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  infoSheetDismiss: {
-    height: '15%',
-  },
-  infoSheet: {
-    flex: 1,
-    backgroundColor: '#111111',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    borderBottomWidth: 0,
-  },
-  infoSheetHandleRow: {
-    alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 4,
-  },
-  infoSheetHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  infoSheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 16,
-  },
-  infoSheetName: {
-    flex: 1,
-    color: Colors.text,
-    fontSize: 20,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-  },
-  infoSheetClose: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 12,
-  },
-  infoSheetVisual: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 24,
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    height: 240,
-    marginBottom: 16,
-    overflow: 'hidden',
-  },
-  infoSheetGif: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 20,
-  },
-
-  // Tabs
-  infoTabRow: {
-    flexDirection: 'row',
-    marginHorizontal: 24,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 12,
-    padding: 3,
-    marginBottom: 16,
-  },
-  infoTab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  infoTabActive: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  infoTabText: {
-    fontSize: 13,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    color: 'rgba(120,120,130,1)',
-  },
-  infoTabTextActive: {
-    color: Colors.text,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-
-  // Tab content
-  infoTabScroll: {
-    flex: 1,
-  },
-  infoTabScrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 48,
-  },
-
-  // About tab
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  infoRowLabel: {
-    color: 'rgba(120,120,130,1)',
-    fontSize: 14,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-  infoRowValue: {
-    color: 'rgba(220,220,230,1)',
-    fontSize: 14,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    textTransform: 'capitalize',
-  },
-  infoRowDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
-  infoTipCard: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 16,
-    padding: 18,
-    gap: 8,
-    marginTop: 16,
-  },
-  infoTipLabel: {
-    color: 'rgba(120,120,130,1)',
-    fontSize: 10,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-  },
-  infoTipText: {
-    color: 'rgba(200,200,210,1)',
-    fontSize: 14,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    lineHeight: 22,
-  },
-
-  // Guide tab
-  guideStep: {
-    flexDirection: 'row',
-    gap: 14,
-    marginBottom: 18,
-  },
-  guideStepNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,107,53,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 1,
-  },
-  guideStepNumberText: {
-    color: Colors.primary,
-    fontSize: 13,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-  guideStepText: {
-    flex: 1,
-    color: 'rgba(200,200,210,1)',
-    fontSize: 14,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    lineHeight: 22,
   },
 
   selectionBar: {
