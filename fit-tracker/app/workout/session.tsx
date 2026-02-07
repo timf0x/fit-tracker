@@ -1051,35 +1051,27 @@ export default function WorkoutSessionScreen() {
   // ═════════════════════════════════════════
 
   return (
-    <View style={[s.screen, { paddingTop: insets.top + 16 }]}>
+    <View style={[s.screen, { paddingTop: insets.top + 12 }]}>
       <Stack.Screen options={{ gestureEnabled: false, presentation: 'fullScreenModal' }} />
       {/* ─── Header Bar ─── */}
       <View style={s.header}>
         <Pressable style={s.headerIconBtn} onPress={() => setShowSoundSettings(true)}>
           {sfxEnabled || voiceEnabled ? (
-            <Volume2 size={22} color="rgba(255,255,255,0.45)" strokeWidth={1.8} />
+            <Volume2 size={20} color="rgba(255,255,255,0.55)" strokeWidth={1.8} />
           ) : (
-            <VolumeX size={22} color="rgba(255,255,255,0.25)" strokeWidth={1.8} />
+            <VolumeX size={20} color="rgba(255,255,255,0.3)" strokeWidth={1.8} />
           )}
         </Pressable>
-        <Text style={s.headerTitle} numberOfLines={1}>{workoutName}</Text>
+        <View style={s.headerPill}>
+          <Text style={s.headerTitle} numberOfLines={1}>{workoutName}</Text>
+        </View>
         <Pressable style={s.headerIconBtn} onPress={() => setShowExerciseInfo(true)}>
-          <Info size={20} color="rgba(255,255,255,0.45)" strokeWidth={2} />
+          <Info size={18} color="rgba(255,255,255,0.55)" strokeWidth={2} />
         </Pressable>
       </View>
 
       {/* ─── Main Content (flex to fill space) ─── */}
       <View style={s.mainContent}>
-        {/* ─── Phase Badge ─── */}
-        <View style={s.phaseBadgeContainer}>
-          <View style={[s.phaseBadge, { backgroundColor: `${phaseColor}15` }]}>
-            <PhaseIcon size={13} color={phaseColor} strokeWidth={2.5} />
-            <Text style={[s.phaseBadgeText, { color: phaseColor }]}>
-              {isPaused ? 'EN PAUSE' : PHASE_CONFIG[phase].label}
-            </Text>
-          </View>
-        </View>
-
         {/* ─── Circular Progress Ring ─── */}
         <View style={s.ringContainer}>
           <CircularProgress
@@ -1092,6 +1084,13 @@ export default function WorkoutSessionScreen() {
             <Text style={[s.timerText, isPaused && { color: 'rgba(255,255,255,0.3)' }]}>
               {formatTimer(timeRemaining)}
             </Text>
+            {/* Phase Badge — inside ring, below time */}
+            <View style={[s.phaseBadge, { backgroundColor: `${phaseColor}15`, marginTop: 8 }]}>
+              <PhaseIcon size={12} color={phaseColor} strokeWidth={2.5} />
+              <Text style={[s.phaseBadgeText, { color: phaseColor }]}>
+                {isPaused ? 'EN PAUSE' : PHASE_CONFIG[phase].label}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -1138,14 +1137,14 @@ export default function WorkoutSessionScreen() {
       <View style={[s.bottomSection, { paddingBottom: SHEET_HANDLE_HEIGHT + insets.bottom + 12 }]}>
         <View style={s.controlBar}>
           <Pressable style={s.controlBtn} onPress={handleStop}>
-            <Square size={18} color={Colors.text} fill={Colors.text} strokeWidth={0} />
+            <Square size={20} color={Colors.text} fill={Colors.text} strokeWidth={0} />
           </Pressable>
 
           <Pressable style={s.centerBtn} onPress={handleTogglePause}>
             {isPaused ? (
-              <Play size={30} color="#fff" fill="#fff" strokeWidth={0} style={{ marginLeft: 3 }} />
+              <Play size={34} color="#fff" fill="#fff" strokeWidth={0} style={{ marginLeft: 4 }} />
             ) : (
-              <Pause size={30} color="#fff" fill="#fff" strokeWidth={0} />
+              <Pause size={34} color="#fff" fill="#fff" strokeWidth={0} />
             )}
           </Pressable>
 
@@ -1168,11 +1167,11 @@ export default function WorkoutSessionScreen() {
                   }],
                 }]}
               >
-                <ChevronsRight size={18} color={doubleSkipActive ? '#fff' : Colors.text} strokeWidth={2} />
+                <ChevronsRight size={20} color={doubleSkipActive ? '#fff' : Colors.text} strokeWidth={2} />
               </Animated.View>
             )}
             <View {...skipPanResponder.panHandlers} style={s.controlBtn}>
-              <SkipForward size={22} color={Colors.text} strokeWidth={2} />
+              <SkipForward size={24} color={Colors.text} strokeWidth={2} />
             </View>
           </View>
         </View>
@@ -1503,23 +1502,34 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    marginBottom: 4,
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+    marginBottom: 8,
+    gap: 12,
   },
   headerIconBtn: {
-    width: 44,
-    height: 44,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#1C1C1E',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerTitle: {
+  headerPill: {
     flex: 1,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  headerTitle: {
     textAlign: 'center',
     fontSize: 14,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.45)',
+    color: 'rgba(255,255,255,0.5)',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
@@ -1529,26 +1539,24 @@ const s = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 24,
   },
   bottomSection: {
     paddingBottom: 8,
+    paddingHorizontal: 24,
   },
 
-  // ─── Phase Badge ───
-  phaseBadgeContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
+  // ─── Phase Badge (inside ring) ───
   phaseBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    paddingHorizontal: 16,
-    paddingVertical: 7,
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     borderRadius: 999,
   },
   phaseBadgeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
     letterSpacing: 1.5,
@@ -1558,7 +1566,7 @@ const s = StyleSheet.create({
   ringContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   ringCenter: {
     position: 'absolute',
@@ -1615,23 +1623,21 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 28,
+    gap: 24,
     marginBottom: 20,
   },
   controlBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: '#1C1C1E',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   centerBtn: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1644,13 +1650,11 @@ const s = StyleSheet.create({
   },
   doubleSkipBtn: {
     position: 'absolute',
-    bottom: 72,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    bottom: 80,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: '#1C1C1E',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },

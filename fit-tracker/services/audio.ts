@@ -10,7 +10,14 @@ let _language: 'fr' | 'en' = 'fr';
 
 export function setSoundEnabled(enabled: boolean) { _soundEnabled = enabled; }
 export function setVoiceEnabled(enabled: boolean) { _voiceEnabled = enabled; }
-export function setSoundVolume(volume: number) { _soundVolume = volume; }
+export function setSoundVolume(volume: number) {
+  _soundVolume = volume;
+  console.log('[Audio] setSoundVolume:', volume, 'cached sounds:', Object.keys(soundCache).length);
+  // Pre-set volume on all cached sounds so it's already applied before playAsync
+  for (const [name, sound] of Object.entries(soundCache)) {
+    sound.setVolumeAsync(volume).catch((e) => console.warn('[Audio] setVolume failed for', name, e));
+  }
+}
 export function setLanguage(lang: 'fr' | 'en') { _language = lang; }
 
 // ─── Local sound assets ───
@@ -68,12 +75,11 @@ function playSound(name: string, relativeVolume: number = 1.0) {
   const sound = soundCache[name];
   if (!sound) return;
 
-  // Fire-and-forget — no await chain to prevent drift
-  const finalVolume = _soundVolume * relativeVolume;
-  sound.setVolumeAsync(finalVolume)
-    .then(() => sound.setPositionAsync(0))
-    .then(() => sound.playAsync())
-    .catch(() => {});
+  // Fire-and-forget — volume is pre-set by setSoundVolume, just adjust for relative
+  const finalVolume = Math.min(1, _soundVolume * relativeVolume);
+  console.log('[Audio] playSound:', name, 'vol:', finalVolume);
+  sound.setStatusAsync({ volume: finalVolume, positionMillis: 0, shouldPlay: true })
+    .catch((e) => console.warn('[Audio] playSound failed:', name, e));
 }
 
 // ─── Sound Effect Functions ───
@@ -105,6 +111,7 @@ function speakNow(text: string, pitch?: number, rate?: number) {
       language: languageCode,
       pitch: pitch ?? 1.0,
       rate: rate ?? 1.20,
+      volume: _soundVolume,
     });
   } catch {}
 }

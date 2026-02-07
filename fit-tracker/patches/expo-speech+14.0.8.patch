@@ -1,0 +1,28 @@
+diff --git a/node_modules/expo-speech/ios/SpeechModule.swift b/node_modules/expo-speech/ios/SpeechModule.swift
+index 485d5d3..2bb681d 100644
+--- a/node_modules/expo-speech/ios/SpeechModule.swift
++++ b/node_modules/expo-speech/ios/SpeechModule.swift
+@@ -49,6 +49,10 @@ public final class SpeechModule: Module, SpeechResultHadler {
+         utterance.rate = Float(rate) * AVSpeechUtteranceDefaultSpeechRate
+       }
+ 
++      if let volume = options.volume {
++        utterance.volume = Float(max(0, min(1, volume)))
++      }
++
+       if let useApplicationAudioSession = options.useApplicationAudioSession {
+         synthesizer.usesApplicationAudioSession = useApplicationAudioSession
+       }
+diff --git a/node_modules/expo-speech/ios/SpeechOptions.swift b/node_modules/expo-speech/ios/SpeechOptions.swift
+index a072cb8..dbf50dc 100644
+--- a/node_modules/expo-speech/ios/SpeechOptions.swift
++++ b/node_modules/expo-speech/ios/SpeechOptions.swift
+@@ -10,6 +10,8 @@ struct SpeechOptions: Record {
+   @Field
+   var voice: String?
+   @Field
++  var volume: Double?
++  @Field
+   var useApplicationAudioSession: Bool?
+ }
+ 
