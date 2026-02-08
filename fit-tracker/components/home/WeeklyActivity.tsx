@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { useRouter } from 'expo-router';
 import { Calendar, Flame, ChevronRight, Zap } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
@@ -40,7 +41,7 @@ export function WeeklyActivity() {
   const streak = hasRealData ? stats.currentStreak : mockWeekly.streak;
 
   return (
-    <Pressable style={styles.container} onPress={() => router.push('/stats')}>
+    <PressableScale style={styles.container} onPress={() => router.push('/stats')}>
       <View style={styles.card}>
         {/* Header row */}
         <View style={styles.headerRow}>
@@ -115,7 +116,7 @@ export function WeeklyActivity() {
           )}
         </View>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 

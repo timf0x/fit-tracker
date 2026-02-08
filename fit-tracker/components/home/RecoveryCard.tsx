@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { useRouter } from 'expo-router';
 import { Fonts } from '@/constants/theme';
 import { mockRecoveryOverview } from '@/lib/mock-data';
@@ -18,12 +19,12 @@ export function RecoveryCard() {
   }, [history]);
 
   return (
-    <Pressable style={styles.card} onPress={() => router.push('/recovery')}>
+    <PressableScale style={styles.card} onPress={() => router.push('/recovery')}>
       <View style={styles.content}>
         <ScoreRing score={recoveryScore} size={72} />
         <Text style={styles.label}>RECUP</Text>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 

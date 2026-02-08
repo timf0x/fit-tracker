@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { useRouter } from 'expo-router';
 import { ChevronRight } from 'lucide-react-native';
 import { Fonts, Spacing } from '@/constants/theme';
@@ -52,7 +53,7 @@ export function VolumeCard() {
 
   return (
     <View style={styles.container}>
-      <Pressable style={styles.card} onPress={() => router.push('/volume')}>
+      <PressableScale style={styles.card} onPress={() => router.push('/volume')}>
         <View style={styles.titleRow}>
           <Text style={styles.title}>VOLUME HEBDO</Text>
           <ChevronRight size={16} color="rgba(120,120,130,1)" strokeWidth={2} />
@@ -109,7 +110,7 @@ export function VolumeCard() {
           })}
         </View>
 
-      </Pressable>
+      </PressableScale>
     </View>
   );
 }

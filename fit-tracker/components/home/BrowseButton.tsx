@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { Dumbbell, ChevronRight } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,7 +9,7 @@ import i18n from '@/lib/i18n';
 export function BrowseButton() {
   return (
     <View style={styles.container}>
-      <Pressable style={styles.cardWrapper}>
+      <PressableScale style={styles.cardWrapper}>
         <LinearGradient
           colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.01)']}
           start={{ x: 0, y: 0 }}
@@ -28,7 +29,7 @@ export function BrowseButton() {
 
           <ChevronRight size={18} color="rgba(113,113,122,1)" strokeWidth={2} />
         </LinearGradient>
-      </Pressable>
+      </PressableScale>
     </View>
   );
 }

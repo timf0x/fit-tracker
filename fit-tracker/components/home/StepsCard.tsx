@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { useRouter } from 'expo-router';
 import { Footprints } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/theme';
@@ -8,7 +9,7 @@ export function StepsCard() {
   const router = useRouter();
 
   return (
-    <Pressable style={styles.card} onPress={() => router.push('/steps')}>
+    <PressableScale style={styles.card} onPress={() => router.push('/steps')}>
       <View style={styles.cardHeader}>
         <View style={styles.iconBox}>
           <Footprints size={16} color="#3b82f6" strokeWidth={2.5} />
@@ -19,7 +20,7 @@ export function StepsCard() {
         <Text style={styles.valueWhite}>{mockStats.steps}</Text>
         <Text style={styles.unit}> /10k</Text>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 

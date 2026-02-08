@@ -1,5 +1,6 @@
 import { useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { useRouter } from 'expo-router';
 import Animated, {
   useSharedValue,
@@ -14,15 +15,22 @@ import {
   Play,
   Trophy,
   Check,
+  Flame,
+  Mountain,
+  Zap,
+  Dumbbell,
+  Target,
+  Diamond,
+  HeartPulse,
+  Shield,
 } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useProgramStore } from '@/stores/programStore';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { getExerciseById } from '@/data/exercises';
-import { ExerciseIcon } from '@/components/ExerciseIcon';
 import { estimateDuration } from '@/lib/programGenerator';
 import { buildProgramExercisesParam } from '@/lib/programSession';
-import { FOCUS_COLORS } from '@/components/program/DayCard';
 
 const SPLIT_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   ppl: { label: 'PPL', color: '#FF6B35', bg: 'rgba(255,107,53,0.15)' },
@@ -30,17 +38,28 @@ const SPLIT_LABELS: Record<string, { label: string; color: string; bg: string }>
   full_body: { label: 'Full Body', color: '#A855F7', bg: 'rgba(168,85,247,0.15)' },
 };
 
-// Ghost split preview — shows a PPL sample to tease the feature
-const GHOST_DAYS = [
-  { label: 'Push A', focus: 'push' },
-  { label: 'Pull A', focus: 'pull' },
-  { label: 'Legs A', focus: 'legs' },
-  { label: 'Push B', focus: 'push' },
-  { label: 'Pull B', focus: 'pull' },
-  { label: 'Legs B', focus: 'legs' },
-];
+// Onset muscle identity — each body part gets a Lucide icon + colored tint
+// Icons are conceptual: Flame=chest (fire day), Mountain=back (V-taper),
+// Zap=legs (power), Target=shoulders (precision), Diamond=core (cut)
+export interface BodyIcon { Icon: LucideIcon; color: string; bg: string }
 
-const GHOST_WEEKS = 5; // 4 training + 1 deload
+const NEUTRAL = { color: 'rgba(255,255,255,0.35)', bg: 'rgba(255,255,255,0.06)' };
+
+export const BODY_ICONS: Record<string, BodyIcon> = {
+  chest:       { Icon: Flame,     ...NEUTRAL },
+  back:        { Icon: Mountain,  ...NEUTRAL },
+  'upper legs':{ Icon: Zap,       ...NEUTRAL },
+  'lower legs':{ Icon: Zap,       ...NEUTRAL },
+  'upper arms':{ Icon: Dumbbell,  ...NEUTRAL },
+  'lower arms':{ Icon: Dumbbell,  ...NEUTRAL },
+  shoulders:   { Icon: Target,    ...NEUTRAL },
+  waist:       { Icon: Diamond,   ...NEUTRAL },
+  cardio:      { Icon: HeartPulse,...NEUTRAL },
+  neck:        { Icon: Shield,    ...NEUTRAL },
+};
+
+const DEFAULT_BODY_ICON: BodyIcon = { Icon: Dumbbell, ...NEUTRAL };
+
 
 export function ActiveProgramCard() {
   const router = useRouter();
@@ -62,103 +81,34 @@ export function ActiveProgramCard() {
     shadowRadius: interpolate(pulse.value, [0, 1], [8, 20]),
   }));
 
-  // Shimmer for ghost mesocycle
-  const shimmer = useSharedValue(0);
-  useEffect(() => {
-    shimmer.value = withRepeat(
-      withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true,
-    );
-  }, []);
-
-  const shimmerStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(shimmer.value, [0, 0.5, 1], [0.06, 0.12, 0.06]),
-  }));
-
   const programComplete = useMemo(() => isProgramComplete(), [activeState?.completedDays, program]);
 
-  // ─── State 1: No program — Ghost Preview CTA ───
+  // ─── State 1: No program — Clean CTA ───
   if (!userProfile || !program || !activeState) {
     return (
       <View style={styles.container}>
-        <Pressable
+        <PressableScale
           style={styles.card}
           onPress={() => router.push('/program/onboarding')}
         >
-          {/* Section header — matching VolumeCard pattern */}
-          <View style={styles.titleRow}>
-            <Text style={styles.sectionTitle}>PROGRAMME</Text>
-            <ChevronRight size={16} color="rgba(120,120,130,1)" strokeWidth={2} />
+          <View style={styles.sessionTitleRow}>
+            <View style={[styles.focusDot, { backgroundColor: Colors.primary }]} />
+            <Text style={styles.sessionName}>Crée ton programme</Text>
+            <View style={{ flex: 1 }} />
+            <ChevronRight size={16} color="rgba(120,120,130,1)" />
           </View>
-
-          {/* Ghost split days — 2 rows of 3 */}
-          <View style={styles.ghostSplitWrap}>
-            <View style={styles.ghostSplitRow}>
-              {GHOST_DAYS.slice(0, 3).map((day) => {
-                const colors = FOCUS_COLORS[day.focus] || FOCUS_COLORS.full_body;
-                return (
-                  <View key={day.label} style={[styles.ghostDay, { backgroundColor: colors.bg }]}>
-                    <View style={[styles.ghostDayDot, { backgroundColor: colors.accent }]} />
-                    <Text style={[styles.ghostDayText, { color: colors.text }]}>{day.label}</Text>
-                  </View>
-                );
-              })}
-            </View>
-            <View style={styles.ghostSplitRow}>
-              {GHOST_DAYS.slice(3, 6).map((day) => {
-                const colors = FOCUS_COLORS[day.focus] || FOCUS_COLORS.full_body;
-                return (
-                  <View key={day.label} style={[styles.ghostDay, { backgroundColor: colors.bg }]}>
-                    <View style={[styles.ghostDayDot, { backgroundColor: colors.accent }]} />
-                    <Text style={[styles.ghostDayText, { color: colors.text }]}>{day.label}</Text>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Ghost mesocycle bar */}
-          <View style={styles.ghostMesoWrap}>
-            <View style={styles.ghostMesoBar}>
-              {Array.from({ length: GHOST_WEEKS }).map((_, i) => (
-                <Animated.View
-                  key={i}
-                  style={[
-                    styles.ghostMesoSegment,
-                    i === GHOST_WEEKS - 1 && styles.ghostMesoDeload,
-                    shimmerStyle,
-                  ]}
-                />
-              ))}
-            </View>
-            <View style={styles.ghostMesoLabels}>
-              {Array.from({ length: GHOST_WEEKS }).map((_, i) => (
-                <Text key={i} style={[styles.ghostMesoLabel, i === GHOST_WEEKS - 1 && styles.ghostMesoLabelDeload]}>
-                  {i === GHOST_WEEKS - 1 ? 'DL' : `S${i + 1}`}
-                </Text>
-              ))}
-            </View>
-          </View>
-
-          {/* Features teaser */}
-          <View style={styles.ghostFeatures}>
-            <Text style={styles.ghostFeatureText}>4-6 sem</Text>
-            <View style={styles.ghostFeatureDot} />
-            <Text style={styles.ghostFeatureText}>Periodise</Text>
-            <View style={styles.ghostFeatureDot} />
-            <Text style={styles.ghostFeatureText}>Volume RP</Text>
-          </View>
-
-          {/* Elegant CTA — outlined pill, not full-width block */}
-          <Pressable
+          <Text style={styles.sessionMeta}>
+            PPL · Haut/Bas · Full Body · 4-6 sem
+          </Text>
+          <PressableScale
             style={styles.ghostCta}
+            activeScale={0.97}
             onPress={() => router.push('/program/onboarding')}
           >
-            <Text style={styles.ghostCtaText}>Créer mon programme</Text>
+            <Text style={styles.ghostCtaText}>C'est parti</Text>
             <ChevronRight size={14} color={Colors.primary} strokeWidth={2.5} />
-          </Pressable>
-        </Pressable>
+          </PressableScale>
+        </PressableScale>
       </View>
     );
   }
@@ -169,7 +119,7 @@ export function ActiveProgramCard() {
     const splitInfo = SPLIT_LABELS[program.splitType] || SPLIT_LABELS.ppl;
     return (
       <View style={styles.container}>
-        <Pressable style={styles.card} onPress={() => router.push('/program')}>
+        <PressableScale style={styles.card} onPress={() => router.push('/program')}>
           <View style={styles.titleRow}>
             <Text style={styles.sectionTitle}>PROGRAMME</Text>
             <ChevronRight size={16} color="rgba(120,120,130,1)" strokeWidth={2} />
@@ -220,14 +170,15 @@ export function ActiveProgramCard() {
             ))}
           </View>
 
-          <Pressable
+          <PressableScale
             style={styles.ghostCta}
+            activeScale={0.97}
             onPress={() => router.push('/program/onboarding')}
           >
             <Text style={styles.ghostCtaText}>Nouveau programme</Text>
             <ChevronRight size={14} color={Colors.primary} strokeWidth={2.5} />
-          </Pressable>
-        </Pressable>
+          </PressableScale>
+        </PressableScale>
       </View>
     );
   }
@@ -247,11 +198,10 @@ export function ActiveProgramCard() {
         id: ex.id,
         nameFr: ex.nameFr || ex.name,
         bodyPart: ex.bodyPart,
-        gifUrl: ex.gifUrl,
         sets: e.sets,
         reps: e.reps,
       };
-    }).filter(Boolean) as Array<{ id: string; nameFr: string; bodyPart: string; gifUrl?: string; sets: number; reps: number }>;
+    }).filter(Boolean) as Array<{ id: string; nameFr: string; bodyPart: string; sets: number; reps: number }>;
   }, [todayDay]);
 
   const duration = todayDay ? estimateDuration(todayDay) : 0;
@@ -286,61 +236,46 @@ export function ActiveProgramCard() {
 
   return (
     <View style={styles.container}>
-      <Pressable
+      <PressableScale
         style={[
           styles.card,
           !isDayDone && styles.cardActive,
         ]}
         onPress={() => router.push('/program')}
       >
-        {/* Top row: split badge + week + chevron */}
-        <View style={styles.topRow}>
-          <View style={[styles.splitPill, { backgroundColor: splitStyle.bg }]}>
-            <Text style={[styles.splitPillText, { color: splitStyle.color }]}>
-              {splitStyle.label}
-            </Text>
-          </View>
-          <View style={styles.weekPill}>
-            <Text style={styles.weekPillText}>
-              Semaine {activeState.currentWeek}/{program.totalWeeks}
-            </Text>
-          </View>
-          <View style={{ flex: 1 }} />
-          <ChevronRight size={16} color="rgba(120,120,130,1)" />
-        </View>
-
-        {/* Center: today's workout */}
+        {/* Session header — typography only, no pills */}
         {todayDay && (
-          <View style={styles.todaySection}>
-            <View style={styles.todayRow}>
+          <View style={styles.sessionHeader}>
+            <View style={styles.sessionTitleRow}>
               <View style={[styles.focusDot, { backgroundColor: splitStyle.color }]} />
-              <Text style={styles.todayLabel}>{todayDay.labelFr}</Text>
-              {duration > 0 && (
-                <View style={styles.durationPill}>
-                  <Text style={styles.durationText}>~{duration} min</Text>
-                </View>
-              )}
+              <Text style={styles.sessionName}>{todayDay.labelFr}</Text>
+              <View style={{ flex: 1 }} />
+              <ChevronRight size={16} color="rgba(120,120,130,1)" />
             </View>
+            <Text style={styles.sessionMeta}>
+              S{activeState.currentWeek}/{program.totalWeeks}
+              {duration > 0 ? ` · ~${duration} min` : ''}
+              {` · ${todayDay.exercises.length} exos`}
+            </Text>
 
             {exercisePreview.length > 0 && (
               <View style={styles.exercisePreviewList}>
-                {exercisePreview.map((ex) => (
-                  <View key={ex.id} style={styles.exercisePreviewRow}>
-                    <ExerciseIcon
-                      exerciseName={ex.nameFr}
-                      bodyPart={ex.bodyPart}
-                      gifUrl={ex.gifUrl}
-                      size={14}
-                      containerSize={28}
-                    />
-                    <Text style={styles.exercisePreviewName} numberOfLines={1}>
-                      {ex.nameFr}
-                    </Text>
-                    <Text style={styles.exercisePreviewMeta}>
-                      {ex.sets}×{ex.reps}
-                    </Text>
-                  </View>
-                ))}
+                {exercisePreview.map((ex) => {
+                  const icon = BODY_ICONS[ex.bodyPart] || DEFAULT_BODY_ICON;
+                  return (
+                    <View key={ex.id} style={styles.exercisePreviewRow}>
+                      <View style={[styles.exerciseBadge, { backgroundColor: icon.bg }]}>
+                        <icon.Icon size={12} color={icon.color} strokeWidth={2.5} />
+                      </View>
+                      <Text style={styles.exercisePreviewName} numberOfLines={1}>
+                        {ex.nameFr}
+                      </Text>
+                      <Text style={styles.exercisePreviewMeta}>
+                        {ex.sets}×{ex.reps}
+                      </Text>
+                    </View>
+                  );
+                })}
                 {todayDay.exercises.length > 3 && (
                   <Text style={styles.exerciseMoreText}>
                     +{todayDay.exercises.length - 3} exercices
@@ -382,10 +317,10 @@ export function ActiveProgramCard() {
         {/* Bottom CTA */}
         {!isDayDone && todayDay && (
           <Animated.View style={[styles.startButtonWrap, pulseStyle]}>
-            <Pressable style={styles.startButton} onPress={handleStart}>
+            <PressableScale style={styles.startButton} activeScale={0.97} onPress={handleStart}>
               <Play size={14} color="#0C0C0C" fill="#0C0C0C" />
               <Text style={styles.startButtonText}>Commencer</Text>
-            </Pressable>
+            </PressableScale>
           </Animated.View>
         )}
         {isDayDone && (
@@ -394,7 +329,7 @@ export function ActiveProgramCard() {
             <Text style={styles.doneText}>Séance terminée</Text>
           </View>
         )}
-      </Pressable>
+      </PressableScale>
     </View>
   );
 }
@@ -430,86 +365,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
 
-  // ─── Ghost CTA State ───
-  ghostSplitWrap: {
-    gap: 6,
-  },
-  ghostSplitRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  ghostDay: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 8,
-    borderRadius: 8,
-    opacity: 0.55,
-  },
-  ghostDayDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-  },
-  ghostDayText: {
-    fontSize: 10,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-  },
-
-  ghostMesoWrap: {
-    gap: 6,
-  },
-  ghostMesoBar: {
-    flexDirection: 'row',
-    gap: 3,
-    height: 6,
-  },
-  ghostMesoSegment: {
-    flex: 1,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,107,53,0.15)',
-  },
-  ghostMesoDeload: {
-    backgroundColor: 'rgba(59,130,246,0.15)',
-  },
-  ghostMesoLabels: {
-    flexDirection: 'row',
-    gap: 3,
-  },
-  ghostMesoLabel: {
-    flex: 1,
-    textAlign: 'center',
-    color: 'rgba(255,255,255,0.2)',
-    fontSize: 9,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-  ghostMesoLabelDeload: {
-    color: 'rgba(59,130,246,0.35)',
-  },
-
-  ghostFeatures: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  ghostFeatureText: {
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: 11,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-  ghostFeatureDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-
+  // ─── CTA Button ───
   ghostCta: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -589,38 +445,10 @@ const styles = StyleSheet.create({
   },
 
   // ─── Active State ───
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  splitPill: {
-    borderRadius: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-  },
-  splitPillText: {
-    fontSize: 12,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-  weekPill: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-  },
-  weekPillText: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 12,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-
-  todaySection: {
+  sessionHeader: {
     gap: 10,
   },
-  todayRow: {
+  sessionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -630,33 +458,35 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
   },
-  todayLabel: {
+  sessionName: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 17,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
   },
-  durationPill: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 6,
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-  },
-  durationText: {
+  sessionMeta: {
     color: 'rgba(255,255,255,0.35)',
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
+    paddingLeft: 16,
   },
 
   exercisePreviewList: {
-    gap: 8,
+    gap: 6,
     paddingLeft: 16,
   },
   exercisePreviewRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+  },
+  exerciseBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   exercisePreviewName: {
     color: 'rgba(255,255,255,0.5)',
@@ -676,7 +506,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
-    paddingLeft: 38,
+    paddingLeft: 32,
   },
 
   // Mesocycle bar
