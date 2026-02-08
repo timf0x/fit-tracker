@@ -5,7 +5,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
-  Play,
   Repeat,
   Timer,
   Weight,
@@ -18,6 +17,7 @@ import {
   Clock,
   Calendar,
   TrendingUp,
+  Info,
 } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/theme';
 import { useProgramStore } from '@/stores/programStore';
@@ -26,23 +26,18 @@ import { getExerciseById } from '@/data/exercises';
 import { ExerciseIcon } from '@/components/ExerciseIcon';
 import { ConfirmModal } from '@/components/program/ConfirmModal';
 import { ExerciseSwapSheet } from '@/components/program/ExerciseSwapSheet';
+import { ExerciseInfoSheet } from '@/components/ExerciseInfoSheet';
 import { ReadinessCheck } from '@/components/program/ReadinessCheck';
 import { SessionFeedback } from '@/components/program/SessionFeedback';
+import { AnimatedStartButton } from '@/components/ui/AnimatedStartButton';
 import { MUSCLE_LABELS_FR } from '@/lib/muscleMapping';
 import { estimateDuration, isCompound, getOverloadSuggestions } from '@/lib/programGenerator';
 import { buildProgramExercisesParam } from '@/lib/programSession';
+import { computeSessionInsights } from '@/lib/sessionInsights';
+import { SessionInsights } from '@/components/program/SessionInsights';
 import type { ProgramExercise } from '@/types/program';
 
 // Focus color mapping
-const FOCUS_COLORS: Record<string, { bg: string; text: string }> = {
-  push: { bg: 'rgba(255,107,53,0.12)', text: '#FF6B35' },
-  pull: { bg: 'rgba(59,130,246,0.12)', text: '#3B82F6' },
-  legs: { bg: 'rgba(74,222,128,0.12)', text: '#4ADE80' },
-  upper: { bg: 'rgba(255,107,53,0.12)', text: '#FF6B35' },
-  lower: { bg: 'rgba(74,222,128,0.12)', text: '#4ADE80' },
-  full_body: { bg: 'rgba(168,85,247,0.12)', text: '#A855F7' },
-};
-
 export default function ProgramDayScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ week: string; day: string }>();
@@ -54,6 +49,7 @@ export default function ProgramDayScreen() {
     swapExercise, saveSessionFeedback, saveReadiness,
   } = useProgramStore();
   const startSession = useWorkoutStore((s) => s.startSession);
+  const saveSessionReadiness = useWorkoutStore((s) => s.saveSessionReadiness);
   const history = useWorkoutStore((s) => s.history);
 
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -62,6 +58,7 @@ export default function ProgramDayScreen() {
   const [swapExerciseIndex, setSwapExerciseIndex] = useState<number | null>(null);
   const [showReadiness, setShowReadiness] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [infoExercise, setInfoExercise] = useState<import('@/types').Exercise | null>(null);
 
   if (!program || !activeState) {
     router.replace('/program/onboarding');
@@ -90,6 +87,9 @@ export default function ProgramDayScreen() {
     () => day.exercises.reduce((sum, e) => sum + e.sets, 0),
     [day.exercises]
   );
+
+  // Week-level RIR (same for all exercises in a week)
+  const weekRir = day.exercises[0]?.targetRir;
 
   // Split exercises into compounds and isolations
   const { compounds, isolations } = useMemo(() => {
@@ -154,7 +154,11 @@ export default function ProgramDayScreen() {
     return last.toDateString() === now.toDateString();
   }, [activeState.lastCompletedAt]);
 
-  const focusStyle = FOCUS_COLORS[day.focus] || { bg: 'rgba(255,255,255,0.08)', text: 'rgba(255,255,255,0.6)' };
+  // Session insights — volume impact
+  const insightsData = useMemo(
+    () => computeSessionInsights(day, history),
+    [day, history],
+  );
 
   const handleStart = useCallback(() => {
     if (isLastCompletionToday && !isDone) {
@@ -164,7 +168,7 @@ export default function ProgramDayScreen() {
     setShowReadiness(true);
   }, [isLastCompletionToday, isDone]);
 
-  const startSessionNow = useCallback(() => {
+  const startSessionNow = useCallback((readiness?: import('@/types/program').ReadinessCheck) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const workoutId = `program_${program.id}_w${weekNum}_d${dayIdx}`;
     const sessionId = startSession(workoutId, day.labelFr, {
@@ -172,6 +176,9 @@ export default function ProgramDayScreen() {
       programWeek: weekNum,
       programDayIndex: dayIdx,
     });
+    if (readiness) {
+      saveSessionReadiness(sessionId, readiness);
+    }
     router.push({
       pathname: '/workout/session',
       params: {
@@ -193,9 +200,10 @@ export default function ProgramDayScreen() {
       case 'sets':
         newValue = Math.max(1, pex.sets + delta);
         break;
-      case 'reps':
-        newValue = Math.max(1, pex.reps + delta);
-        break;
+      case 'maxReps':
+        newValue = Math.max(1, (pex.maxReps || pex.reps) + delta);
+        overrideExercise(weekNum, dayIdx, exerciseIdx, { maxReps: newValue, reps: newValue });
+        return;
       case 'suggestedWeight': {
         const ex = getExerciseById(pex.exerciseId);
         const step = (ex?.equipment === 'barbell' || ex?.equipment === 'ez bar' || ex?.equipment === 'smith machine') ? 2.5 : 2;
@@ -270,7 +278,9 @@ export default function ProgramDayScreen() {
               <View style={styles.exMetaPill}>
                 <Repeat size={10} color="rgba(255,255,255,0.4)" />
                 <Text style={styles.exMetaText}>
-                  {pex.sets} x {pex.reps}
+                  {pex.sets} x {pex.minReps && pex.minReps !== pex.maxReps
+                    ? `${pex.minReps}-${pex.maxReps}`
+                    : pex.maxReps || pex.reps}
                 </Text>
               </View>
               {pex.suggestedWeight != null && pex.suggestedWeight > 0 && (
@@ -281,12 +291,17 @@ export default function ProgramDayScreen() {
                   </Text>
                 </View>
               )}
-              <View style={styles.exMetaPill}>
-                <Timer size={10} color="rgba(255,255,255,0.4)" />
-                <Text style={styles.exMetaText}>{pex.restTime}s</Text>
-              </View>
             </View>
           </View>
+
+          {/* Info button */}
+          <Pressable
+            style={styles.infoButton}
+            onPress={() => setInfoExercise(ex)}
+            hitSlop={8}
+          >
+            <Info size={16} color="rgba(255,255,255,0.25)" />
+          </Pressable>
         </Pressable>
 
         {/* Inline editor */}
@@ -316,13 +331,18 @@ export default function ProgramDayScreen() {
             </View>
 
             <View style={styles.editorRow}>
-              <Text style={styles.editorFieldLabel}>Reps</Text>
+              <View>
+                <Text style={styles.editorFieldLabel}>Reps max</Text>
+                {pex.minReps > 0 && pex.minReps !== (pex.maxReps || pex.reps) && (
+                  <Text style={styles.editorFieldHint}>min: {pex.minReps}</Text>
+                )}
+              </View>
               <View style={styles.stepperRow}>
-                <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'reps', -1)}>
+                <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'maxReps', -1)}>
                   <Minus size={14} color="#fff" />
                 </Pressable>
-                <Text style={styles.stepperValue}>{pex.reps}</Text>
-                <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'reps', 1)}>
+                <Text style={styles.stepperValue}>{pex.maxReps || pex.reps}</Text>
+                <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'maxReps', 1)}>
                   <Plus size={14} color="#fff" />
                 </Pressable>
               </View>
@@ -387,14 +407,7 @@ export default function ProgramDayScreen() {
             <ArrowLeft size={22} color="#fff" strokeWidth={2} />
           </Pressable>
           <View style={styles.headerCenter}>
-            <View style={styles.headerTitleRow}>
-              <Text style={styles.headerTitle}>{day.labelFr}</Text>
-              <View style={[styles.focusTag, { backgroundColor: focusStyle.bg }]}>
-                <Text style={[styles.focusTagText, { color: focusStyle.text }]}>
-                  {day.focus}
-                </Text>
-              </View>
-            </View>
+            <Text style={styles.headerTitle}>{day.labelFr}</Text>
             <Text style={styles.headerSub}>Semaine {weekNum}</Text>
           </View>
           {isDone && (
@@ -463,6 +476,9 @@ export default function ProgramDayScreen() {
           contentContainerStyle={styles.bodyContent}
           showsVerticalScrollIndicator={false}
         >
+          {/* Session insights panel */}
+          {!isDone && <SessionInsights data={insightsData} />}
+
           {/* Compound exercises */}
           {compounds.length > 0 && (
             <>
@@ -471,6 +487,11 @@ export default function ProgramDayScreen() {
                   <Zap size={12} color={Colors.primary} />
                 </View>
                 <Text style={styles.sectionLabel}>COMPOSES</Text>
+                {weekRir != null && (
+                  <View style={styles.sectionRirBadge}>
+                    <Text style={styles.sectionRirText}>RIR {weekRir}</Text>
+                  </View>
+                )}
                 <View style={styles.sectionLine} />
                 <Text style={styles.sectionCount}>{compounds.length}</Text>
               </View>
@@ -488,6 +509,11 @@ export default function ProgramDayScreen() {
                   <Target size={12} color="#A855F7" />
                 </View>
                 <Text style={styles.sectionLabel}>ISOLATION</Text>
+                {weekRir != null && compounds.length === 0 && (
+                  <View style={styles.sectionRirBadge}>
+                    <Text style={styles.sectionRirText}>RIR {weekRir}</Text>
+                  </View>
+                )}
                 <View style={styles.sectionLine} />
                 <Text style={styles.sectionCount}>{isolations.length}</Text>
               </View>
@@ -526,19 +552,21 @@ export default function ProgramDayScreen() {
         )}
         {isToday && !isDone && (
           <View style={styles.bottomCta}>
-            <Pressable style={styles.startButton} onPress={handleStart}>
-              <Play size={18} color="#0C0C0C" fill="#0C0C0C" />
-              <Text style={styles.startText}>Commencer</Text>
-            </Pressable>
+            <AnimatedStartButton
+              onPress={handleStart}
+              label="Commencer"
+              style={styles.startButton}
+            />
             <Text style={styles.ctaMicro}>~{duration} min · {totalSets} series</Text>
           </View>
         )}
         {isPastIncomplete && (
           <View style={styles.bottomCta}>
-            <Pressable style={styles.catchUpButton} onPress={handleStart}>
-              <Play size={18} color="#0C0C0C" fill="#0C0C0C" />
-              <Text style={styles.startText}>Rattraper cette seance</Text>
-            </Pressable>
+            <AnimatedStartButton
+              onPress={handleStart}
+              label="Rattraper cette seance"
+              style={styles.catchUpButton}
+            />
             <Text style={styles.ctaMicroSubtle}>Seance planifiee precedemment</Text>
           </View>
         )}
@@ -575,12 +603,13 @@ export default function ProgramDayScreen() {
         onSubmit={(check) => {
           saveReadiness(check);
           setShowReadiness(false);
-          startSessionNow();
+          startSessionNow(check);
         }}
         onSkip={() => {
           setShowReadiness(false);
           startSessionNow();
         }}
+        onClose={() => setShowReadiness(false)}
       />
 
       {/* Session Feedback (post-session) */}
@@ -609,6 +638,11 @@ export default function ProgramDayScreen() {
           }}
         />
       )}
+
+      <ExerciseInfoSheet
+        exercise={infoExercise}
+        onClose={() => setInfoExercise(null)}
+      />
     </View>
   );
 }
@@ -667,27 +701,11 @@ const styles = StyleSheet.create({
   headerCenter: {
     flex: 1,
   },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
   headerTitle: {
     color: '#fff',
     fontSize: 22,
     fontFamily: Fonts?.bold,
     fontWeight: '700',
-  },
-  focusTag: {
-    borderRadius: 6,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-  },
-  focusTagText: {
-    fontSize: 11,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    textTransform: 'capitalize',
   },
   headerSub: {
     color: 'rgba(120,120,130,1)',
@@ -816,6 +834,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 1,
   },
+  sectionRirBadge: {
+    backgroundColor: 'rgba(59,130,246,0.1)',
+    paddingVertical: 2,
+    paddingHorizontal: 7,
+    borderRadius: 5,
+  },
+  sectionRirText: {
+    color: 'rgba(59,130,246,0.7)',
+    fontSize: 10,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+  },
   sectionLine: {
     flex: 1,
     height: 1,
@@ -851,6 +881,10 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 0,
     paddingHorizontal: 10,
     marginHorizontal: -10,
+  },
+  infoButton: {
+    padding: 6,
+    borderRadius: 12,
   },
   exSeparator: {
     height: 1,
@@ -972,6 +1006,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
+  },
+  editorFieldHint: {
+    color: 'rgba(255,255,255,0.25)',
+    fontSize: 10,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    marginTop: 1,
   },
   stepperRow: {
     flexDirection: 'row',

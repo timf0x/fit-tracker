@@ -18,7 +18,8 @@ import {
   SplitDayTemplate,
 } from '@/constants/programTemplates';
 import { Equipment } from '@/types';
-import { getEstimatedWeight } from '@/lib/weightEstimation';
+import { getEstimatedWeight, roundToIncrement } from '@/lib/weightEstimation';
+import { getExerciseCategory, getTargetRir } from '@/lib/exerciseClassification';
 
 // ─── Helpers ───
 
@@ -198,8 +199,11 @@ function pickExercises(
     result.push({
       exerciseId: picked,
       sets: Math.max(setsForThis, 1),
-      reps: 0,     // set by caller based on compound/isolation
-      restTime: 0, // set by caller based on compound/isolation
+      reps: 0,        // set by caller (= maxReps for backward compat)
+      minReps: 0,     // set by caller based on exercise category
+      maxReps: 0,     // set by caller based on exercise category
+      targetRir: 0,   // set by caller based on week position
+      restTime: 0,    // set by caller based on exercise category
     });
   }
 
@@ -267,15 +271,20 @@ export function generateProgram(profile: UserProfile): TrainingProgram {
           allowedEquipment, usedExercises
         );
 
-        // Assign reps + rest + suggested weight based on compound vs isolation
+        // Assign reps + rest + RIR + suggested weight based on 6-tier category
+        const targetRir = getTargetRir(weekIdx, totalWeeks, isDeload);
         for (const ex of exs) {
-          const compound = isCompound(ex.exerciseId);
-          ex.reps = compound ? goalConfig.compoundReps : goalConfig.isolationReps;
-          ex.restTime = compound ? goalConfig.compoundRest : goalConfig.isolationRest;
+          const category = getExerciseCategory(ex.exerciseId);
+          const catConfig = goalConfig[category];
+          ex.minReps = catConfig.minReps;
+          ex.maxReps = catConfig.maxReps;
+          ex.reps = catConfig.maxReps; // backward compat
+          ex.restTime = catConfig.restTime;
+          ex.targetRir = targetRir;
 
           const exData = exerciseMap.get(ex.exerciseId);
           if (exData) {
-            ex.suggestedWeight = getEstimatedWeight(
+            const baseWeight = getEstimatedWeight(
               ex.exerciseId,
               exData.equipment,
               exData.target,
@@ -283,6 +292,18 @@ export function generateProgram(profile: UserProfile): TrainingProgram {
               profile.sex,
               profile.experience
             );
+
+            // Week-over-week weight progression: ~2.5% per training week
+            // Compounds get full progression, isolations get ~1%
+            // Deload resets to base weight
+            if (baseWeight > 0 && !isDeload && weekIdx > 0) {
+              const isCompoundEx = isCompound(ex.exerciseId);
+              const weeklyMultiplier = isCompoundEx ? 0.025 : 0.01;
+              const rawWeight = baseWeight * (1 + weeklyMultiplier * weekIdx);
+              ex.suggestedWeight = roundToIncrement(rawWeight, exData.equipment);
+            } else {
+              ex.suggestedWeight = baseWeight;
+            }
           }
         }
 
@@ -364,7 +385,7 @@ function getMuscleOrder(target: string): number {
   return 99;
 }
 
-// ─── Overload Suggestions ───
+// ─── Overload Suggestions (Double Progression) ───
 
 export function getOverloadSuggestions(
   history: Array<{ exerciseId: string; sets: Array<{ reps: number; weight?: number; completed: boolean }> }>,
@@ -377,27 +398,45 @@ export function getOverloadSuggestions(
       .filter((h) => h.exerciseId === pex.exerciseId)
       .slice(0, 2);
 
-    if (sessions.length < 2) continue;
-
-    const allCompleted = sessions.every((s) =>
-      s.sets.every((set) => set.completed && set.reps >= pex.reps)
-    );
-    if (!allCompleted) continue;
+    if (sessions.length === 0) continue;
 
     const ex = exerciseMap.get(pex.exerciseId);
     if (!ex) continue;
 
-    const lastWeight = sessions[0].sets[0]?.weight;
-    if (lastWeight && lastWeight > 0) {
-      if (ex.equipment === 'barbell' || ex.equipment === 'ez bar' || ex.equipment === 'smith machine') {
-        suggestions[pex.exerciseId] = `${lastWeight + 2.5}kg`;
-      } else if (ex.equipment === 'dumbbell' || ex.equipment === 'kettlebell') {
-        suggestions[pex.exerciseId] = `${lastWeight + 2}kg`;
-      } else {
-        suggestions[pex.exerciseId] = `+1 rep`;
+    const maxReps = pex.maxReps || pex.reps;
+    const minReps = pex.minReps || maxReps;
+    const lastSession = sessions[0];
+    const completedSets = lastSession.sets.filter((s) => s.completed);
+    if (completedSets.length === 0) continue;
+
+    const lastWeight = completedSets[0]?.weight || 0;
+
+    // Check if >50% sets below minReps → suggest weight reduction
+    const belowMinCount = completedSets.filter((s) => s.reps < minReps).length;
+    if (belowMinCount > completedSets.length * 0.5 && lastWeight > 0) {
+      const increment = (ex.equipment === 'barbell' || ex.equipment === 'ez bar' || ex.equipment === 'smith machine' || ex.equipment === 'trap bar')
+        ? 2.5 : (ex.equipment === 'dumbbell' || ex.equipment === 'kettlebell') ? 2 : 2.5;
+      suggestions[pex.exerciseId] = `Réduis à ${lastWeight - increment}kg`;
+      continue;
+    }
+
+    // Check if all sets hit maxReps for 2 sessions → suggest weight bump
+    if (sessions.length >= 2) {
+      const allAtMax = sessions.every((s) =>
+        s.sets.filter((set) => set.completed).every((set) => set.reps >= maxReps)
+      );
+      if (allAtMax && lastWeight > 0) {
+        const increment = (ex.equipment === 'barbell' || ex.equipment === 'ez bar' || ex.equipment === 'smith machine' || ex.equipment === 'trap bar')
+          ? 2.5 : (ex.equipment === 'dumbbell' || ex.equipment === 'kettlebell') ? 2 : 2.5;
+        suggestions[pex.exerciseId] = `${lastWeight + increment}kg (reviens à ${minReps} reps)`;
+        continue;
       }
-    } else {
-      suggestions[pex.exerciseId] = `+1 rep`;
+    }
+
+    // All sets in range but not at max → nudge +1 rep
+    const allInRange = completedSets.every((s) => s.reps >= minReps && s.reps < maxReps);
+    if (allInRange) {
+      suggestions[pex.exerciseId] = `+1 rep (objectif : ${maxReps})`;
     }
   }
 

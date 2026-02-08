@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { PressableScale } from '@/components/ui/PressableScale';
+import { useRouter } from 'expo-router';
 import { Dumbbell, ChevronRight } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,17 +8,19 @@ import { mockBrowse } from '@/lib/mock-data';
 import i18n from '@/lib/i18n';
 
 export function BrowseButton() {
+  const router = useRouter();
+
   return (
     <View style={styles.container}>
-      <PressableScale style={styles.cardWrapper}>
+      <PressableScale style={styles.cardWrapper} onPress={() => router.push('/workouts')}>
         <LinearGradient
           colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.01)']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.card}
         >
-          <View style={[styles.iconBox, { backgroundColor: 'rgba(249, 115, 22, 0.1)' }]}>
-            <Dumbbell size={20} color="#f97316" strokeWidth={2} />
+          <View style={[styles.iconBox, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+            <Dumbbell size={20} color="rgba(255,255,255,0.35)" strokeWidth={2} />
           </View>
 
           <View style={styles.textSection}>

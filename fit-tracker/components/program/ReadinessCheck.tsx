@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, Modal } from 'react-native';
-import { Moon, Zap, Activity } from 'lucide-react-native';
+import { Moon, Zap, Activity, X } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/theme';
 import type { ReadinessCheck as ReadinessCheckType } from '@/types/program';
 
@@ -8,11 +8,12 @@ interface ReadinessCheckProps {
   visible: boolean;
   onSubmit: (check: ReadinessCheckType) => void;
   onSkip: () => void;
+  onClose?: () => void;
 }
 
 const SCALE_POINTS = [1, 2, 3, 4, 5] as const;
 
-export function ReadinessCheck({ visible, onSubmit, onSkip }: ReadinessCheckProps) {
+export function ReadinessCheck({ visible, onSubmit, onSkip, onClose }: ReadinessCheckProps) {
   const [sleep, setSleep] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [energy, setEnergy] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [soreness, setSoreness] = useState<1 | 2 | 3 | 4 | 5>(3);
@@ -98,6 +99,11 @@ export function ReadinessCheck({ visible, onSubmit, onSkip }: ReadinessCheckProp
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
         <View style={styles.content}>
+          {onClose && (
+            <Pressable style={styles.closeButton} onPress={onClose} hitSlop={12}>
+              <X size={20} color="rgba(255,255,255,0.5)" />
+            </Pressable>
+          )}
           <Text style={styles.title}>Comment te sens-tu ?</Text>
 
           {renderScale(
@@ -156,6 +162,18 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '100%',
     gap: 20,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 1,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     color: '#FFFFFF',

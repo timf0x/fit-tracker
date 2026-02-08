@@ -105,6 +105,8 @@ export interface WorkoutSession {
   programId?: string;
   programWeek?: number;
   programDayIndex?: number;
+  // Pre-session readiness check (optional)
+  readiness?: import('@/types/program').ReadinessCheck;
 }
 
 export interface WorkoutStats {

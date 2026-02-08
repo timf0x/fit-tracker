@@ -74,10 +74,10 @@ export function ExerciseIcon({
         />
       );
     }
-    // Fallback: colored initial
+    // Fallback: neutral initial
     return (
-      <View style={[styles.initialContainer, { width: size * 1.5, height: size * 1.5, borderRadius: size * 0.3, backgroundColor: bgColor }]}>
-        <Text style={[styles.initialText, { fontSize: size * 0.6, color: iconColor }]}>
+      <View style={[styles.initialContainer, { width: size * 1.5, height: size * 1.5, borderRadius: size * 0.3, backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+        <Text style={[styles.initialText, { fontSize: size * 0.6, color: 'rgba(255,255,255,0.35)' }]}>
           {(exerciseName || 'E')[0].toUpperCase()}
         </Text>
       </View>
@@ -110,7 +110,7 @@ export function ExerciseIcon({
     );
   }
 
-  // Fallback: body-part colored initial
+  // Fallback: neutral initial
   return (
     <View
       style={[
@@ -119,12 +119,12 @@ export function ExerciseIcon({
           width: container,
           height: container,
           borderRadius,
-          backgroundColor: bgColor,
-          borderColor: `${iconColor}30`,
+          backgroundColor: 'rgba(255,255,255,0.06)',
+          borderColor: 'rgba(255,255,255,0.08)',
         },
       ]}
     >
-      <Text style={[styles.initialText, { fontSize: container * 0.38, color: iconColor }]}>
+      <Text style={[styles.initialText, { fontSize: container * 0.38, color: 'rgba(255,255,255,0.35)' }]}>
         {(exerciseName || 'E')[0].toUpperCase()}
       </Text>
     </View>

@@ -157,7 +157,7 @@ const LOWER_BODY_MUSCLES = new Set([
 
 // ─── Rounding ───
 
-function roundToIncrement(weight: number, equipment: Equipment): number {
+export function roundToIncrement(weight: number, equipment: Equipment): number {
   if (weight <= 0) return 0;
 
   let increment: number;
@@ -195,7 +195,8 @@ export function getEstimatedWeight(
   targetMuscle: string,
   bodyweight: number,
   sex: 'male' | 'female',
-  experience: ExperienceLevel
+  experience: ExperienceLevel,
+  hasHistory?: boolean
 ): number {
   // Bodyweight exercises → no external weight
   if (equipment === 'body weight' || equipment === 'resistance band') {
@@ -226,8 +227,43 @@ export function getEstimatedWeight(
     weight *= isLower ? SEX_MODIFIER.female_lower : SEX_MODIFIER.female_upper;
   }
 
-  // 5. Round to practical increment
+  // 5. Conservative first-meso: reduce by 15% if no training history
+  if (hasHistory === false) {
+    weight *= 0.85;
+  }
+
+  // 6. Round to practical increment
   return roundToIncrement(weight, equipment);
+}
+
+/**
+ * Get the last logged weight for an exercise from workout history.
+ * Returns median completed weight from the most recent session, or null.
+ */
+export function getLastLoggedWeight(
+  exerciseId: string,
+  history: Array<{ completedExercises: Array<{ exerciseId: string; sets: Array<{ weight?: number; completed: boolean }> }> }>
+): number | null {
+  for (const session of history) {
+    if (!session.completedExercises) continue;
+    const found = session.completedExercises.find((e) => e.exerciseId === exerciseId);
+    if (!found) continue;
+
+    const weights = found.sets
+      .filter((s) => s.completed && s.weight && s.weight > 0)
+      .map((s) => s.weight as number);
+
+    if (weights.length === 0) continue;
+
+    // Return median
+    weights.sort((a, b) => a - b);
+    const mid = Math.floor(weights.length / 2);
+    return weights.length % 2 === 0
+      ? (weights[mid - 1] + weights[mid]) / 2
+      : weights[mid];
+  }
+
+  return null;
 }
 
 /**

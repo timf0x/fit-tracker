@@ -30,9 +30,11 @@ import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { ExerciseIcon } from '@/components/ExerciseIcon';
 import { ExerciseSparkline } from '@/components/ExerciseSparkline';
 import { ExerciseInfoSheet } from '@/components/ExerciseInfoSheet';
+import { ReadinessCheck } from '@/components/program/ReadinessCheck';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { exercises as allExercises, getExerciseById } from '@/data/exercises';
 import type { WorkoutExercise, Exercise, BodyPart, Equipment } from '@/types';
+import type { ReadinessCheck as ReadinessCheckType } from '@/types/program';
 
 // ─── Constants ───
 
@@ -163,6 +165,9 @@ export default function WorkoutDetailScreen() {
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Pre-session readiness
+  const [showReadiness, setShowReadiness] = useState(false);
 
   // ─── Load workout exercises into local state ───
   useEffect(() => {
@@ -341,6 +346,36 @@ export default function WorkoutDetailScreen() {
     setShowDeleteConfirm(false);
     if (id) store.deleteCustomWorkout(id);
     router.back();
+  };
+
+  // Start workout session (with optional readiness)
+  const handleStartSession = (readiness?: ReadinessCheckType) => {
+    if (!workout || selectedExercises.length === 0) return;
+    const sessionId = store.startSession(id || '', workout.nameFr || workout.name);
+    if (readiness) {
+      store.saveSessionReadiness(sessionId, readiness);
+    }
+    router.push({
+      pathname: '/workout/session',
+      params: {
+        workoutId: id,
+        sessionId,
+        workoutName: workout.nameFr || workout.name,
+        exercises: JSON.stringify(
+          selectedExercises.map((ex) => ({
+            exerciseId: ex.exerciseId,
+            sets: ex.sets,
+            reps: ex.reps,
+            weight: ex.weight || 0,
+            restTime: ex.restTime,
+            exerciseName: ex.exercise.nameFr,
+            exerciseNameEn: ex.exercise.name,
+            bodyPart: ex.exercise.bodyPart,
+            isUnilateral: ex.exercise.isUnilateral,
+          }))
+        ),
+      },
+    });
   };
 
   // ─── Not found ───
@@ -690,26 +725,7 @@ export default function WorkoutDetailScreen() {
           style={s.startButton}
           onPress={() => {
             if (!workout || selectedExercises.length === 0) return;
-            router.push({
-              pathname: '/workout/session',
-              params: {
-                workoutId: id,
-                workoutName: workout.nameFr || workout.name,
-                exercises: JSON.stringify(
-                  selectedExercises.map((ex) => ({
-                    exerciseId: ex.exerciseId,
-                    sets: ex.sets,
-                    reps: ex.reps,
-                    weight: ex.weight || 0,
-                    restTime: ex.restTime,
-                    exerciseName: ex.exercise.nameFr,
-                    exerciseNameEn: ex.exercise.name,
-                    bodyPart: ex.exercise.bodyPart,
-                    isUnilateral: ex.exercise.isUnilateral,
-                  }))
-                ),
-              },
-            });
+            setShowReadiness(true);
           }}
         >
           <Play size={20} color="#fff" fill="#fff" strokeWidth={0} />
@@ -866,6 +882,20 @@ export default function WorkoutDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ─── Readiness Check Modal ─── */}
+      <ReadinessCheck
+        visible={showReadiness}
+        onSubmit={(check) => {
+          setShowReadiness(false);
+          handleStartSession(check);
+        }}
+        onSkip={() => {
+          setShowReadiness(false);
+          handleStartSession();
+        }}
+        onClose={() => setShowReadiness(false)}
+      />
 
       <ExerciseInfoSheet exercise={infoExercise} onClose={() => setInfoExercise(null)} />
     </View>

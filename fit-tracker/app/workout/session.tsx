@@ -15,7 +15,7 @@ import {
   PanResponder,
   Switch,
 } from 'react-native';
-import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
+import { useRouter, useLocalSearchParams, Stack, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeepAwake } from 'expo-keep-awake';
 import * as Haptics from 'expo-haptics';
@@ -75,6 +75,9 @@ interface SessionExercise {
   bodyPart: BodyPart;
   sets: number;
   reps: number;
+  minReps?: number;
+  maxReps?: number;
+  targetRir?: number;
   weight: number;
   restTime: number;
   isUnilateral: boolean;
@@ -133,8 +136,10 @@ function formatTimer(seconds: number): string {
 export default function WorkoutSessionScreen() {
   useKeepAwake();
   const router = useRouter();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const store = useWorkoutStore();
+  const allowNavRef = useRef(false);
   const { workoutId, workoutName, sessionId: sessionIdParam, exercises: exercisesParam } = useLocalSearchParams<{
     workoutId: string;
     workoutName: string;
@@ -246,17 +251,26 @@ export default function WorkoutSessionScreen() {
     setAudioVolume(volume);
   }, [sfxEnabled, voiceEnabled, volume]);
 
-  // ─── Block Android back (close sheet or ignore) ───
+  // ─── Block ALL back navigation (gesture, hardware, swipe) ───
+  // Only allow when explicitly flagged via allowNavRef
   const closeSheetRef = useRef<() => void>(() => {});
   useEffect(() => {
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
       if (sheetOpenRef.current) {
         closeSheetRef.current();
       }
-      return true;
+      return true; // Always block
     });
     return () => handler.remove();
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (allowNavRef.current) return; // Explicitly allowed — let it through
+      e.preventDefault(); // Block gesture / programmatic back
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   // ─── Keep sheet position in sync with insets ───
   useEffect(() => {
@@ -547,6 +561,8 @@ export default function WorkoutSessionScreen() {
         completedExercises,
       });
     }
+    cleanupAudio();
+    allowNavRef.current = true;
     router.back();
   }, [completedSets, sessionExercises, store, router]);
 
@@ -555,6 +571,8 @@ export default function WorkoutSessionScreen() {
     if (sessionIdRef.current) {
       store.deleteSession(sessionIdRef.current);
     }
+    cleanupAudio();
+    allowNavRef.current = true;
     router.back();
   }, [store, router]);
 
@@ -576,6 +594,8 @@ export default function WorkoutSessionScreen() {
         completedExercises,
       });
     }
+    cleanupAudio();
+    allowNavRef.current = true;
     router.back();
   }, [completedSets, sessionExercises, store, router]);
 
@@ -1022,7 +1042,7 @@ export default function WorkoutSessionScreen() {
                       )}
                     </View>
                     <Text style={s.reviewCardDetail}>
-                      {completedCount}/{totalSetsNeeded} sets · {ex.reps} reps{ex.weight > 0 ? ` · ${ex.weight} kg` : ''}
+                      {completedCount}/{totalSetsNeeded} sets · {ex.minReps && ex.minReps !== (ex.maxReps || ex.reps) ? `${ex.minReps}-${ex.maxReps}` : ex.maxReps || ex.reps} reps{ex.weight > 0 ? ` · ${ex.weight} kg` : ''}
                     </Text>
                   </View>
                   <View style={[s.expandChevron, isExpanded && s.expandChevronOpen]}>
@@ -1182,8 +1202,11 @@ export default function WorkoutSessionScreen() {
               {currentSide ? (currentSide === 'right'
                 ? (i18n.locale === 'fr' ? ' · DROITE ›' : ' · RIGHT ›')
                 : (i18n.locale === 'fr' ? ' · ‹ GAUCHE' : ' · ‹ LEFT')) : ''}
-              {' · '}{currentExercise.reps} REPS
+              {' · '}{currentExercise.minReps && currentExercise.minReps !== (currentExercise.maxReps || currentExercise.reps)
+                ? `${currentExercise.minReps}-${currentExercise.maxReps}`
+                : currentExercise.maxReps || currentExercise.reps} REPS
               {currentExercise.weight > 0 ? ` · ${currentExercise.weight} KG` : ''}
+              {currentExercise.targetRir != null ? ` · RIR ${currentExercise.targetRir}` : ''}
             </Text>
             {/* Dot progress — 1 dot per exercise */}
             <View style={s.dotRow}>
@@ -1329,7 +1352,7 @@ export default function WorkoutSessionScreen() {
                         )}
                       </View>
                       <Text style={s.listCardDetail}>
-                        {completedCount}/{totalSetsNeeded} sets · {ex.reps} reps{ex.weight > 0 ? ` · ${ex.weight} kg` : ''}
+                        {completedCount}/{totalSetsNeeded} sets · {ex.minReps && ex.minReps !== (ex.maxReps || ex.reps) ? `${ex.minReps}-${ex.maxReps}` : ex.maxReps || ex.reps} reps{ex.weight > 0 ? ` · ${ex.weight} kg` : ''}
                       </Text>
                     </View>
                     {isCurrent && (
@@ -1401,7 +1424,7 @@ export default function WorkoutSessionScreen() {
                                   </Pressable>
                                 </View>
                               ) : (
-                                <Text style={s.stepperValueMuted}>{ex.reps}</Text>
+                                <Text style={s.stepperValueMuted}>{ex.minReps && ex.minReps !== (ex.maxReps || ex.reps) ? `${ex.minReps}-${ex.maxReps}` : ex.maxReps || ex.reps}</Text>
                               )}
                             </View>
 

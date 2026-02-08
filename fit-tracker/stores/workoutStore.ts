@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Workout, WorkoutSession, WorkoutStats, HistoryFilter } from '@/types';
 import { presetWorkouts } from '@/data/workouts';
 import { useProgramStore } from '@/stores/programStore';
+import type { ReadinessCheck } from '@/types/program';
 
 interface WorkoutStoreState {
   customWorkouts: Workout[];
@@ -23,6 +24,7 @@ interface WorkoutStoreState {
   startSession: (workoutId: string, workoutName?: string, programMeta?: { programId: string; programWeek: number; programDayIndex: number }) => string;
   endSession: (sessionId: string, data: Partial<WorkoutSession>) => void;
   deleteSession: (sessionId: string) => void;
+  saveSessionReadiness: (sessionId: string, readiness: ReadinessCheck) => void;
   setHistoryFilter: (filter: HistoryFilter) => void;
 
   // Preferences
@@ -158,6 +160,14 @@ export const useWorkoutStore = create<WorkoutStoreState>()(
           history: state.history.filter((s) => s.id !== sessionId),
         }));
         get().updateStats();
+      },
+
+      saveSessionReadiness: (sessionId, readiness) => {
+        set((state) => ({
+          history: state.history.map((s) =>
+            s.id === sessionId ? { ...s, readiness } : s
+          ),
+        }));
       },
 
       setHistoryFilter: (filter) => set({ historyFilter: filter }),

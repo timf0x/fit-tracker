@@ -239,19 +239,48 @@ export const SPLIT_TEMPLATES: Record<SplitType, SplitDayTemplate[][]> = {
 };
 
 /**
- * Rep ranges and rest times by goal — split by compound / isolation.
- *
- * Compounds (multi-joint): heavier, lower reps, longer rest
- * Isolations (single-joint): lighter, higher reps, shorter rest
- *
- * Strength: compounds are truly heavy (4 reps); isolations stay moderate
- *           because nobody should be doing 3-rep lateral raises.
+ * 6-tier rep/rest config by goal × exercise category.
+ * Based on RP Hypertrophy guidelines:
+ * - Heavy barbells: lower reps, longer rest (strength benefit)
+ * - Machine isolations: higher reps, shorter rest (metabolic stress)
+ * - Abs/calves: highest reps, minimal rest
  */
-export const GOAL_CONFIG = {
-  hypertrophy:   { compoundReps: 8,  isolationReps: 12, compoundRest: 120, isolationRest: 75  },
-  strength:      { compoundReps: 4,  isolationReps: 8,  compoundRest: 180, isolationRest: 90  },
-  recomposition: { compoundReps: 6,  isolationReps: 10, compoundRest: 120, isolationRest: 75  },
-} as const;
+import type { ExerciseCategory } from '@/lib/exerciseClassification';
+
+export interface CategoryConfig {
+  minReps: number;
+  maxReps: number;
+  restTime: number;
+}
+
+export type GoalCategoryConfig = Record<ExerciseCategory, CategoryConfig>;
+
+export const GOAL_CONFIG: Record<string, GoalCategoryConfig> = {
+  hypertrophy: {
+    heavy_barbell_compound: { minReps: 6,  maxReps: 10, restTime: 150 },
+    dumbbell_compound:      { minReps: 8,  maxReps: 12, restTime: 120 },
+    machine_compound:       { minReps: 8,  maxReps: 15, restTime: 120 },
+    isolation:              { minReps: 10, maxReps: 15, restTime: 90  },
+    machine_isolation:      { minReps: 12, maxReps: 20, restTime: 75  },
+    abs_calves:             { minReps: 12, maxReps: 25, restTime: 60  },
+  },
+  strength: {
+    heavy_barbell_compound: { minReps: 3,  maxReps: 6,  restTime: 180 },
+    dumbbell_compound:      { minReps: 5,  maxReps: 8,  restTime: 150 },
+    machine_compound:       { minReps: 6,  maxReps: 10, restTime: 120 },
+    isolation:              { minReps: 8,  maxReps: 12, restTime: 90  },
+    machine_isolation:      { minReps: 10, maxReps: 15, restTime: 75  },
+    abs_calves:             { minReps: 12, maxReps: 20, restTime: 60  },
+  },
+  recomposition: {
+    heavy_barbell_compound: { minReps: 5,  maxReps: 8,  restTime: 150 },
+    dumbbell_compound:      { minReps: 6,  maxReps: 10, restTime: 120 },
+    machine_compound:       { minReps: 8,  maxReps: 12, restTime: 120 },
+    isolation:              { minReps: 8,  maxReps: 12, restTime: 90  },
+    machine_isolation:      { minReps: 10, maxReps: 15, restTime: 75  },
+    abs_calves:             { minReps: 12, maxReps: 20, restTime: 60  },
+  },
+};
 
 /**
  * Mesocycle length by experience

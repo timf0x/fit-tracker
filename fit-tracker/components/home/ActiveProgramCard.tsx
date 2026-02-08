@@ -1,6 +1,7 @@
-import { useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { PressableScale } from '@/components/ui/PressableScale';
+import { AnimatedStartButton } from '@/components/ui/AnimatedStartButton';
 import { useRouter } from 'expo-router';
 import Animated, {
   useSharedValue,
@@ -31,6 +32,8 @@ import { useWorkoutStore } from '@/stores/workoutStore';
 import { getExerciseById } from '@/data/exercises';
 import { estimateDuration } from '@/lib/programGenerator';
 import { buildProgramExercisesParam } from '@/lib/programSession';
+import { ReadinessCheck } from '@/components/program/ReadinessCheck';
+import type { ReadinessCheck as ReadinessCheckType } from '@/types/program';
 
 const SPLIT_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   ppl: { label: 'PPL', color: '#FF6B35', bg: 'rgba(255,107,53,0.15)' },
@@ -63,8 +66,11 @@ const DEFAULT_BODY_ICON: BodyIcon = { Icon: Dumbbell, ...NEUTRAL };
 
 export function ActiveProgramCard() {
   const router = useRouter();
-  const { userProfile, program, activeState, isProgramComplete } = useProgramStore();
+  const { userProfile, program, activeState, isProgramComplete, saveReadiness } = useProgramStore();
   const startSession = useWorkoutStore((s) => s.startSession);
+  const saveSessionReadiness = useWorkoutStore((s) => s.saveSessionReadiness);
+
+  const [showReadiness, setShowReadiness] = useState(false);
 
   // Pulsing glow for start button
   const pulse = useSharedValue(0);
@@ -199,9 +205,10 @@ export function ActiveProgramCard() {
         nameFr: ex.nameFr || ex.name,
         bodyPart: ex.bodyPart,
         sets: e.sets,
-        reps: e.reps,
+        minReps: e.minReps,
+        maxReps: e.maxReps || e.reps,
       };
-    }).filter(Boolean) as Array<{ id: string; nameFr: string; bodyPart: string; sets: number; reps: number }>;
+    }).filter(Boolean) as Array<{ id: string; nameFr: string; bodyPart: string; sets: number; minReps: number; maxReps: number }>;
   }, [todayDay]);
 
   const duration = todayDay ? estimateDuration(todayDay) : 0;
@@ -213,6 +220,11 @@ export function ActiveProgramCard() {
 
   const handleStart = () => {
     if (!todayDay || isDayDone) return;
+    setShowReadiness(true);
+  };
+
+  const startSessionNow = (readiness?: ReadinessCheckType) => {
+    if (!todayDay) return;
 
     const workoutId = `program_${program.id}_w${activeState.currentWeek}_d${activeState.currentDayIndex}`;
     const sessionId = startSession(workoutId, todayDay.labelFr, {
@@ -220,6 +232,11 @@ export function ActiveProgramCard() {
       programWeek: activeState.currentWeek,
       programDayIndex: activeState.currentDayIndex,
     });
+
+    if (readiness) {
+      saveReadiness(readiness);
+      saveSessionReadiness(sessionId, readiness);
+    }
 
     const exercisesJson = buildProgramExercisesParam(todayDay);
 
@@ -235,102 +252,121 @@ export function ActiveProgramCard() {
   };
 
   return (
-    <View style={styles.container}>
-      <PressableScale
-        style={[
-          styles.card,
-          !isDayDone && styles.cardActive,
-        ]}
-        onPress={() => router.push('/program')}
-      >
-        {/* Session header — typography only, no pills */}
-        {todayDay && (
-          <View style={styles.sessionHeader}>
-            <View style={styles.sessionTitleRow}>
-              <View style={[styles.focusDot, { backgroundColor: splitStyle.color }]} />
-              <Text style={styles.sessionName}>{todayDay.labelFr}</Text>
-              <View style={{ flex: 1 }} />
-              <ChevronRight size={16} color="rgba(120,120,130,1)" />
-            </View>
-            <Text style={styles.sessionMeta}>
-              S{activeState.currentWeek}/{program.totalWeeks}
-              {duration > 0 ? ` · ~${duration} min` : ''}
-              {` · ${todayDay.exercises.length} exos`}
-            </Text>
-
-            {exercisePreview.length > 0 && (
-              <View style={styles.exercisePreviewList}>
-                {exercisePreview.map((ex) => {
-                  const icon = BODY_ICONS[ex.bodyPart] || DEFAULT_BODY_ICON;
-                  return (
-                    <View key={ex.id} style={styles.exercisePreviewRow}>
-                      <View style={[styles.exerciseBadge, { backgroundColor: icon.bg }]}>
-                        <icon.Icon size={12} color={icon.color} strokeWidth={2.5} />
-                      </View>
-                      <Text style={styles.exercisePreviewName} numberOfLines={1}>
-                        {ex.nameFr}
-                      </Text>
-                      <Text style={styles.exercisePreviewMeta}>
-                        {ex.sets}×{ex.reps}
-                      </Text>
-                    </View>
-                  );
-                })}
-                {todayDay.exercises.length > 3 && (
-                  <Text style={styles.exerciseMoreText}>
-                    +{todayDay.exercises.length - 3} exercices
-                  </Text>
-                )}
+    <>
+      <View style={styles.container}>
+        <PressableScale
+          style={[
+            styles.card,
+            !isDayDone && styles.cardActive,
+          ]}
+          onPress={() => router.push('/program')}
+        >
+          {/* Session header — typography only, no pills */}
+          {todayDay && (
+            <View style={styles.sessionHeader}>
+              <View style={styles.sessionTitleRow}>
+                <View style={[styles.focusDot, { backgroundColor: splitStyle.color }]} />
+                <Text style={styles.sessionName}>{todayDay.labelFr}</Text>
+                <View style={{ flex: 1 }} />
+                <ChevronRight size={16} color="rgba(120,120,130,1)" />
               </View>
-            )}
+              <Text style={styles.sessionMeta}>
+                S{activeState.currentWeek}/{program.totalWeeks}
+                {duration > 0 ? ` · ~${duration} min` : ''}
+                {` · ${todayDay.exercises.length} exos`}
+              </Text>
+
+              {exercisePreview.length > 0 && (
+                <View style={styles.exercisePreviewList}>
+                  {exercisePreview.map((ex) => {
+                    const icon = BODY_ICONS[ex.bodyPart] || DEFAULT_BODY_ICON;
+                    return (
+                      <View key={ex.id} style={styles.exercisePreviewRow}>
+                        <View style={[styles.exerciseBadge, { backgroundColor: icon.bg }]}>
+                          <icon.Icon size={12} color={icon.color} strokeWidth={2.5} />
+                        </View>
+                        <Text style={styles.exercisePreviewName} numberOfLines={1}>
+                          {ex.nameFr}
+                        </Text>
+                        <Text style={styles.exercisePreviewMeta}>
+                          {ex.sets}×{ex.minReps && ex.minReps !== ex.maxReps
+                            ? `${ex.minReps}-${ex.maxReps}`
+                            : ex.maxReps}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                  {todayDay.exercises.length > 3 && (
+                    <Text style={styles.exerciseMoreText}>
+                      +{todayDay.exercises.length - 3} exercices
+                    </Text>
+                  )}
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Mesocycle bar */}
+          <View style={styles.mesoBar}>
+            {program.weeks.map((week) => {
+              const weekDays = week.days.length;
+              const completedInWeek = activeState.completedDays.filter(
+                (k) => k.startsWith(`${week.weekNumber}-`)
+              ).length;
+              const isCurrentWeek = week.weekNumber === activeState.currentWeek;
+              const weekComplete = completedInWeek >= weekDays;
+              const hasProgress = completedInWeek > 0 && !weekComplete;
+
+              return (
+                <View
+                  key={week.weekNumber}
+                  style={[
+                    styles.mesoSegment,
+                    weekComplete && !week.isDeload && styles.mesoSegmentDone,
+                    weekComplete && week.isDeload && styles.mesoSegmentDeload,
+                    isCurrentWeek && !weekComplete && styles.mesoSegmentCurrent,
+                    hasProgress && isCurrentWeek && {
+                      backgroundColor: `rgba(255,107,53,${0.15 + (completedInWeek / weekDays) * 0.35})`,
+                    },
+                  ]}
+                />
+              );
+            })}
           </View>
-        )}
 
-        {/* Mesocycle bar */}
-        <View style={styles.mesoBar}>
-          {program.weeks.map((week) => {
-            const weekDays = week.days.length;
-            const completedInWeek = activeState.completedDays.filter(
-              (k) => k.startsWith(`${week.weekNumber}-`)
-            ).length;
-            const isCurrentWeek = week.weekNumber === activeState.currentWeek;
-            const weekComplete = completedInWeek >= weekDays;
-            const hasProgress = completedInWeek > 0 && !weekComplete;
-
-            return (
-              <View
-                key={week.weekNumber}
-                style={[
-                  styles.mesoSegment,
-                  weekComplete && !week.isDeload && styles.mesoSegmentDone,
-                  weekComplete && week.isDeload && styles.mesoSegmentDeload,
-                  isCurrentWeek && !weekComplete && styles.mesoSegmentCurrent,
-                  hasProgress && isCurrentWeek && {
-                    backgroundColor: `rgba(255,107,53,${0.15 + (completedInWeek / weekDays) * 0.35})`,
-                  },
-                ]}
+          {/* Bottom CTA */}
+          {!isDayDone && todayDay && (
+            <Animated.View style={[styles.startButtonWrap, pulseStyle]}>
+              <AnimatedStartButton
+                onPress={handleStart}
+                label="Commencer"
+                style={styles.startButton}
+                iconSize={14}
               />
-            );
-          })}
-        </View>
+            </Animated.View>
+          )}
+          {isDayDone && (
+            <View style={styles.doneRow}>
+              <Check size={14} color={Colors.success} strokeWidth={2.5} />
+              <Text style={styles.doneText}>Séance terminée</Text>
+            </View>
+          )}
+        </PressableScale>
+      </View>
 
-        {/* Bottom CTA */}
-        {!isDayDone && todayDay && (
-          <Animated.View style={[styles.startButtonWrap, pulseStyle]}>
-            <PressableScale style={styles.startButton} activeScale={0.97} onPress={handleStart}>
-              <Play size={14} color="#0C0C0C" fill="#0C0C0C" />
-              <Text style={styles.startButtonText}>Commencer</Text>
-            </PressableScale>
-          </Animated.View>
-        )}
-        {isDayDone && (
-          <View style={styles.doneRow}>
-            <Check size={14} color={Colors.success} strokeWidth={2.5} />
-            <Text style={styles.doneText}>Séance terminée</Text>
-          </View>
-        )}
-      </PressableScale>
-    </View>
+      <ReadinessCheck
+        visible={showReadiness}
+        onSubmit={(check) => {
+          setShowReadiness(false);
+          startSessionNow(check);
+        }}
+        onSkip={() => {
+          setShowReadiness(false);
+          startSessionNow();
+        }}
+        onClose={() => setShowReadiness(false)}
+      />
+    </>
   );
 }
 

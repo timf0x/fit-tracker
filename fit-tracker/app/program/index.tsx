@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import {
   View,
   Text,
@@ -11,43 +11,39 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
-  Play,
   LogOut,
   AlertTriangle,
   RefreshCw,
   Trophy,
   ChevronRight,
   Clock,
-  Flame,
 } from 'lucide-react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { AnimatedStartButton } from '@/components/ui/AnimatedStartButton';
 import { Fonts, Colors } from '@/constants/theme';
 import { useProgramStore } from '@/stores/programStore';
 import { useWorkoutStore } from '@/stores/workoutStore';
+import { AmbientBackground } from '@/components/home/AmbientBackground';
 import { MesocycleTimeline } from '@/components/program/MesocycleTimeline';
 import { DayCard } from '@/components/program/DayCard';
 import { ConfirmModal } from '@/components/program/ConfirmModal';
-import { CircularProgress } from '@/components/CircularProgress';
-import { MUSCLE_LABELS_FR } from '@/lib/muscleMapping';
+import { ReadinessCheck } from '@/components/program/ReadinessCheck';
 import { buildProgramExercisesParam } from '@/lib/programSession';
-import { RP_VOLUME_LANDMARKS, getVolumeZone, getZoneColor } from '@/constants/volumeLandmarks';
-
-const SPLIT_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  ppl: { label: 'PPL', color: '#FF6B35', bg: 'rgba(255,107,53,0.15)' },
-  upper_lower: { label: 'Haut/Bas', color: '#3B82F6', bg: 'rgba(59,130,246,0.15)' },
-  full_body: { label: 'Full Body', color: '#A855F7', bg: 'rgba(168,85,247,0.15)' },
-};
 
 export default function ProgramScreen() {
   const router = useRouter();
-  const { program, activeState, clearProgram, isProgramComplete, getStreakCount } = useProgramStore();
+  const { program, activeState, clearProgram, isProgramComplete, saveReadiness } =
+    useProgramStore();
   const startSession = useWorkoutStore((s) => s.startSession);
+  const saveSessionReadiness = useWorkoutStore((s) => s.saveSessionReadiness);
 
   const [selectedWeek, setSelectedWeek] = useState(
-    activeState?.currentWeek || 1
+    activeState?.currentWeek || 1,
   );
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [showModifyConfirm, setShowModifyConfirm] = useState(false);
   const [showPacingWarning, setShowPacingWarning] = useState(false);
+  const [showReadiness, setShowReadiness] = useState(false);
 
   if (!program || !activeState) {
     router.replace('/program/onboarding');
@@ -55,10 +51,9 @@ export default function ProgramScreen() {
   }
 
   const programComplete = isProgramComplete();
-  const streakCount = getStreakCount();
 
   const currentWeekData = program.weeks.find(
-    (w) => w.weekNumber === selectedWeek
+    (w) => w.weekNumber === selectedWeek,
   );
   const deloadWeekNum = program.weeks.find((w) => w.isDeload)?.weekNumber;
   const isCurrentWeek = selectedWeek === activeState.currentWeek;
@@ -70,56 +65,37 @@ export default function ProgramScreen() {
   const isDayDone = (dayIndex: number) =>
     activeState.completedDays.includes(`${selectedWeek}-${dayIndex}`);
 
-  // Compute which weeks are fully completed
   const completedWeeks = useMemo(() => {
     const result: number[] = [];
     for (const week of program.weeks) {
       const totalDays = week.days.length;
-      const completedDays = activeState.completedDays.filter(
-        (k) => k.startsWith(`${week.weekNumber}-`)
+      const completedDays = activeState.completedDays.filter((k) =>
+        k.startsWith(`${week.weekNumber}-`),
       ).length;
       if (completedDays >= totalDays) result.push(week.weekNumber);
     }
     return result;
   }, [program.weeks, activeState.completedDays]);
 
-  // Metrics for selected week
-  const weekMetrics = useMemo(() => {
-    if (!currentWeekData) return { totalExercises: 0, totalSets: 0, completedDays: 0, totalDays: 0 };
-    const totalExercises = currentWeekData.days.reduce((sum, d) => sum + d.exercises.length, 0);
-    const totalSets = currentWeekData.days.reduce(
-      (sum, d) => sum + d.exercises.reduce((s, e) => s + e.sets, 0), 0
-    );
-    const completedDays = activeState.completedDays.filter(
-      (k) => k.startsWith(`${selectedWeek}-`)
+  // Week summary — just completed/total + total sets
+  const weekSummary = useMemo(() => {
+    if (!currentWeekData) return { done: 0, total: 0, sets: 0 };
+    const done = activeState.completedDays.filter((k) =>
+      k.startsWith(`${selectedWeek}-`),
     ).length;
-    return { totalExercises, totalSets, completedDays, totalDays: currentWeekData.days.length };
+    const sets = currentWeekData.days.reduce(
+      (sum, d) => sum + d.exercises.reduce((s, e) => s + e.sets, 0),
+      0,
+    );
+    return { done, total: currentWeekData.days.length, sets };
   }, [currentWeekData, selectedWeek, activeState.completedDays]);
-
-  // Volume targets with zone colors
-  const volumeTargetPills = useMemo(() => {
-    if (!currentWeekData?.volumeTargets) return { items: [], rest: 0 };
-    const entries = Object.entries(currentWeekData.volumeTargets)
-      .filter(([, v]) => v > 0)
-      .sort(([, a], [, b]) => b - a);
-    const items = entries.slice(0, 4).map(([muscle, sets]) => {
-      const landmarks = RP_VOLUME_LANDMARKS[muscle];
-      const zone = landmarks ? getVolumeZone(sets, landmarks) : 'below_mv';
-      const color = getZoneColor(zone);
-      return { muscle, sets, zoneColor: color };
-    });
-    const rest = entries.length - 4;
-    return { items, rest: rest > 0 ? rest : 0 };
-  }, [currentWeekData]);
-
-  const splitStyle = SPLIT_LABELS[program.splitType] || SPLIT_LABELS.ppl;
 
   const handleSelectWeek = (week: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedWeek(week);
   };
 
-  // Check same-day pacing
+  // Pacing check — warn if already completed a session today
   const isLastCompletionToday = useMemo(() => {
     if (!activeState.lastCompletedAt) return false;
     const last = new Date(activeState.lastCompletedAt);
@@ -133,10 +109,10 @@ export default function ProgramScreen() {
       setShowPacingWarning(true);
       return;
     }
-    startSessionNow();
+    setShowReadiness(true);
   };
 
-  const startSessionNow = () => {
+  const startSessionNow = (readiness?: import('@/types/program').ReadinessCheck) => {
     if (!todayDay) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const workoutId = `program_${program.id}_w${activeState.currentWeek}_d${activeState.currentDayIndex}`;
@@ -145,6 +121,10 @@ export default function ProgramScreen() {
       programWeek: activeState.currentWeek,
       programDayIndex: activeState.currentDayIndex,
     });
+    if (readiness) {
+      saveReadiness(readiness);
+      saveSessionReadiness(sessionId, readiness);
+    }
     router.push({
       pathname: '/workout/session',
       params: {
@@ -156,37 +136,31 @@ export default function ProgramScreen() {
     });
   };
 
-  const sectionLabel = isCurrentWeek ? 'CETTE SEMAINE' : `SEMAINE ${selectedWeek}`;
+  const sectionLabel = isCurrentWeek
+    ? 'CETTE SEMAINE'
+    : `SEMAINE ${selectedWeek}`;
 
   return (
     <View style={styles.screen}>
-      <View style={styles.orbOrange} pointerEvents="none" />
-      <View style={styles.orbBlue} pointerEvents="none" />
+      <AmbientBackground />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        {/* Header */}
+        {/* ─── Header — clean typography, no pills ─── */}
         <View style={styles.header}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <ArrowLeft size={22} color="#fff" strokeWidth={2} />
           </Pressable>
           <View style={styles.headerCenter}>
-            <View style={styles.headerTitleRow}>
-              <Text style={styles.headerTitle} numberOfLines={1}>
-                {program.nameFr}
-              </Text>
-              <View style={[styles.splitBadge, { backgroundColor: splitStyle.bg }]}>
-                <Text style={[styles.splitBadgeText, { color: splitStyle.color }]}>
-                  {splitStyle.label}
-                </Text>
-              </View>
-            </View>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {program.nameFr}
+            </Text>
             <Text style={styles.headerSub}>
               Semaine {activeState.currentWeek}/{program.totalWeeks}
             </Text>
           </View>
         </View>
 
-        {/* Mesocycle Timeline */}
+        {/* ─── Mesocycle Timeline — keep as-is ─── */}
         <MesocycleTimeline
           totalWeeks={program.totalWeeks}
           currentWeek={activeState.currentWeek}
@@ -196,199 +170,138 @@ export default function ProgramScreen() {
           completedWeeks={completedWeeks}
         />
 
-        {/* Deload banner */}
+        {/* ─── Deload banner ─── */}
         {currentWeekData?.isDeload && (
           <View style={styles.deloadBanner}>
             <Text style={styles.deloadTitle}>Semaine de deload</Text>
             <Text style={styles.deloadText}>
-              Volume reduit pour permettre la recuperation et la supercompensation. Essentiel pour progresser sur le long terme.
+              Volume réduit pour la récupération et la supercompensation.
             </Text>
           </View>
         )}
 
-        {/* Program completion celebration */}
+        {/* ─── Program completion ─── */}
         {programComplete && (
           <View style={styles.completionCard}>
-            <View style={styles.completionRingWrap}>
-              <CircularProgress progress={1} size={72} strokeWidth={5} color="#FBBF24" />
-              <View style={styles.completionRingCenter}>
-                <Trophy size={24} color="#FBBF24" />
-              </View>
+            <Trophy size={28} color="#FBBF24" />
+            <View style={styles.completionTextWrap}>
+              <Text style={styles.completionTitle}>Programme terminé !</Text>
+              <Text style={styles.completionSubtitle}>
+                {activeState.completedDays.length} séances complétées
+              </Text>
             </View>
-            <Text style={styles.completionTitle}>Programme termine !</Text>
-            <Text style={styles.completionSubtitle}>
-              {activeState.completedDays.length} seances completees
-            </Text>
-            <Pressable
+            <PressableScale
               style={styles.newProgramButton}
+              activeScale={0.97}
               onPress={() => router.push('/program/onboarding')}
             >
-              <Text style={styles.newProgramText}>Nouveau programme</Text>
-              <ChevronRight size={16} color="#0C0C0C" />
-            </Pressable>
+              <Text style={styles.newProgramText}>Nouveau</Text>
+              <ChevronRight size={14} color="#0C0C0C" />
+            </PressableScale>
           </View>
         )}
 
-        {/* Inline metrics strip (no card wrapper) */}
-        <View style={styles.metricsStrip}>
-          <View style={styles.metricItem}>
-            <Text style={styles.metricValue}>{weekMetrics.completedDays}/{weekMetrics.totalDays}</Text>
-            <Text style={styles.metricLabel}>seances</Text>
-          </View>
-          <View style={styles.metricDivider} />
-          <View style={styles.metricItem}>
-            <Text style={styles.metricValue}>{weekMetrics.totalExercises}</Text>
-            <Text style={styles.metricLabel}>exercices</Text>
-          </View>
-          <View style={styles.metricDivider} />
-          <View style={styles.metricItem}>
-            <Text style={styles.metricValue}>{weekMetrics.totalSets}</Text>
-            <Text style={styles.metricLabel}>series</Text>
-          </View>
-        </View>
-
-        {/* Day completion dots */}
-        <View style={styles.dayDotsRow}>
-          {currentWeekData?.days.map((_, dayIdx) => {
-            const done = isDayDone(dayIdx);
-            const isTodayDot = isCurrentWeek && dayIdx === activeState.currentDayIndex;
-            return (
-              <View
-                key={dayIdx}
-                style={[
-                  styles.dayDot,
-                  done && styles.dayDotDone,
-                  isTodayDot && !done && styles.dayDotToday,
-                ]}
-              />
-            );
-          })}
-        </View>
-
-        {/* Volume pills with zone dots */}
-        {volumeTargetPills.items.length > 0 && (
-          <View style={styles.volumeRow}>
-            {volumeTargetPills.items.map(({ muscle, sets, zoneColor }) => (
-              <View key={muscle} style={styles.volumePill}>
-                <View style={[styles.zoneDot, { backgroundColor: zoneColor }]} />
-                <Text style={styles.volumePillText}>
-                  {MUSCLE_LABELS_FR[muscle] || muscle} {sets}s
-                </Text>
-              </View>
-            ))}
-            {volumeTargetPills.rest > 0 && (
-              <Text style={styles.volumeMore}>+{volumeTargetPills.rest}</Text>
-            )}
-          </View>
-        )}
-
-        {/* Streak counter */}
-        {streakCount > 0 && (
-          <View style={styles.streakRow}>
-            <Flame size={14} color={Colors.primary} />
-            <Text style={styles.streakText}>
-              {streakCount} seance{streakCount > 1 ? 's' : ''} d'affilee
-            </Text>
-          </View>
-        )}
-
-        {/* Section divider */}
-        <View style={styles.sectionDivider}>
-          <View style={styles.sectionLine} />
-          <Text style={styles.sectionLabel}>{sectionLabel}</Text>
-          <View style={styles.sectionLine} />
-          {isCurrentWeek && todayDay && !isDayDone(activeState.currentDayIndex) && (
-            <View style={styles.todayIndicator}>
-              <View style={styles.todayDot} />
-              <Text style={styles.todayIndicatorText}>A faire</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Day cards */}
+        {/* ─── Week card: header + day rows ─── */}
         <ScrollView
           style={styles.body}
           contentContainerStyle={styles.bodyContent}
           showsVerticalScrollIndicator={false}
         >
-          {currentWeekData?.days.map((day, dayIdx) => {
-            const isToday = isCurrentWeek && dayIdx === activeState.currentDayIndex;
-            const completed = isDayDone(dayIdx);
-
-            return (
-              <DayCard
-                key={dayIdx}
-                day={day}
-                dayNumber={dayIdx + 1}
-                isToday={isToday}
-                isCompleted={completed}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push({
-                    pathname: '/program/day',
-                    params: { week: String(selectedWeek), day: String(dayIdx) },
-                  });
-                }}
-              />
-            );
-          })}
-
-          {/* Management section — iOS settings rows */}
-          <View style={styles.managementSection}>
-            <View style={styles.sectionDivider}>
-              <View style={styles.sectionLine} />
-              <Text style={styles.sectionLabel}>GESTION</Text>
-              <View style={styles.sectionLine} />
+          <View style={styles.weekCard}>
+            {/* Card header — section label + summary */}
+            <View style={styles.weekCardHeader}>
+              <Text style={styles.weekCardLabel}>{sectionLabel}</Text>
+              <Text style={styles.weekCardSummary}>
+                {weekSummary.done}/{weekSummary.total} séances · {weekSummary.sets} séries
+              </Text>
             </View>
 
-            <Pressable
+            {/* Day rows with separators */}
+            {currentWeekData?.days.map((day, dayIdx, arr) => {
+              const isToday =
+                isCurrentWeek && dayIdx === activeState.currentDayIndex;
+              const completed = isDayDone(dayIdx);
+
+              return (
+                <Fragment key={dayIdx}>
+                  <View style={styles.daySeparator} />
+                  <DayCard
+                    day={day}
+                    dayNumber={dayIdx + 1}
+                    isToday={isToday}
+                    isCompleted={completed}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push({
+                        pathname: '/program/day',
+                        params: {
+                          week: String(selectedWeek),
+                          day: String(dayIdx),
+                        },
+                      });
+                    }}
+                  />
+                </Fragment>
+              );
+            })}
+          </View>
+
+          {/* ─── Management section ─── */}
+          <View style={styles.managementSection}>
+            <PressableScale
               style={styles.managementRow}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setShowModifyConfirm(true);
               }}
             >
-              <RefreshCw size={16} color={Colors.primary} />
+              <RefreshCw size={16} color="rgba(255,255,255,0.4)" />
               <Text style={styles.managementText}>Modifier le programme</Text>
               <ChevronRight size={16} color="rgba(100,100,110,1)" />
-            </Pressable>
+            </PressableScale>
 
             <View style={styles.managementSep} />
 
-            <Pressable
+            <PressableScale
               style={styles.managementRow}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setShowQuitConfirm(true);
               }}
             >
-              <LogOut size={16} color="rgba(239,68,68,0.7)" />
-              <Text style={[styles.managementText, { color: 'rgba(239,68,68,0.7)' }]}>
+              <LogOut size={16} color="rgba(239,68,68,0.5)" />
+              <Text
+                style={[styles.managementText, { color: 'rgba(239,68,68,0.5)' }]}
+              >
                 Quitter le programme
               </Text>
               <ChevronRight size={16} color="rgba(100,100,110,1)" />
-            </Pressable>
+            </PressableScale>
           </View>
         </ScrollView>
 
-        {/* Bottom CTA */}
-        {todayDay && !isDayDone(activeState.currentDayIndex) && isCurrentWeek && !programComplete && (
-          <View style={styles.bottomCta}>
-            <Pressable style={styles.startButton} onPress={handleStartToday}>
-              <Play size={18} color="#0C0C0C" fill="#0C0C0C" />
-              <Text style={styles.startText}>Commencer la seance</Text>
-            </Pressable>
-          </View>
-        )}
+        {/* ─── Bottom CTA ─── */}
+        {todayDay &&
+          !isDayDone(activeState.currentDayIndex) &&
+          isCurrentWeek &&
+          !programComplete && (
+            <View style={styles.bottomCta}>
+              <AnimatedStartButton
+                onPress={handleStartToday}
+                label="Commencer la séance"
+                style={styles.startButton}
+              />
+            </View>
+          )}
       </SafeAreaView>
 
-      {/* Modals */}
+      {/* ─── Modals ─── */}
       <ConfirmModal
         visible={showQuitConfirm}
         onClose={() => setShowQuitConfirm(false)}
         icon={<AlertTriangle size={28} color="#EF4444" />}
         title="Quitter le programme ?"
-        description="Ta progression sera perdue. Tu pourras toujours en creer un nouveau."
+        description="Ta progression sera perdue. Tu pourras toujours en créer un nouveau."
         confirmText="Quitter"
         onConfirm={() => {
           clearProgram();
@@ -401,7 +314,7 @@ export default function ProgramScreen() {
         icon={<RefreshCw size={28} color={Colors.primary} />}
         iconBgColor="rgba(255,107,53,0.12)"
         title="Modifier le programme ?"
-        description="Ton programme actuel sera remplace. Ta progression sera perdue."
+        description="Ton programme actuel sera remplacé. Ta progression sera perdue."
         cancelText="Annuler"
         confirmText="Modifier"
         confirmColor={Colors.primary}
@@ -415,15 +328,27 @@ export default function ProgramScreen() {
         onClose={() => setShowPacingWarning(false)}
         icon={<Clock size={28} color="#FBBF24" />}
         iconBgColor="rgba(251,191,36,0.12)"
-        title="Deja une seance aujourd'hui"
-        description="Tu as deja termine une seance aujourd'hui. La recuperation est essentielle pour la progression."
+        title="Déjà une séance aujourd'hui"
+        description="Tu as déjà terminé une séance aujourd'hui. La récupération est essentielle pour la progression."
         cancelText="Reporter"
         confirmText="Continuer"
         confirmColor={Colors.primary}
         onConfirm={() => {
           setShowPacingWarning(false);
+          setShowReadiness(true);
+        }}
+      />
+      <ReadinessCheck
+        visible={showReadiness}
+        onSubmit={(check) => {
+          setShowReadiness(false);
+          startSessionNow(check);
+        }}
+        onSkip={() => {
+          setShowReadiness(false);
           startSessionNow();
         }}
+        onClose={() => setShowReadiness(false)}
       />
     </View>
   );
@@ -436,34 +361,8 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
-  orbOrange: {
-    position: 'absolute',
-    top: -96,
-    right: -96,
-    width: 256,
-    height: 256,
-    borderRadius: 128,
-    backgroundColor: 'rgba(249, 115, 22, 0.10)',
-    shadowColor: '#f97316',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 100,
-  },
-  orbBlue: {
-    position: 'absolute',
-    top: '50%',
-    left: -128,
-    width: 320,
-    height: 320,
-    borderRadius: 160,
-    backgroundColor: 'rgba(59, 130, 246, 0.06)',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.08,
-    shadowRadius: 120,
-  },
 
-  // Header
+  // ─── Header ───
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -483,24 +382,9 @@ const styles = StyleSheet.create({
   headerCenter: {
     flex: 1,
   },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   headerTitle: {
     color: '#fff',
     fontSize: 20,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-  splitBadge: {
-    borderRadius: 6,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-  },
-  splitBadgeText: {
-    fontSize: 11,
     fontFamily: Fonts?.bold,
     fontWeight: '700',
   },
@@ -512,241 +396,123 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // Deload banner
+  // ─── Deload banner ───
   deloadBanner: {
     marginHorizontal: 20,
     marginTop: 4,
-    backgroundColor: 'rgba(59,130,246,0.08)',
+    backgroundColor: 'rgba(59,130,246,0.06)',
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(59,130,246,0.15)',
+    borderColor: 'rgba(59,130,246,0.1)',
     gap: 4,
   },
   deloadTitle: {
-    color: 'rgba(59,130,246,0.9)',
+    color: 'rgba(59,130,246,0.8)',
     fontSize: 14,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
   },
   deloadText: {
-    color: 'rgba(59,130,246,0.6)',
+    color: 'rgba(59,130,246,0.5)',
     fontSize: 12,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
     lineHeight: 17,
   },
 
-  // Completion
+  // ─── Completion ───
   completionCard: {
     marginHorizontal: 20,
     marginTop: 8,
-    backgroundColor: 'rgba(251,191,36,0.06)',
+    backgroundColor: 'rgba(251,191,36,0.04)',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(251,191,36,0.15)',
-    padding: 20,
+    borderColor: 'rgba(251,191,36,0.1)',
+    padding: 16,
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
-  completionRingWrap: {
-    width: 72,
-    height: 72,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  completionRingCenter: {
-    position: 'absolute',
+  completionTextWrap: {
+    flex: 1,
+    gap: 2,
   },
   completionTitle: {
     color: '#FFFFFF',
-    fontSize: 18,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-  completionSubtitle: {
-    color: 'rgba(255,255,255,0.45)',
-    fontSize: 13,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  newProgramButton: {
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  newProgramText: {
-    color: '#0C0C0C',
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
   },
-
-  // Inline metrics strip (no card)
-  metricsStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginTop: 8,
-  },
-  metricItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 2,
-  },
-  metricValue: {
-    color: '#fff',
-    fontSize: 20,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-  metricLabel: {
-    color: 'rgba(100,100,110,1)',
-    fontSize: 11,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  metricDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-
-  // Day dots
-  dayDotsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 12,
-  },
-  dayDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  dayDotDone: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  dayDotToday: {
-    backgroundColor: 'transparent',
-    borderColor: Colors.primary,
-    borderWidth: 2,
-  },
-
-  // Volume pills with zone dots
-  volumeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginTop: 10,
-  },
-  volumePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 6,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-  },
-  zoneDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  volumePillText: {
-    color: 'rgba(255,255,255,0.45)',
-    fontSize: 11,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-  volumeMore: {
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: 11,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-
-  // Streak
-  streakRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 20,
-    marginTop: 10,
-  },
-  streakText: {
-    color: 'rgba(255,255,255,0.45)',
+  completionSubtitle: {
+    color: 'rgba(255,255,255,0.4)',
     fontSize: 12,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
   },
-
-  // Section divider — line-label-line
-  sectionDivider: {
+  newProgramButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 20,
-    marginTop: 16,
-    marginBottom: 12,
+    gap: 4,
   },
-  sectionLine: {
+  newProgramText: {
+    color: '#0C0C0C',
+    fontSize: 13,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+  },
+
+  // ─── Body ───
+  body: {
     flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
   },
-  sectionLabel: {
+  bodyContent: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 120,
+    gap: 24,
+  },
+
+  // ─── Week card (single glass card wrapping all day rows) ───
+  weekCard: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    overflow: 'hidden',
+  },
+  weekCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  weekCardLabel: {
     color: 'rgba(160,150,140,1)',
     fontSize: 11,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
     letterSpacing: 1,
   },
-  todayIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
+  weekCardSummary: {
+    color: 'rgba(255,255,255,0.3)',
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
   },
-  todayDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.primary,
-  },
-  todayIndicatorText: {
-    color: Colors.primary,
-    fontSize: 11,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
+  daySeparator: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    marginHorizontal: 16,
   },
 
-  // Body
-  body: {
-    flex: 1,
-  },
-  bodyContent: {
-    paddingHorizontal: 20,
-    gap: 10,
-    paddingBottom: 120,
-  },
-
-  // Management — iOS settings rows
+  // ─── Management ───
   managementSection: {
-    marginTop: 16,
     gap: 0,
   },
   managementRow: {
@@ -756,7 +522,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   managementText: {
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(255,255,255,0.5)',
     fontSize: 14,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
@@ -768,7 +534,7 @@ const styles = StyleSheet.create({
     marginLeft: 28,
   },
 
-  // Bottom CTA
+  // ─── Bottom CTA ───
   bottomCta: {
     paddingHorizontal: 20,
     paddingVertical: 12,

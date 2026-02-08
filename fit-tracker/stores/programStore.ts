@@ -10,6 +10,7 @@ import {
   ReadinessCheck,
 } from '@/types/program';
 import { generateProgram } from '@/lib/programGenerator';
+import { computeFeedbackAdjustments } from '@/lib/feedbackAdaptation';
 
 interface ProgramStoreState {
   userProfile: UserProfile | null;
@@ -39,6 +40,7 @@ interface ProgramStoreState {
   // Feedback & readiness
   saveSessionFeedback: (week: number, dayIndex: number, feedback: SessionFeedback) => void;
   saveReadiness: (check: ReadinessCheck) => void;
+  applyFeedbackToNextWeek: () => void;
 
   // Exercise swap
   swapExercise: (week: number, dayIndex: number, exerciseIndex: number, newExerciseId: string) => void;
@@ -75,6 +77,8 @@ export const useProgramStore = create<ProgramStoreState>()(
             for (const ex of day.exercises) {
               ex.originalSets = ex.sets;
               ex.originalReps = ex.reps;
+              ex.originalMinReps = ex.minReps;
+              ex.originalMaxReps = ex.maxReps;
               ex.originalRestTime = ex.restTime;
               ex.originalSuggestedWeight = ex.suggestedWeight;
             }
@@ -144,9 +148,11 @@ export const useProgramStore = create<ProgramStoreState>()(
             },
           });
         } else if (activeState.currentWeek < program.totalWeeks) {
+          // Crossing week boundary — apply feedback to next week
+          get().applyFeedbackToNextWeek();
           set({
             activeState: {
-              ...activeState,
+              ...get().activeState!,
               currentWeek: activeState.currentWeek + 1,
               currentDayIndex: 0,
             },
@@ -208,6 +214,8 @@ export const useProgramStore = create<ProgramStoreState>()(
         get().overrideExercise(week, dayIndex, exerciseIndex, {
           sets: ex.originalSets,
           reps: ex.originalReps,
+          minReps: ex.originalMinReps,
+          maxReps: ex.originalMaxReps,
           restTime: ex.originalRestTime,
           suggestedWeight: ex.originalSuggestedWeight,
         });
@@ -239,6 +247,72 @@ export const useProgramStore = create<ProgramStoreState>()(
         });
       },
 
+      applyFeedbackToNextWeek: () => {
+        const { activeState, program } = get();
+        if (!activeState || !program || !activeState.sessionFeedback) return;
+
+        const currentWeekNum = activeState.currentWeek;
+        const currentWeek = program.weeks.find((w) => w.weekNumber === currentWeekNum);
+        const nextWeek = program.weeks.find((w) => w.weekNumber === currentWeekNum + 1);
+        if (!currentWeek || !nextWeek) return;
+
+        // Collect feedback for this week's days
+        const weekFeedbacks: import('@/types/program').SessionFeedback[] = [];
+        const dayMuscleMap: Record<number, string[]> = {};
+        for (let d = 0; d < currentWeek.days.length; d++) {
+          const key = `${currentWeekNum}-${d}`;
+          const fb = activeState.sessionFeedback[key];
+          if (fb) {
+            weekFeedbacks.push(fb);
+            dayMuscleMap[d] = currentWeek.days[d].muscleTargets;
+          }
+        }
+
+        // Only apply if feedback exists for ≥50% of the week's days
+        if (weekFeedbacks.length < currentWeek.days.length * 0.5) return;
+
+        const adjustments = computeFeedbackAdjustments(weekFeedbacks, dayMuscleMap);
+        if (adjustments.length === 0) return;
+
+        // Build muscle→delta map
+        const deltaMap = new Map<string, number>();
+        for (const adj of adjustments) {
+          deltaMap.set(adj.muscle, adj.deltaSets);
+        }
+
+        // Apply set deltas to next week's exercises
+        const nextWeekIdx = program.weeks.findIndex((w) => w.weekNumber === currentWeekNum + 1);
+        if (nextWeekIdx === -1) return;
+
+        const updatedWeeks = [...program.weeks];
+        const updatedDays = [...updatedWeeks[nextWeekIdx].days];
+
+        for (let d = 0; d < updatedDays.length; d++) {
+          const day = updatedDays[d];
+          const updatedExercises = [...day.exercises];
+          for (let e = 0; e < updatedExercises.length; e++) {
+            const ex = updatedExercises[e];
+            // Check if any of this day's muscle targets have an adjustment
+            for (const muscle of day.muscleTargets) {
+              const delta = deltaMap.get(muscle);
+              if (delta && delta !== 0) {
+                // Distribute delta across exercises targeting this muscle
+                // Simple: apply to first exercise found for this muscle
+                const newSets = Math.max(1, ex.sets + delta);
+                if (newSets !== ex.sets) {
+                  updatedExercises[e] = { ...ex, sets: newSets };
+                  break; // Only apply delta once per muscle per day
+                }
+              }
+            }
+          }
+          updatedDays[d] = { ...day, exercises: updatedExercises };
+        }
+
+        updatedWeeks[nextWeekIdx] = { ...updatedWeeks[nextWeekIdx], days: updatedDays };
+        set({ program: { ...program, weeks: updatedWeeks } });
+      },
+
       swapExercise: (week, dayIndex, exerciseIndex, newExerciseId) => {
         get().overrideExercise(week, dayIndex, exerciseIndex, {
           exerciseId: newExerciseId,
@@ -262,12 +336,44 @@ export const useProgramStore = create<ProgramStoreState>()(
     }),
     {
       name: 'onset-program-storage',
+      version: 2,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         userProfile: state.userProfile,
         program: state.program,
         activeState: state.activeState,
       }),
+      migrate: (persisted: unknown, version: number) => {
+        const state = persisted as Record<string, unknown>;
+        if (version < 2) {
+          // Migrate reps → minReps=maxReps=reps for existing programs
+          const program = state.program as TrainingProgram | null;
+          if (program?.weeks) {
+            for (const week of program.weeks) {
+              for (const day of week.days) {
+                for (const ex of day.exercises) {
+                  if (ex.minReps === undefined || ex.minReps === 0) {
+                    ex.minReps = ex.reps || 10;
+                  }
+                  if (ex.maxReps === undefined || ex.maxReps === 0) {
+                    ex.maxReps = ex.reps || 10;
+                  }
+                  if (ex.targetRir === undefined) {
+                    ex.targetRir = 2;
+                  }
+                  if (ex.originalMinReps === undefined && ex.originalReps !== undefined) {
+                    ex.originalMinReps = ex.originalReps;
+                  }
+                  if (ex.originalMaxReps === undefined && ex.originalReps !== undefined) {
+                    ex.originalMaxReps = ex.originalReps;
+                  }
+                }
+              }
+            }
+          }
+        }
+        return state as unknown as ProgramStoreState;
+      },
     }
   )
 );

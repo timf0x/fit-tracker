@@ -27,8 +27,16 @@ import {
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { OnboardingStep } from '@/components/program/OnboardingStep';
 import { MUSCLE_LABELS_FR } from '@/lib/muscleMapping';
-import { FOCUS_COLORS } from '@/components/program/DayCard';
 import { getSplitForDays, SPLIT_TEMPLATES } from '@/constants/programTemplates';
+
+const FOCUS_COLORS: Record<string, { bg: string; text: string }> = {
+  push: { bg: 'rgba(255,107,53,0.12)', text: '#FF6B35' },
+  pull: { bg: 'rgba(59,130,246,0.12)', text: '#3B82F6' },
+  legs: { bg: 'rgba(74,222,128,0.12)', text: '#4ADE80' },
+  upper: { bg: 'rgba(255,107,53,0.12)', text: '#FF6B35' },
+  lower: { bg: 'rgba(74,222,128,0.12)', text: '#4ADE80' },
+  full_body: { bg: 'rgba(168,85,247,0.12)', text: '#A855F7' },
+};
 import { useProgramStore } from '@/stores/programStore';
 import type {
   TrainingGoal,

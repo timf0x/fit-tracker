@@ -7,6 +7,8 @@ let _soundEnabled = true;
 let _voiceEnabled = true;
 let _soundVolume = 0.8;
 let _language: 'fr' | 'en' = 'fr';
+let _killed = false;
+const _pendingTimeouts: ReturnType<typeof setTimeout>[] = [];
 
 export function setSoundEnabled(enabled: boolean) { _soundEnabled = enabled; }
 export function setVoiceEnabled(enabled: boolean) { _voiceEnabled = enabled; }
@@ -38,6 +40,7 @@ const soundCache: { [key: string]: Audio.Sound } = {};
 // ─── Init ───
 
 export async function initAudio() {
+  _killed = false;
   try {
     await Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
@@ -104,7 +107,7 @@ export function playTickSound() {
 // ─── Text-to-Speech ───
 
 function speakNow(text: string, pitch?: number, rate?: number) {
-  if (!_voiceEnabled) return;
+  if (!_voiceEnabled || _killed) return;
   const languageCode = _language === 'fr' ? 'fr-FR' : 'en-US';
   try {
     Speech.speak(text, {
@@ -114,6 +117,12 @@ function speakNow(text: string, pitch?: number, rate?: number) {
       volume: _soundVolume,
     });
   } catch {}
+}
+
+/** Schedule a delayed speak — trackable so cleanup can cancel it */
+function speakDelayed(text: string, delayMs: number, pitch?: number, rate?: number) {
+  const id = setTimeout(() => speakNow(text, pitch, rate), delayMs);
+  _pendingTimeouts.push(id);
 }
 
 // ─── Phase Announcements ───
@@ -145,10 +154,10 @@ export function announcePhase(
       case 'prepare': {
         // Speak in sequence with pauses between each part
         const prepareText = _language === 'fr' ? 'Préparer' : 'Prepare';
-        setTimeout(() => speakNow(prepareText), 400);
+        speakDelayed(prepareText, 400);
 
         if (exerciseName) {
-          setTimeout(() => speakNow(exerciseName), 1800);
+          speakDelayed(exerciseName, 1800);
         }
 
         if (details) {
@@ -163,7 +172,7 @@ export function announcePhase(
             infoParts.push(`${details.weight} kilos`);
           }
           if (infoParts.length > 0) {
-            setTimeout(() => speakNow(infoParts.join(', ')), 3200);
+            speakDelayed(infoParts.join(', '), 3200);
           }
         }
         break;
@@ -191,7 +200,7 @@ export function announcePhase(
     }
 
     if (text && phase !== 'prepare') {
-      setTimeout(() => speakNow(text), 400);
+      speakDelayed(text, 400);
     }
   }
 }
@@ -231,7 +240,16 @@ export function handleTimerTick(secondsRemaining: number, phase: string) {
 
 export async function cleanupAudio() {
   try {
+    // Kill flag prevents any queued speakNow from firing
+    _killed = true;
+
+    // Cancel all pending delayed speech
+    for (const id of _pendingTimeouts) clearTimeout(id);
+    _pendingTimeouts.length = 0;
+
+    // Stop current speech immediately
     Speech.stop();
+
     for (const sound of Object.values(soundCache)) {
       await sound.unloadAsync();
     }

@@ -25,13 +25,18 @@ export type SplitType = 'full_body' | 'upper_lower' | 'ppl';
 export interface ProgramExercise {
   exerciseId: string;
   sets: number;
-  reps: number;
+  reps: number; // kept for backward compat (= maxReps)
+  minReps: number;
+  maxReps: number;
+  targetRir: number;
   restTime: number;
   suggestedWeight?: number; // kg — estimated from bodyweight, 0 for bodyweight exercises
   notes?: string;
   // Original values for reset (populated during generation)
   originalSets?: number;
   originalReps?: number;
+  originalMinReps?: number;
+  originalMaxReps?: number;
   originalRestTime?: number;
   originalSuggestedWeight?: number;
 }

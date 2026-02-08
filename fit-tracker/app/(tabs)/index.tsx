@@ -11,13 +11,13 @@ import { StepsCard } from '@/components/home/StepsCard';
 import { WeeklyActivity } from '@/components/home/WeeklyActivity';
 import { VolumeCard } from '@/components/home/VolumeCard';
 import { ActiveProgramCard } from '@/components/home/ActiveProgramCard';
-import { RecommendedSection } from '@/components/home/RecommendedSection';
 import { BrowseButton } from '@/components/home/BrowseButton';
 import { DraggableCardList } from '@/components/home/DraggableCardList';
+import { AmbientBackground } from '@/components/home/AmbientBackground';
 import { useWorkoutStore } from '@/stores/workoutStore';
 
 // Default card order — these keys match the cards map below
-const DEFAULT_ORDER = ['recovery', 'steps', 'weekly', 'program', 'volume', 'recommended'];
+const DEFAULT_ORDER = ['recovery', 'steps', 'weekly', 'program', 'volume'];
 
 // Card sizes: half cards pair side-by-side, full cards take the whole row
 const CARD_SIZES: Record<string, 'full' | 'half'> = {
@@ -26,7 +26,6 @@ const CARD_SIZES: Record<string, 'full' | 'half'> = {
   weekly: 'full',
   program: 'full',
   volume: 'full',
-  recommended: 'full',
 };
 
 const CARD_COMPONENTS: Record<string, React.ReactNode> = {
@@ -35,7 +34,6 @@ const CARD_COMPONENTS: Record<string, React.ReactNode> = {
   weekly: <WeeklyActivity />,
   program: <ActiveProgramCard />,
   volume: <VolumeCard />,
-  recommended: <RecommendedSection />,
 };
 
 export default function HomeScreen() {
@@ -62,9 +60,8 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.screen}>
-      {/* Ambient decorative orbs */}
-      <View style={styles.orbOrange} />
-      <View style={styles.orbBlue} />
+      {/* Ambient breathing orbs — data-driven warmth */}
+      <AmbientBackground />
 
       <ScrollView
         style={styles.scrollView}
@@ -116,33 +113,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#0C0C0C',
     position: 'relative',
     overflow: 'hidden',
-  },
-  // Decorative ambient orbs
-  orbOrange: {
-    position: 'absolute',
-    top: -96,
-    right: -96,
-    width: 256,
-    height: 256,
-    borderRadius: 128,
-    backgroundColor: 'rgba(249, 115, 22, 0.10)',
-    shadowColor: '#f97316',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 100,
-  },
-  orbBlue: {
-    position: 'absolute',
-    top: '50%',
-    left: -128,
-    width: 320,
-    height: 320,
-    borderRadius: 160,
-    backgroundColor: 'rgba(59, 130, 246, 0.05)',
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.08,
-    shadowRadius: 120,
   },
   topFade: {
     position: 'absolute',

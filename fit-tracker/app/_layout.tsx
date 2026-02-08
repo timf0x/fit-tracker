@@ -53,7 +53,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="recovery" options={{ headerShown: false }} />
           <Stack.Screen name="steps" options={{ headerShown: false }} />
-          <Stack.Screen name="workout" options={{ headerShown: false }} />
+          <Stack.Screen name="workout" options={{ headerShown: false, gestureEnabled: false, presentation: 'fullScreenModal' }} />
           <Stack.Screen name="trophies" options={{ headerShown: false }} />
           <Stack.Screen name="stats" options={{ headerShown: false }} />
           <Stack.Screen name="volume" options={{ headerShown: false }} />
