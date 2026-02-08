@@ -17,7 +17,8 @@ interface ScoreRingProps {
 }
 
 export function ScoreRing({ score, size = 100 }: ScoreRingProps) {
-  const strokeWidth = 8;
+  const strokeWidth = Math.max(4, Math.round(size * 0.08));
+  const fontSize = Math.max(14, Math.round(size * 0.32));
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const center = size / 2;
@@ -76,7 +77,7 @@ export function ScoreRing({ score, size = 100 }: ScoreRingProps) {
       </Svg>
       <View style={{ position: 'absolute', alignItems: 'center' }}>
         <Text style={{
-          fontSize: 32,
+          fontSize,
           fontFamily: Fonts?.bold,
           fontWeight: '700',
           color: '#FFFFFF',

@@ -1,26 +1,30 @@
+import { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Activity, Footprints } from 'lucide-react-native';
+import { Footprints } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
-import { mockStats } from '@/lib/mock-data';
-import i18n from '@/lib/i18n';
+import { mockStats, mockRecoveryOverview } from '@/lib/mock-data';
+import { ScoreRing } from '@/components/recovery/ScoreRing';
+import { useWorkoutStore } from '@/stores/workoutStore';
+import { computeRecoveryOverview } from '@/lib/recoveryHelpers';
 
 export function StatsRow() {
   const router = useRouter();
+  const { history } = useWorkoutStore();
+
+  const recoveryScore = useMemo(() => {
+    const hasData = history.some((s) => s.endTime && s.completedExercises.length > 0);
+    if (!hasData) return mockRecoveryOverview.overallScore;
+    return computeRecoveryOverview(history).overallScore;
+  }, [history]);
 
   return (
     <View style={styles.container}>
       {/* Recovery Card */}
       <Pressable style={styles.card} onPress={() => router.push('/recovery')}>
-        <View style={styles.cardHeader}>
-          <View style={[styles.iconBox, { backgroundColor: 'rgba(249, 115, 22, 0.15)' }]}>
-            <Activity size={16} color="#f97316" strokeWidth={2.5} />
-          </View>
+        <View style={styles.recoveryContent}>
+          <ScoreRing score={recoveryScore} size={72} />
           <Text style={styles.label}>RÉCUP</Text>
-        </View>
-        <View style={styles.valueRow}>
-          <Text style={styles.valueOrange}>{mockStats.recovery}</Text>
-          <Text style={styles.unit}> /{mockStats.recoveryMax}</Text>
         </View>
       </Pressable>
 
@@ -56,6 +60,12 @@ const styles = StyleSheet.create({
     padding: 18,
     gap: 14,
   },
+  recoveryContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -78,12 +88,6 @@ const styles = StyleSheet.create({
   valueRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-  },
-  valueOrange: {
-    color: '#f97316',
-    fontSize: 32,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
   },
   valueWhite: {
     color: Colors.text,

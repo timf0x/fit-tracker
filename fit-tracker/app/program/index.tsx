@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,37 +12,50 @@ import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
   Play,
-  Sparkles,
-  X,
-  TrendingUp,
-  Moon,
-  Apple,
   LogOut,
   AlertTriangle,
   RefreshCw,
+  Trophy,
+  ChevronRight,
+  Clock,
+  Flame,
 } from 'lucide-react-native';
 import { Fonts, Colors } from '@/constants/theme';
 import { useProgramStore } from '@/stores/programStore';
 import { useWorkoutStore } from '@/stores/workoutStore';
-import { WeekSelector } from '@/components/program/WeekSelector';
+import { MesocycleTimeline } from '@/components/program/MesocycleTimeline';
 import { DayCard } from '@/components/program/DayCard';
+import { ConfirmModal } from '@/components/program/ConfirmModal';
+import { CircularProgress } from '@/components/CircularProgress';
+import { MUSCLE_LABELS_FR } from '@/lib/muscleMapping';
 import { buildProgramExercisesParam } from '@/lib/programSession';
+import { RP_VOLUME_LANDMARKS, getVolumeZone, getZoneColor } from '@/constants/volumeLandmarks';
+
+const SPLIT_LABELS: Record<string, { label: string; color: string; bg: string }> = {
+  ppl: { label: 'PPL', color: '#FF6B35', bg: 'rgba(255,107,53,0.15)' },
+  upper_lower: { label: 'Haut/Bas', color: '#3B82F6', bg: 'rgba(59,130,246,0.15)' },
+  full_body: { label: 'Full Body', color: '#A855F7', bg: 'rgba(168,85,247,0.15)' },
+};
 
 export default function ProgramScreen() {
   const router = useRouter();
-  const { program, activeState, clearProgram } = useProgramStore();
+  const { program, activeState, clearProgram, isProgramComplete, getStreakCount } = useProgramStore();
   const startSession = useWorkoutStore((s) => s.startSession);
 
   const [selectedWeek, setSelectedWeek] = useState(
     activeState?.currentWeek || 1
   );
-  const [showAICoach, setShowAICoach] = useState(false);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
+  const [showModifyConfirm, setShowModifyConfirm] = useState(false);
+  const [showPacingWarning, setShowPacingWarning] = useState(false);
 
   if (!program || !activeState) {
     router.replace('/program/onboarding');
     return null;
   }
+
+  const programComplete = isProgramComplete();
+  const streakCount = getStreakCount();
 
   const currentWeekData = program.weeks.find(
     (w) => w.weekNumber === selectedWeek
@@ -58,6 +70,19 @@ export default function ProgramScreen() {
   const isDayDone = (dayIndex: number) =>
     activeState.completedDays.includes(`${selectedWeek}-${dayIndex}`);
 
+  // Compute which weeks are fully completed
+  const completedWeeks = useMemo(() => {
+    const result: number[] = [];
+    for (const week of program.weeks) {
+      const totalDays = week.days.length;
+      const completedDays = activeState.completedDays.filter(
+        (k) => k.startsWith(`${week.weekNumber}-`)
+      ).length;
+      if (completedDays >= totalDays) result.push(week.weekNumber);
+    }
+    return result;
+  }, [program.weeks, activeState.completedDays]);
+
   // Metrics for selected week
   const weekMetrics = useMemo(() => {
     if (!currentWeekData) return { totalExercises: 0, totalSets: 0, completedDays: 0, totalDays: 0 };
@@ -71,12 +96,47 @@ export default function ProgramScreen() {
     return { totalExercises, totalSets, completedDays, totalDays: currentWeekData.days.length };
   }, [currentWeekData, selectedWeek, activeState.completedDays]);
 
+  // Volume targets with zone colors
+  const volumeTargetPills = useMemo(() => {
+    if (!currentWeekData?.volumeTargets) return { items: [], rest: 0 };
+    const entries = Object.entries(currentWeekData.volumeTargets)
+      .filter(([, v]) => v > 0)
+      .sort(([, a], [, b]) => b - a);
+    const items = entries.slice(0, 4).map(([muscle, sets]) => {
+      const landmarks = RP_VOLUME_LANDMARKS[muscle];
+      const zone = landmarks ? getVolumeZone(sets, landmarks) : 'below_mv';
+      const color = getZoneColor(zone);
+      return { muscle, sets, zoneColor: color };
+    });
+    const rest = entries.length - 4;
+    return { items, rest: rest > 0 ? rest : 0 };
+  }, [currentWeekData]);
+
+  const splitStyle = SPLIT_LABELS[program.splitType] || SPLIT_LABELS.ppl;
+
   const handleSelectWeek = (week: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedWeek(week);
   };
 
+  // Check same-day pacing
+  const isLastCompletionToday = useMemo(() => {
+    if (!activeState.lastCompletedAt) return false;
+    const last = new Date(activeState.lastCompletedAt);
+    const now = new Date();
+    return last.toDateString() === now.toDateString();
+  }, [activeState.lastCompletedAt]);
+
   const handleStartToday = () => {
+    if (!todayDay) return;
+    if (isLastCompletionToday) {
+      setShowPacingWarning(true);
+      return;
+    }
+    startSessionNow();
+  };
+
+  const startSessionNow = () => {
     if (!todayDay) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const workoutId = `program_${program.id}_w${activeState.currentWeek}_d${activeState.currentDayIndex}`;
@@ -96,93 +156,147 @@ export default function ProgramScreen() {
     });
   };
 
-  const progressPct = weekMetrics.totalDays > 0
-    ? weekMetrics.completedDays / weekMetrics.totalDays
-    : 0;
+  const sectionLabel = isCurrentWeek ? 'CETTE SEMAINE' : `SEMAINE ${selectedWeek}`;
 
   return (
     <View style={styles.screen}>
-      {/* Ambient orbs */}
       <View style={styles.orbOrange} pointerEvents="none" />
       <View style={styles.orbBlue} pointerEvents="none" />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
-          <Pressable
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
             <ArrowLeft size={22} color="#fff" strokeWidth={2} />
           </Pressable>
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {program.nameFr}
-            </Text>
+            <View style={styles.headerTitleRow}>
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                {program.nameFr}
+              </Text>
+              <View style={[styles.splitBadge, { backgroundColor: splitStyle.bg }]}>
+                <Text style={[styles.splitBadgeText, { color: splitStyle.color }]}>
+                  {splitStyle.label}
+                </Text>
+              </View>
+            </View>
             <Text style={styles.headerSub}>
               Semaine {activeState.currentWeek}/{program.totalWeeks}
             </Text>
           </View>
-          <Pressable
-            style={styles.aiPill}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setShowAICoach(true);
-            }}
-          >
-            <Sparkles size={14} color="rgba(255,255,255,0.5)" />
-            <Text style={styles.aiPillText}>Coach IA</Text>
-          </Pressable>
         </View>
 
-        {/* Week Selector */}
-        <WeekSelector
+        {/* Mesocycle Timeline */}
+        <MesocycleTimeline
           totalWeeks={program.totalWeeks}
           currentWeek={activeState.currentWeek}
           selectedWeek={selectedWeek}
           onSelect={handleSelectWeek}
           deloadWeek={deloadWeekNum}
+          completedWeeks={completedWeeks}
         />
 
         {/* Deload banner */}
         {currentWeekData?.isDeload && (
           <View style={styles.deloadBanner}>
+            <Text style={styles.deloadTitle}>Semaine de deload</Text>
             <Text style={styles.deloadText}>
-              Semaine de deload — volume reduit pour recuperer
+              Volume reduit pour permettre la recuperation et la supercompensation. Essentiel pour progresser sur le long terme.
             </Text>
           </View>
         )}
 
-        {/* Summary card */}
-        <View style={styles.summaryCard}>
-          <View style={styles.metricStrip}>
-            <View style={styles.metricItem}>
-              <Text style={styles.metricValue}>{weekMetrics.completedDays}/{weekMetrics.totalDays}</Text>
-              <Text style={styles.metricLabel}>seances</Text>
+        {/* Program completion celebration */}
+        {programComplete && (
+          <View style={styles.completionCard}>
+            <View style={styles.completionRingWrap}>
+              <CircularProgress progress={1} size={72} strokeWidth={5} color="#FBBF24" />
+              <View style={styles.completionRingCenter}>
+                <Trophy size={24} color="#FBBF24" />
+              </View>
             </View>
-            <View style={styles.metricDivider} />
-            <View style={styles.metricItem}>
-              <Text style={styles.metricValue}>{weekMetrics.totalExercises}</Text>
-              <Text style={styles.metricLabel}>exercices</Text>
-            </View>
-            <View style={styles.metricDivider} />
-            <View style={styles.metricItem}>
-              <Text style={styles.metricValue}>{weekMetrics.totalSets}</Text>
-              <Text style={styles.metricLabel}>series</Text>
-            </View>
+            <Text style={styles.completionTitle}>Programme termine !</Text>
+            <Text style={styles.completionSubtitle}>
+              {activeState.completedDays.length} seances completees
+            </Text>
+            <Pressable
+              style={styles.newProgramButton}
+              onPress={() => router.push('/program/onboarding')}
+            >
+              <Text style={styles.newProgramText}>Nouveau programme</Text>
+              <ChevronRight size={16} color="#0C0C0C" />
+            </Pressable>
           </View>
+        )}
 
-          {/* Week progress bar inside card */}
-          <View style={styles.progressRow}>
-            <View style={styles.progressBg}>
-              <View style={[styles.progressFill, { width: `${progressPct * 100}%` }]} />
-            </View>
+        {/* Inline metrics strip (no card wrapper) */}
+        <View style={styles.metricsStrip}>
+          <View style={styles.metricItem}>
+            <Text style={styles.metricValue}>{weekMetrics.completedDays}/{weekMetrics.totalDays}</Text>
+            <Text style={styles.metricLabel}>seances</Text>
+          </View>
+          <View style={styles.metricDivider} />
+          <View style={styles.metricItem}>
+            <Text style={styles.metricValue}>{weekMetrics.totalExercises}</Text>
+            <Text style={styles.metricLabel}>exercices</Text>
+          </View>
+          <View style={styles.metricDivider} />
+          <View style={styles.metricItem}>
+            <Text style={styles.metricValue}>{weekMetrics.totalSets}</Text>
+            <Text style={styles.metricLabel}>series</Text>
           </View>
         </View>
 
-        {/* Section label */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionLabel}>SEANCES</Text>
+        {/* Day completion dots */}
+        <View style={styles.dayDotsRow}>
+          {currentWeekData?.days.map((_, dayIdx) => {
+            const done = isDayDone(dayIdx);
+            const isTodayDot = isCurrentWeek && dayIdx === activeState.currentDayIndex;
+            return (
+              <View
+                key={dayIdx}
+                style={[
+                  styles.dayDot,
+                  done && styles.dayDotDone,
+                  isTodayDot && !done && styles.dayDotToday,
+                ]}
+              />
+            );
+          })}
+        </View>
+
+        {/* Volume pills with zone dots */}
+        {volumeTargetPills.items.length > 0 && (
+          <View style={styles.volumeRow}>
+            {volumeTargetPills.items.map(({ muscle, sets, zoneColor }) => (
+              <View key={muscle} style={styles.volumePill}>
+                <View style={[styles.zoneDot, { backgroundColor: zoneColor }]} />
+                <Text style={styles.volumePillText}>
+                  {MUSCLE_LABELS_FR[muscle] || muscle} {sets}s
+                </Text>
+              </View>
+            ))}
+            {volumeTargetPills.rest > 0 && (
+              <Text style={styles.volumeMore}>+{volumeTargetPills.rest}</Text>
+            )}
+          </View>
+        )}
+
+        {/* Streak counter */}
+        {streakCount > 0 && (
+          <View style={styles.streakRow}>
+            <Flame size={14} color={Colors.primary} />
+            <Text style={styles.streakText}>
+              {streakCount} seance{streakCount > 1 ? 's' : ''} d'affilee
+            </Text>
+          </View>
+        )}
+
+        {/* Section divider */}
+        <View style={styles.sectionDivider}>
+          <View style={styles.sectionLine} />
+          <Text style={styles.sectionLabel}>{sectionLabel}</Text>
+          <View style={styles.sectionLine} />
           {isCurrentWeek && todayDay && !isDayDone(activeState.currentDayIndex) && (
             <View style={styles.todayIndicator}>
               <View style={styles.todayDot} />
@@ -205,6 +319,7 @@ export default function ProgramScreen() {
               <DayCard
                 key={dayIdx}
                 day={day}
+                dayNumber={dayIdx + 1}
                 isToday={isToday}
                 isCompleted={completed}
                 onPress={() => {
@@ -218,42 +333,46 @@ export default function ProgramScreen() {
             );
           })}
 
-          {/* Program management */}
+          {/* Management section — iOS settings rows */}
           <View style={styles.managementSection}>
-            <Text style={styles.managementLabel}>GESTION</Text>
-            <View style={styles.managementRow}>
-              <Pressable
-                style={styles.managementButton}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/program/onboarding');
-                }}
-              >
-                <View style={styles.managementIconWrap}>
-                  <RefreshCw size={14} color={Colors.primary} />
-                </View>
-                <Text style={styles.managementText}>Modifier le programme</Text>
-              </Pressable>
-              <Pressable
-                style={styles.managementButton}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setShowQuitConfirm(true);
-                }}
-              >
-                <View style={[styles.managementIconWrap, { backgroundColor: 'rgba(239,68,68,0.1)' }]}>
-                  <LogOut size={14} color="rgba(239,68,68,0.7)" />
-                </View>
-                <Text style={[styles.managementText, { color: 'rgba(239,68,68,0.7)' }]}>
-                  Quitter le programme
-                </Text>
-              </Pressable>
+            <View style={styles.sectionDivider}>
+              <View style={styles.sectionLine} />
+              <Text style={styles.sectionLabel}>GESTION</Text>
+              <View style={styles.sectionLine} />
             </View>
+
+            <Pressable
+              style={styles.managementRow}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowModifyConfirm(true);
+              }}
+            >
+              <RefreshCw size={16} color={Colors.primary} />
+              <Text style={styles.managementText}>Modifier le programme</Text>
+              <ChevronRight size={16} color="rgba(100,100,110,1)" />
+            </Pressable>
+
+            <View style={styles.managementSep} />
+
+            <Pressable
+              style={styles.managementRow}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowQuitConfirm(true);
+              }}
+            >
+              <LogOut size={16} color="rgba(239,68,68,0.7)" />
+              <Text style={[styles.managementText, { color: 'rgba(239,68,68,0.7)' }]}>
+                Quitter le programme
+              </Text>
+              <ChevronRight size={16} color="rgba(100,100,110,1)" />
+            </Pressable>
           </View>
         </ScrollView>
 
         {/* Bottom CTA */}
-        {todayDay && !isDayDone(activeState.currentDayIndex) && isCurrentWeek && (
+        {todayDay && !isDayDone(activeState.currentDayIndex) && isCurrentWeek && !programComplete && (
           <View style={styles.bottomCta}>
             <Pressable style={styles.startButton} onPress={handleStartToday}>
               <Play size={18} color="#0C0C0C" fill="#0C0C0C" />
@@ -263,106 +382,49 @@ export default function ProgramScreen() {
         )}
       </SafeAreaView>
 
-      {/* Quit Confirmation Modal */}
-      <Modal
+      {/* Modals */}
+      <ConfirmModal
         visible={showQuitConfirm}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowQuitConfirm(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowQuitConfirm(false)}
-        >
-          <Pressable
-            style={styles.modalContent}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <View style={styles.modalIconWrap}>
-              <AlertTriangle size={28} color="#EF4444" />
-            </View>
-            <Text style={styles.modalTitle}>Quitter le programme ?</Text>
-            <Text style={styles.modalDesc}>
-              Ta progression sera perdue. Tu pourras toujours en creer un nouveau.
-            </Text>
-            <View style={styles.quitActions}>
-              <Pressable
-                style={styles.quitCancel}
-                onPress={() => setShowQuitConfirm(false)}
-              >
-                <Text style={styles.quitCancelText}>Annuler</Text>
-              </Pressable>
-              <Pressable
-                style={styles.quitConfirm}
-                onPress={() => {
-                  clearProgram();
-                  router.replace('/');
-                }}
-              >
-                <Text style={styles.quitConfirmText}>Quitter</Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      {/* AI Coach Modal */}
-      <Modal
-        visible={showAICoach}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowAICoach(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowAICoach(false)}
-        >
-          <Pressable
-            style={styles.modalContent}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <Pressable
-              style={styles.modalClose}
-              onPress={() => setShowAICoach(false)}
-            >
-              <X size={18} color="rgba(255,255,255,0.5)" />
-            </Pressable>
-            <View style={[styles.modalIconWrap, { backgroundColor: 'rgba(255,107,53,0.12)' }]}>
-              <Sparkles size={28} color={Colors.primary} />
-            </View>
-            <Text style={styles.modalTitle}>Coach IA</Text>
-            <View style={styles.comingSoonBadge}>
-              <Text style={styles.comingSoonText}>Bientot disponible</Text>
-            </View>
-            <Text style={styles.modalDesc}>
-              Le coach IA analysera tes donnees pour optimiser ton programme en temps reel.
-            </Text>
-            <View style={styles.featureList}>
-              <FeatureRow
-                icon={<TrendingUp size={16} color={Colors.primary} />}
-                text="Detection de plateaux"
-              />
-              <FeatureRow
-                icon={<Moon size={16} color={Colors.primary} />}
-                text="Correlation sommeil & performance"
-              />
-              <FeatureRow
-                icon={<Apple size={16} color={Colors.primary} />}
-                text="Recommandations nutrition"
-              />
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
-    </View>
-  );
-}
-
-function FeatureRow({ icon, text }: { icon: React.ReactNode; text: string }) {
-  return (
-    <View style={styles.featureRow}>
-      <View style={styles.featureIconWrap}>{icon}</View>
-      <Text style={styles.featureText}>{text}</Text>
+        onClose={() => setShowQuitConfirm(false)}
+        icon={<AlertTriangle size={28} color="#EF4444" />}
+        title="Quitter le programme ?"
+        description="Ta progression sera perdue. Tu pourras toujours en creer un nouveau."
+        confirmText="Quitter"
+        onConfirm={() => {
+          clearProgram();
+          router.replace('/');
+        }}
+      />
+      <ConfirmModal
+        visible={showModifyConfirm}
+        onClose={() => setShowModifyConfirm(false)}
+        icon={<RefreshCw size={28} color={Colors.primary} />}
+        iconBgColor="rgba(255,107,53,0.12)"
+        title="Modifier le programme ?"
+        description="Ton programme actuel sera remplace. Ta progression sera perdue."
+        cancelText="Annuler"
+        confirmText="Modifier"
+        confirmColor={Colors.primary}
+        onConfirm={() => {
+          setShowModifyConfirm(false);
+          router.push('/program/onboarding');
+        }}
+      />
+      <ConfirmModal
+        visible={showPacingWarning}
+        onClose={() => setShowPacingWarning(false)}
+        icon={<Clock size={28} color="#FBBF24" />}
+        iconBgColor="rgba(251,191,36,0.12)"
+        title="Deja une seance aujourd'hui"
+        description="Tu as deja termine une seance aujourd'hui. La recuperation est essentielle pour la progression."
+        cancelText="Reporter"
+        confirmText="Continuer"
+        confirmColor={Colors.primary}
+        onConfirm={() => {
+          setShowPacingWarning(false);
+          startSessionNow();
+        }}
+      />
     </View>
   );
 }
@@ -421,9 +483,24 @@ const styles = StyleSheet.create({
   headerCenter: {
     flex: 1,
   },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   headerTitle: {
     color: '#fff',
     fontSize: 20,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+  },
+  splitBadge: {
+    borderRadius: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+  },
+  splitBadgeText: {
+    fontSize: 11,
     fontFamily: Fonts?.bold,
     fontWeight: '700',
   },
@@ -434,58 +511,88 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 2,
   },
-  aiPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
-  aiPillText: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 12,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
 
   // Deload banner
   deloadBanner: {
     marginHorizontal: 20,
-    marginTop: 8,
+    marginTop: 4,
     backgroundColor: 'rgba(59,130,246,0.08)',
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    borderRadius: 12,
+    padding: 14,
     borderWidth: 1,
     borderColor: 'rgba(59,130,246,0.15)',
+    gap: 4,
+  },
+  deloadTitle: {
+    color: 'rgba(59,130,246,0.9)',
+    fontSize: 14,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
   },
   deloadText: {
-    color: 'rgba(59,130,246,0.8)',
+    color: 'rgba(59,130,246,0.6)',
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    lineHeight: 17,
+  },
+
+  // Completion
+  completionCard: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    backgroundColor: 'rgba(251,191,36,0.06)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.15)',
+    padding: 20,
+    alignItems: 'center',
+    gap: 8,
+  },
+  completionRingWrap: {
+    width: 72,
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  completionRingCenter: {
+    position: 'absolute',
+  },
+  completionTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+  },
+  completionSubtitle: {
+    color: 'rgba(255,255,255,0.45)',
     fontSize: 13,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
-    textAlign: 'center',
+    marginBottom: 4,
   },
-
-  // Summary card
-  summaryCard: {
-    marginHorizontal: 20,
-    marginTop: 12,
-    marginBottom: 16,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    padding: 16,
-    gap: 14,
-  },
-  metricStrip: {
+  newProgramButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+  },
+  newProgramText: {
+    color: '#0C0C0C',
+    fontSize: 15,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+  },
+
+  // Inline metrics strip (no card)
+  metricsStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginTop: 8,
   },
   metricItem: {
     flex: 1,
@@ -512,27 +619,95 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
 
-  // Progress bar
-  progressRow: {
+  // Day dots
+  dayDotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
   },
-  progressBg: {
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 2,
+  dayDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
-  progressFill: {
-    height: '100%',
+  dayDotDone: {
     backgroundColor: Colors.primary,
-    borderRadius: 2,
+    borderColor: Colors.primary,
+  },
+  dayDotToday: {
+    backgroundColor: 'transparent',
+    borderColor: Colors.primary,
+    borderWidth: 2,
   },
 
-  // Section header
-  sectionHeader: {
+  // Volume pills with zone dots
+  volumeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginTop: 10,
+  },
+  volumePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+  },
+  zoneDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  volumePillText: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 11,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+  },
+  volumeMore: {
+    color: 'rgba(255,255,255,0.3)',
+    fontSize: 11,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+  },
+
+  // Streak
+  streakRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 20,
+    marginTop: 10,
+  },
+  streakText: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+  },
+
+  // Section divider — line-label-line
+  sectionDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 20,
+    marginTop: 16,
     marginBottom: 12,
+  },
+  sectionLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.04)',
   },
   sectionLabel: {
     color: 'rgba(160,150,140,1)',
@@ -569,6 +744,30 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
 
+  // Management — iOS settings rows
+  managementSection: {
+    marginTop: 16,
+    gap: 0,
+  },
+  managementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+  },
+  managementText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    flex: 1,
+  },
+  managementSep: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    marginLeft: 28,
+  },
+
   // Bottom CTA
   bottomCta: {
     paddingHorizontal: 20,
@@ -589,178 +788,6 @@ const styles = StyleSheet.create({
   startText: {
     color: '#0C0C0C',
     fontSize: 16,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-  },
-
-  // Modal shared
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 30,
-  },
-  modalContent: {
-    backgroundColor: '#1C1C1E',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    padding: 28,
-    alignItems: 'center',
-    width: '100%',
-  },
-  modalClose: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: 'rgba(239,68,68,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalTitle: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    marginTop: 16,
-  },
-  comingSoonBadge: {
-    backgroundColor: 'rgba(255,107,53,0.12)',
-    borderRadius: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    marginTop: 6,
-  },
-  comingSoonText: {
-    color: Colors.primary,
-    fontSize: 12,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-  },
-  modalDesc: {
-    color: 'rgba(255,255,255,0.45)',
-    fontSize: 14,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginTop: 12,
-    marginBottom: 20,
-  },
-
-  // AI Coach features
-  featureList: {
-    width: '100%',
-    gap: 12,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-  },
-  featureIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,107,53,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  featureText: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 14,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    flex: 1,
-  },
-
-  // Management section
-  managementSection: {
-    marginTop: 16,
-    gap: 10,
-  },
-  managementLabel: {
-    color: 'rgba(160,150,140,1)',
-    fontSize: 11,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    letterSpacing: 1,
-    marginBottom: 2,
-  },
-  managementRow: {
-    gap: 8,
-  },
-  managementButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-  },
-  managementIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,107,53,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  managementText: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 14,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    flex: 1,
-  },
-  quitActions: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-    marginTop: 20,
-  },
-  quitCancel: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-  },
-  quitCancelText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-  },
-  quitConfirm: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#EF4444',
-    alignItems: 'center',
-  },
-  quitConfirmText: {
-    color: '#FFFFFF',
-    fontSize: 15,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
   },

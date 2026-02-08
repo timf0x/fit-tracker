@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { Check, Dumbbell, Clock, ChevronRight } from 'lucide-react-native';
+import { Check, Clock, ChevronRight } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/theme';
 import { MUSCLE_LABELS_FR } from '@/lib/muscleMapping';
 import { ProgramDay } from '@/types/program';
@@ -8,12 +8,13 @@ import { estimateDuration } from '@/lib/programGenerator';
 
 interface DayCardProps {
   day: ProgramDay;
+  dayNumber: number;
   isToday: boolean;
   isCompleted: boolean;
   onPress: () => void;
 }
 
-const FOCUS_COLORS: Record<string, { bg: string; text: string; accent: string }> = {
+export const FOCUS_COLORS: Record<string, { bg: string; text: string; accent: string }> = {
   push: { bg: 'rgba(255,107,53,0.12)', text: '#FF6B35', accent: 'rgba(255,107,53,0.5)' },
   pull: { bg: 'rgba(59,130,246,0.12)', text: '#3B82F6', accent: 'rgba(59,130,246,0.5)' },
   legs: { bg: 'rgba(74,222,128,0.12)', text: '#4ADE80', accent: 'rgba(74,222,128,0.5)' },
@@ -24,16 +25,20 @@ const FOCUS_COLORS: Record<string, { bg: string; text: string; accent: string }>
 
 const DEFAULT_FOCUS = { bg: 'rgba(255,255,255,0.08)', text: 'rgba(255,255,255,0.6)', accent: 'rgba(255,255,255,0.15)' };
 
-export function DayCard({ day, isToday, isCompleted, onPress }: DayCardProps) {
+export function DayCard({ day, dayNumber, isToday, isCompleted, onPress }: DayCardProps) {
   const duration = useMemo(() => estimateDuration(day), [day]);
   const totalSets = useMemo(
     () => day.exercises.reduce((sum, e) => sum + e.sets, 0),
     [day.exercises]
   );
-  const muscleLabels = useMemo(
-    () => day.muscleTargets.slice(0, 4).map((m) => MUSCLE_LABELS_FR[m] || m),
-    [day.muscleTargets]
-  );
+
+  // Comma-separated muscle labels instead of pills
+  const muscleText = useMemo(() => {
+    const labels = day.muscleTargets.slice(0, 4).map((m) => MUSCLE_LABELS_FR[m] || m);
+    let text = labels.join(', ');
+    if (day.muscleTargets.length > 4) text += ` +${day.muscleTargets.length - 4}`;
+    return text;
+  }, [day.muscleTargets]);
 
   const focusStyle = FOCUS_COLORS[day.focus] || DEFAULT_FOCUS;
 
@@ -46,63 +51,55 @@ export function DayCard({ day, isToday, isCompleted, onPress }: DayCardProps) {
       ]}
       onPress={onPress}
     >
-      {/* Left accent bar */}
-      <View style={[styles.accentBar, { backgroundColor: focusStyle.accent }]} />
+      {/* Accent bar */}
+      {isCompleted ? (
+        <View style={styles.completedBar} />
+      ) : (
+        <View style={[styles.accentBar, { backgroundColor: focusStyle.accent }]} />
+      )}
 
       <View style={styles.cardInner}>
-        {/* Header row */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.label}>{day.labelFr}</Text>
-            <View style={[styles.focusTag, { backgroundColor: focusStyle.bg }]}>
-              <Text style={[styles.focusText, { color: focusStyle.text }]}>
-                {day.focus}
+        {/* Top row: day circle + label + focus tag + duration + chevron */}
+        <View style={styles.topRow}>
+          <View style={[
+            styles.dayCircle,
+            isCompleted && styles.dayCircleCompleted,
+            isToday && !isCompleted && styles.dayCircleToday,
+          ]}>
+            {isCompleted ? (
+              <Check size={12} color={Colors.success} strokeWidth={3} />
+            ) : (
+              <Text style={[
+                styles.dayCircleText,
+                isToday && styles.dayCircleTextToday,
+              ]}>
+                J{dayNumber}
               </Text>
-            </View>
-          </View>
-          <View style={styles.headerRight}>
-            {isCompleted && (
-              <View style={styles.checkWrap}>
-                <Check size={14} color={Colors.success} strokeWidth={3} />
-              </View>
             )}
-            {isToday && !isCompleted && (
-              <View style={styles.todayBadge}>
-                <Text style={styles.todayText}>Aujourd'hui</Text>
-              </View>
-            )}
-            <ChevronRight size={16} color="rgba(100,100,110,1)" strokeWidth={2} />
           </View>
-        </View>
-
-        {/* Muscle pills */}
-        <View style={styles.muscleRow}>
-          {muscleLabels.map((label) => (
-            <View key={label} style={styles.musclePill}>
-              <Text style={styles.musclePillText}>{label}</Text>
-            </View>
-          ))}
-          {day.muscleTargets.length > 4 && (
-            <Text style={styles.moreText}>+{day.muscleTargets.length - 4}</Text>
-          )}
-        </View>
-
-        {/* Footer stats */}
-        <View style={styles.footer}>
-          <View style={styles.footerItem}>
-            <Dumbbell size={11} color="rgba(255,255,255,0.3)" />
-            <Text style={styles.footerText}>
-              {day.exercises.length} exercices
+          <Text style={styles.label}>{day.labelFr}</Text>
+          <View style={[styles.focusTag, { backgroundColor: focusStyle.bg }]}>
+            <Text style={[styles.focusText, { color: focusStyle.text }]}>
+              {day.focus}
             </Text>
           </View>
-          <View style={styles.footerDot} />
-          <View style={styles.footerItem}>
-            <Text style={styles.footerText}>{totalSets} series</Text>
-          </View>
-          <View style={styles.footerDot} />
-          <View style={styles.footerItem}>
-            <Clock size={11} color="rgba(255,255,255,0.3)" />
-            <Text style={styles.footerText}>~{duration} min</Text>
+          <View style={{ flex: 1 }} />
+          {isToday && !isCompleted && (
+            <View style={styles.todayBadge}>
+              <Text style={styles.todayText}>Aujourd'hui</Text>
+            </View>
+          )}
+          <ChevronRight size={16} color="rgba(100,100,110,1)" strokeWidth={2} />
+        </View>
+
+        {/* Bottom row: muscles + sets + duration */}
+        <View style={styles.bottomRow}>
+          <Text style={styles.muscleText} numberOfLines={1}>{muscleText}</Text>
+          <View style={styles.bottomMeta}>
+            <Text style={styles.metaText}>{totalSets} series</Text>
+            <View style={styles.metaDot} />
+            <Clock size={10} color="rgba(255,255,255,0.3)" />
+            <Text style={styles.metaText}>~{duration} min</Text>
           </View>
         </View>
       </View>
@@ -112,10 +109,10 @@ export function DayCard({ day, isToday, isCompleted, onPress }: DayCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.05)',
     flexDirection: 'row',
     overflow: 'hidden',
   },
@@ -128,116 +125,117 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
   },
   cardCompleted: {
-    opacity: 0.55,
+    borderColor: 'rgba(74,222,128,0.15)',
+    backgroundColor: 'rgba(74,222,128,0.03)',
   },
   accentBar: {
     width: 3,
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+  },
+  completedBar: {
+    width: 3,
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+    backgroundColor: 'rgba(74,222,128,0.5)',
   },
   cardInner: {
     flex: 1,
-    padding: 14,
-    paddingLeft: 13,
-    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 4,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  headerRight: {
+
+  // Top row
+  topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
+  dayCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayCircleToday: {
+    backgroundColor: 'rgba(255,107,53,0.15)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,107,53,0.3)',
+  },
+  dayCircleCompleted: {
+    backgroundColor: 'rgba(74,222,128,0.12)',
+  },
+  dayCircleText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 11,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+  },
+  dayCircleTextToday: {
+    color: Colors.primary,
+  },
   label: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
   },
   focusTag: {
     borderRadius: 6,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
+    paddingVertical: 2,
+    paddingHorizontal: 7,
   },
   focusText: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
     textTransform: 'capitalize',
   },
-  checkWrap: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(74,222,128,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   todayBadge: {
     backgroundColor: 'rgba(255,107,53,0.12)',
     borderRadius: 6,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
+    paddingVertical: 2,
+    paddingHorizontal: 7,
   },
   todayText: {
     color: Colors.primary,
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
   },
-  muscleRow: {
+
+  // Bottom row
+  bottomRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
     alignItems: 'center',
+    paddingLeft: 36, // align with text after dayCircle
+    gap: 8,
   },
-  musclePill: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 6,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-  },
-  musclePillText: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 11,
+  muscleText: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 12,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
+    flex: 1,
   },
-  moreText: {
+  bottomMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaText: {
     color: 'rgba(255,255,255,0.3)',
     fontSize: 11,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
   },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  footerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  footerDot: {
+  metaDot: {
     width: 3,
     height: 3,
     borderRadius: 1.5,
     backgroundColor: 'rgba(255,255,255,0.15)',
-  },
-  footerText: {
-    color: 'rgba(255,255,255,0.35)',
-    fontSize: 12,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
   },
 });

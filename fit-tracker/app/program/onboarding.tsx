@@ -22,10 +22,13 @@ import {
   User,
   Sparkles,
   ChevronRight,
+  Check,
 } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { OnboardingStep } from '@/components/program/OnboardingStep';
 import { MUSCLE_LABELS_FR } from '@/lib/muscleMapping';
+import { FOCUS_COLORS } from '@/components/program/DayCard';
+import { getSplitForDays, SPLIT_TEMPLATES } from '@/constants/programTemplates';
 import { useProgramStore } from '@/stores/programStore';
 import type {
   TrainingGoal,
@@ -58,9 +61,9 @@ export default function OnboardingScreen() {
       case 1: return !!experience;
       case 2: return !!daysPerWeek;
       case 3: return !!equipment;
-      case 4: return !!sex && !!weight && parseFloat(weight) > 0; // sex + weight required
-      case 5: return true; // optional
-      case 6: return true; // confirmation
+      case 4: return !!sex && !!weight && parseFloat(weight) > 0;
+      case 5: return true;
+      case 6: return true;
       default: return false;
     }
   }, [step, goal, experience, daysPerWeek, equipment, sex, weight]);
@@ -134,21 +137,21 @@ export default function OnboardingScreen() {
     >
       <View style={styles.cardsCol}>
         <SelectionCard
-          icon={<TrendingUp size={28} color={goal === 'hypertrophy' ? '#0C0C0C' : '#FF6B35'} />}
+          icon={<TrendingUp size={22} color={goal === 'hypertrophy' ? '#0C0C0C' : '#FF6B35'} />}
           title="Hypertrophie"
           subtitle="Prendre du muscle, augmenter le volume"
           selected={goal === 'hypertrophy'}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setGoal('hypertrophy'); }}
         />
         <SelectionCard
-          icon={<Zap size={28} color={goal === 'strength' ? '#0C0C0C' : '#FF6B35'} />}
+          icon={<Zap size={22} color={goal === 'strength' ? '#0C0C0C' : '#FF6B35'} />}
           title="Force"
           subtitle="Devenir plus fort, soulever plus lourd"
           selected={goal === 'strength'}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setGoal('strength'); }}
         />
         <SelectionCard
-          icon={<Repeat size={28} color={goal === 'recomposition' ? '#0C0C0C' : '#FF6B35'} />}
+          icon={<Repeat size={22} color={goal === 'recomposition' ? '#0C0C0C' : '#FF6B35'} />}
           title="Recomposition"
           subtitle="Perdre du gras, maintenir le muscle"
           selected={goal === 'recomposition'}
@@ -186,36 +189,53 @@ export default function OnboardingScreen() {
     </OnboardingStep>
   );
 
-  const renderFrequency = () => (
-    <OnboardingStep
-      title="Frequence"
-      subtitle="Combien de jours par semaine peux-tu t'entrainer ?"
-    >
-      <View style={styles.pillRow}>
-        {([3, 4, 5, 6] as const).map((d) => (
-          <Pressable
-            key={d}
-            style={[styles.pill, daysPerWeek === d && styles.pillSelected]}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setDaysPerWeek(d); }}
-          >
-            <Text style={[styles.pillText, daysPerWeek === d && styles.pillTextSelected]}>
-              {d} jours
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-      {daysPerWeek && (
-        <View style={styles.splitPreview}>
-          <Text style={styles.splitLabel}>
-            {daysPerWeek === 3 && 'Full Body — 3 seances completes'}
-            {daysPerWeek === 4 && 'Upper/Lower — 2 haut + 2 bas'}
-            {daysPerWeek === 5 && 'Upper/Lower+ — 4 seances + 1 pump'}
-            {daysPerWeek === 6 && 'Push/Pull/Legs — 6 seances specialisees'}
-          </Text>
+  const renderFrequency = () => {
+    // Get split template for visual preview
+    const splitDays = daysPerWeek ? getSplitDayPreview(daysPerWeek) : [];
+
+    return (
+      <OnboardingStep
+        title="Frequence"
+        subtitle="Combien de jours par semaine peux-tu t'entrainer ?"
+      >
+        <View style={styles.pillRow}>
+          {([3, 4, 5, 6] as const).map((d) => (
+            <Pressable
+              key={d}
+              style={[styles.pill, daysPerWeek === d && styles.pillSelected]}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setDaysPerWeek(d); }}
+            >
+              <Text style={[styles.pillText, daysPerWeek === d && styles.pillTextSelected]}>
+                {d} jours
+              </Text>
+            </Pressable>
+          ))}
         </View>
-      )}
-    </OnboardingStep>
-  );
+
+        {/* Visual split preview */}
+        {daysPerWeek && splitDays.length > 0 && (
+          <View style={styles.splitVisualWrap}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.splitVisualRow}
+            >
+              {splitDays.map((day, i) => {
+                const focusColors = FOCUS_COLORS[day.focus] || FOCUS_COLORS.full_body;
+                return (
+                  <View key={i} style={[styles.splitSlot, { backgroundColor: focusColors.bg }]}>
+                    <Text style={[styles.splitSlotText, { color: focusColors.text }]}>
+                      {day.labelFr}
+                    </Text>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+      </OnboardingStep>
+    );
+  };
 
   const renderEquipment = () => (
     <OnboardingStep
@@ -224,21 +244,21 @@ export default function OnboardingScreen() {
     >
       <View style={styles.cardsCol}>
         <SelectionCard
-          icon={<Dumbbell size={28} color={equipment === 'full_gym' ? '#0C0C0C' : '#FF6B35'} />}
+          icon={<Dumbbell size={22} color={equipment === 'full_gym' ? '#0C0C0C' : '#FF6B35'} />}
           title="Salle complete"
           subtitle="Barres, halteres, cables, machines"
           selected={equipment === 'full_gym'}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setEquipment('full_gym'); }}
         />
         <SelectionCard
-          icon={<Home size={28} color={equipment === 'home_dumbbell' ? '#0C0C0C' : '#FF6B35'} />}
+          icon={<Home size={22} color={equipment === 'home_dumbbell' ? '#0C0C0C' : '#FF6B35'} />}
           title="Home gym"
           subtitle="Halteres, elastiques, kettlebell"
           selected={equipment === 'home_dumbbell'}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setEquipment('home_dumbbell'); }}
         />
         <SelectionCard
-          icon={<User size={28} color={equipment === 'bodyweight' ? '#0C0C0C' : '#FF6B35'} />}
+          icon={<User size={22} color={equipment === 'bodyweight' ? '#0C0C0C' : '#FF6B35'} />}
           title="Poids du corps"
           subtitle="Aucun materiel, exercices au poids du corps"
           selected={equipment === 'bodyweight'}
@@ -362,25 +382,43 @@ export default function OnboardingScreen() {
     bodyweight: 'Poids du corps',
   };
 
+  const confirmItems = [
+    { label: 'Objectif', value: goal ? goalLabels[goal] : '—' },
+    { label: 'Experience', value: experience ? expLabels[experience] : '—' },
+    { label: 'Frequence', value: daysPerWeek ? `${daysPerWeek} jours/sem` : '—' },
+    { label: 'Equipement', value: equipment ? equipLabels[equipment] : '—' },
+    { label: 'Sexe', value: sex === 'male' ? 'Homme' : sex === 'female' ? 'Femme' : '—' },
+    { label: 'Poids', value: weight ? `${weight} kg` : '—' },
+    ...(priorityMuscles.length > 0
+      ? [{ label: 'Priorites', value: priorityMuscles.map((m) => MUSCLE_LABELS_FR[m]).join(', ') }]
+      : []),
+  ];
+
   const renderConfirmation = () => (
     <OnboardingStep
       title="Ton programme"
       subtitle="Verifie tes parametres avant de generer"
     >
-      <View style={styles.summaryCard}>
-        <SummaryRow label="Objectif" value={goal ? goalLabels[goal] : '—'} />
-        <SummaryRow label="Experience" value={experience ? expLabels[experience] : '—'} />
-        <SummaryRow label="Frequence" value={daysPerWeek ? `${daysPerWeek} jours/sem` : '—'} />
-        <SummaryRow label="Equipement" value={equipment ? equipLabels[equipment] : '—'} />
-        <SummaryRow label="Sexe" value={sex === 'male' ? 'Homme' : sex === 'female' ? 'Femme' : '—'} />
-        <SummaryRow label="Poids" value={weight ? `${weight} kg` : '—'} />
-        {priorityMuscles.length > 0 && (
-          <SummaryRow
-            label="Priorites"
-            value={priorityMuscles.map((m) => MUSCLE_LABELS_FR[m]).join(', ')}
-          />
-        )}
+      {/* Vertical timeline */}
+      <View style={styles.timelineWrap}>
+        {confirmItems.map((item, i) => (
+          <View key={item.label} style={styles.timelineRow}>
+            {/* Node + connector */}
+            <View style={styles.timelineNodeCol}>
+              <View style={styles.timelineNode}>
+                <Check size={10} color={Colors.primary} strokeWidth={3} />
+              </View>
+              {i < confirmItems.length - 1 && <View style={styles.timelineConnector} />}
+            </View>
+            {/* Content */}
+            <View style={styles.timelineContent}>
+              <Text style={styles.timelineLabel}>{item.label}</Text>
+              <Text style={styles.timelineValue}>{item.value}</Text>
+            </View>
+          </View>
+        ))}
       </View>
+
       <Pressable style={styles.generateButton} onPress={handleGenerate}>
         <Sparkles size={20} color="#0C0C0C" />
         <Text style={styles.generateText}>Generer mon programme</Text>
@@ -442,6 +480,19 @@ export default function OnboardingScreen() {
   );
 }
 
+// ─── Helpers ───
+
+function getSplitDayPreview(days: 3 | 4 | 5 | 6) {
+  const splitType = getSplitForDays(days);
+  const templates = SPLIT_TEMPLATES[splitType];
+  if (!templates || templates.length === 0) return [];
+  // Pick the template matching the day count
+  for (const t of templates) {
+    if (t.length === days) return t;
+  }
+  return templates[0];
+}
+
 // ─── Sub-components ───
 
 function SelectionCard({
@@ -472,15 +523,6 @@ function SelectionCard({
         </Text>
       </View>
     </Pressable>
-  );
-}
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.summaryRow}>
-      <Text style={styles.summaryLabel}>{label}</Text>
-      <Text style={styles.summaryValue}>{value}</Text>
-    </View>
   );
 }
 
@@ -588,28 +630,28 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.3)',
   },
 
-  // Cards
+  // Cards — compact
   cardsCol: {
-    gap: 12,
+    gap: 10,
   },
   selCard: {
     backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.06)',
-    padding: 18,
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
   },
   selCardSelected: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
   selCardIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: 'rgba(255,255,255,0.06)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -619,17 +661,17 @@ const styles = StyleSheet.create({
   },
   selCardTitle: {
     color: '#FFFFFF',
-    fontSize: 17,
+    fontSize: 16,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    marginBottom: 3,
+    marginBottom: 2,
   },
   selCardTitleSelected: {
     color: '#0C0C0C',
   },
   selCardSubtitle: {
     color: 'rgba(255,255,255,0.5)',
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
   },
@@ -664,17 +706,26 @@ const styles = StyleSheet.create({
   pillTextSelected: {
     color: '#0C0C0C',
   },
-  splitPreview: {
-    marginTop: 24,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 12,
-    padding: 16,
+
+  // Visual split preview
+  splitVisualWrap: {
+    marginTop: 20,
   },
-  splitLabel: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 14,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
+  splitVisualRow: {
+    gap: 8,
+    paddingVertical: 4,
+  },
+  splitSlot: {
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  splitSlotText: {
+    fontSize: 12,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
   },
 
   // Inputs
@@ -766,33 +817,53 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Summary
-  summaryCard: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    padding: 18,
-    gap: 14,
+  // Vertical timeline confirmation
+  timelineWrap: {
     marginBottom: 24,
   },
-  summaryRow: {
+  timelineRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    minHeight: 48,
+  },
+  timelineNodeCol: {
+    width: 32,
     alignItems: 'center',
   },
-  summaryLabel: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 14,
+  timelineNode: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,107,53,0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,107,53,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timelineConnector: {
+    width: 2,
+    flex: 1,
+    backgroundColor: 'rgba(255,107,53,0.15)',
+    marginVertical: 2,
+  },
+  timelineContent: {
+    flex: 1,
+    paddingLeft: 12,
+    paddingBottom: 16,
+    gap: 2,
+  },
+  timelineLabel: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 12,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
   },
-  summaryValue: {
+  timelineValue: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
   },
+
   generateButton: {
     backgroundColor: Colors.primary,
     borderRadius: 14,

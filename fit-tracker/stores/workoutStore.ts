@@ -11,6 +11,7 @@ interface WorkoutStoreState {
   stats: WorkoutStats;
   historyFilter: HistoryFilter;
   muscleOrder: string[];
+  homeCardOrder: string[];
 
   // Custom Workouts
   addCustomWorkout: (workout: Omit<Workout, 'id' | 'isPreset' | 'createdAt' | 'updatedAt'>) => string;
@@ -26,6 +27,7 @@ interface WorkoutStoreState {
 
   // Preferences
   setMuscleOrder: (order: string[]) => void;
+  setHomeCardOrder: (order: string[]) => void;
 
   // Getters
   getWorkoutById: (id: string) => Workout | undefined;
@@ -54,6 +56,7 @@ export const useWorkoutStore = create<WorkoutStoreState>()(
       stats: initialStats,
       historyFilter: { dateRange: 'week' },
       muscleOrder: [],
+      homeCardOrder: [],
 
       addCustomWorkout: (workoutData) => {
         const id = generateId();
@@ -160,6 +163,7 @@ export const useWorkoutStore = create<WorkoutStoreState>()(
       setHistoryFilter: (filter) => set({ historyFilter: filter }),
 
       setMuscleOrder: (order) => set({ muscleOrder: order }),
+      setHomeCardOrder: (order) => set({ homeCardOrder: order }),
 
       getWorkoutById: (id) => {
         const { customWorkouts } = get();
@@ -294,6 +298,7 @@ export const useWorkoutStore = create<WorkoutStoreState>()(
         history: state.history,
         stats: state.stats,
         muscleOrder: state.muscleOrder,
+        homeCardOrder: state.homeCardOrder,
       }),
     }
   )

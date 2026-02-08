@@ -29,6 +29,11 @@ export interface ProgramExercise {
   restTime: number;
   suggestedWeight?: number; // kg — estimated from bodyweight, 0 for bodyweight exercises
   notes?: string;
+  // Original values for reset (populated during generation)
+  originalSets?: number;
+  originalReps?: number;
+  originalRestTime?: number;
+  originalSuggestedWeight?: number;
 }
 
 export interface ProgramDay {
@@ -66,4 +71,25 @@ export interface ActiveProgramState {
   currentDayIndex: number;
   completedDays: string[]; // "week-day" keys
   startDate: string;
+  lastCompletedAt?: string; // ISO date — for same-day pacing guard
+  sessionFeedback?: Record<string, SessionFeedback>; // key = "week-day"
+  lastReadiness?: ReadinessCheck;
+}
+
+// ─── Session Feedback (post-session) ───
+
+export interface SessionFeedback {
+  pump: 1 | 2 | 3;           // 1=faible, 2=bon, 3=enorme
+  soreness: 1 | 2 | 3;       // 1=aucune, 2=moderees, 3=fortes
+  performance: 1 | 2 | 3;    // 1=baisse, 2=stable, 3=hausse
+  jointPain: boolean;
+}
+
+// ─── Readiness Check (pre-session) ───
+
+export interface ReadinessCheck {
+  sleep: 1 | 2 | 3 | 4 | 5;
+  energy: 1 | 2 | 3 | 4 | 5;
+  soreness: 1 | 2 | 3 | 4 | 5;
+  timestamp: string;
 }
