@@ -28,6 +28,7 @@ import {
 } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { ExerciseIcon } from '@/components/ExerciseIcon';
+import { ExerciseSparkline } from '@/components/ExerciseSparkline';
 import { ExerciseInfoSheet } from '@/components/ExerciseInfoSheet';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { exercises as allExercises, getExerciseById } from '@/data/exercises';
@@ -559,6 +560,7 @@ export default function WorkoutDetailScreen() {
               </Text>
               <Text style={s.exerciseCardTarget}>{ex.exercise.target}</Text>
             </View>
+            <ExerciseSparkline exerciseId={ex.exerciseId} width={72} height={28} />
             <Pressable style={s.removeBtn} onPress={() => handleRemoveExercise(index)}>
               <X size={14} color="#FF4B4B" strokeWidth={2.5} />
             </Pressable>
@@ -657,6 +659,7 @@ export default function WorkoutDetailScreen() {
                   </Text>
                   <Text style={s.exerciseCardTarget}>{ex.exercise.target}</Text>
                 </View>
+                <ExerciseSparkline exerciseId={ex.exerciseId} width={72} height={28} />
               </View>
               <View style={s.paramGrid}>
                 <View style={s.paramCell}>

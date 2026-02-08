@@ -3,25 +3,21 @@ import { WorkoutSession } from '@/types';
 
 /**
  * Maps exercise `target` field values → canonical muscle group keys
- * (matching the keys in RP_VOLUME_LANDMARKS from constants/volumeLandmarks.ts)
+ * (same mapping as muscleMapping.ts, inlined to avoid circular deps)
  */
-export const TARGET_TO_MUSCLE: Record<string, string> = {
-  // Chest
+const TARGET_TO_MUSCLE: Record<string, string> = {
   pecs: 'chest',
   'upper chest': 'chest',
   'lower chest': 'chest',
-  // Back
   lats: 'lats',
   'upper back': 'upper back',
   'middle back': 'upper back',
   'lower back': 'lower back',
   'rear delts': 'shoulders',
-  // Shoulders
   delts: 'shoulders',
   'front delts': 'shoulders',
   'lateral delts': 'shoulders',
   traps: 'shoulders',
-  // Arms
   biceps: 'biceps',
   brachialis: 'biceps',
   triceps: 'triceps',
@@ -29,54 +25,66 @@ export const TARGET_TO_MUSCLE: Record<string, string> = {
   'forearm extensors': 'forearms',
   brachioradialis: 'forearms',
   grip: 'forearms',
-  // Legs
   quads: 'quads',
   hamstrings: 'hamstrings',
   glutes: 'glutes',
   calves: 'calves',
   gastrocnemius: 'calves',
   soleus: 'calves',
-  // Core
   abs: 'abs',
   'lower abs': 'abs',
   'core stability': 'abs',
   obliques: 'obliques',
 };
 
-/** French labels for muscle groups */
-export const MUSCLE_LABELS_FR: Record<string, string> = {
-  chest: 'Pectoraux',
-  'upper back': 'Haut dos',
-  lats: 'Dorsaux',
-  'lower back': 'Bas dos',
-  shoulders: 'Épaules',
-  biceps: 'Biceps',
-  triceps: 'Triceps',
-  forearms: 'Avant-bras',
-  quads: 'Quadriceps',
-  hamstrings: 'Ischio',
-  glutes: 'Fessiers',
-  calves: 'Mollets',
-  abs: 'Abdos',
-  obliques: 'Obliques',
-};
-
 const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
 
 /**
- * Compute sets per muscle group from workout history for the last N days.
- * Returns a record of muscle group → completed set count, sorted descending.
+ * Returns Mon 00:00 → Sun 23:59:59.999 for the given week offset.
+ * weekOffset=0 → current week, -1 → last week, etc.
  */
-export function getSetsPerMuscle(
+export function getWeekBounds(weekOffset: number): { start: Date; end: Date } {
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun
+  const mondayOffset = day === 0 ? 6 : day - 1;
+
+  const monday = new Date(now);
+  monday.setDate(monday.getDate() - mondayOffset + weekOffset * 7);
+  monday.setHours(0, 0, 0, 0);
+
+  const sunday = new Date(monday);
+  sunday.setDate(sunday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+
+  return { start: monday, end: sunday };
+}
+
+/**
+ * Returns a French label like "Sem. du 3 février"
+ */
+export function getWeekLabel(weekOffset: number): string {
+  const { start } = getWeekBounds(weekOffset);
+  const day = start.getDate();
+  const month = start.toLocaleDateString('fr-FR', { month: 'long' });
+  return `Sem. du ${day} ${month}`;
+}
+
+/**
+ * Filters history to sessions within a given week and counts completed sets per muscle.
+ */
+export function getSetsForWeek(
   history: WorkoutSession[],
-  days: number
+  weekOffset: number
 ): Record<string, number> {
-  const cutoff = Date.now() - days * 86400000;
+  const { start, end } = getWeekBounds(weekOffset);
+  const startMs = start.getTime();
+  const endMs = end.getTime();
   const result: Record<string, number> = {};
 
   for (const session of history) {
     if (!session.endTime) continue;
-    if (new Date(session.startTime).getTime() < cutoff) continue;
+    const sessionMs = new Date(session.startTime).getTime();
+    if (sessionMs < startMs || sessionMs > endMs) continue;
 
     for (const compEx of session.completedExercises) {
       const exercise = exerciseMap.get(compEx.exerciseId);

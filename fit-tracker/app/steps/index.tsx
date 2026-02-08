@@ -1,9 +1,9 @@
 /**
  * Steps Detail Page
- * Today's hero card, SVG line chart with goal line, stats grid, goal card
+ * Hero number, ruler time picker, SVG chart, metric strip
  */
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,18 +11,11 @@ import {
   ScrollView,
   Pressable,
   Dimensions,
-  Animated,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import {
-  ChevronLeft,
-  Footprints,
-  Target,
-  TrendingUp,
-  Calendar,
-  Flame,
-} from 'lucide-react-native';
+import { ArrowLeft, Target } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import Svg, {
   Path,
   Line,
@@ -32,16 +25,17 @@ import Svg, {
   Stop,
   Text as SvgText,
 } from 'react-native-svg';
-import { Fonts, Spacing } from '@/constants/theme';
+import { Fonts } from '@/constants/theme';
 import { generateMockStepsHistory } from '@/lib/mock-data';
 
 type TimeFilter = 'week' | 'month' | 'year';
 
 const GOAL_STEPS = 10000;
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CHART_PADDING = 40;
-const CHART_WIDTH = SCREEN_WIDTH - 48 - CHART_PADDING;
-const CHART_HEIGHT = 180;
+const CHART_PADDING_LEFT = 4;
+const CHART_PADDING_RIGHT = 32;
+const CHART_WIDTH = SCREEN_WIDTH - 40 - CHART_PADDING_LEFT - CHART_PADDING_RIGHT;
+const CHART_HEIGHT = 200;
 
 const TIME_FILTERS: { value: TimeFilter; label: string; days: number }[] = [
   { value: 'week', label: 'Semaine', days: 7 },
@@ -50,37 +44,19 @@ const TIME_FILTERS: { value: TimeFilter; label: string; days: number }[] = [
 ];
 
 export default function StepsScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('week');
 
-  // Animations
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+  const filterDays =
+    TIME_FILTERS.find((f) => f.value === timeFilter)?.days || 7;
+  const stepsData = useMemo(
+    () => generateMockStepsHistory(filterDays),
+    [filterDays]
+  );
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
-
-  const filterDays = TIME_FILTERS.find((f) => f.value === timeFilter)?.days || 7;
-  const stepsData = useMemo(() => generateMockStepsHistory(filterDays), [filterDays]);
-
-  // Stats
   const stats = useMemo(() => {
-    if (stepsData.length === 0) {
+    if (stepsData.length === 0)
       return { average: 0, total: 0, best: 0, goalDays: 0, todaySteps: 0 };
-    }
     const steps = stepsData.map((d) => d.steps);
     const total = steps.reduce((a, b) => a + b, 0);
     const average = Math.round(total / steps.length);
@@ -92,13 +68,15 @@ export default function StepsScreen() {
 
   // Chart data
   const chartData = useMemo(() => {
-    if (stepsData.length === 0) return { path: '', fillPath: '', points: [], maxSteps: GOAL_STEPS };
+    if (stepsData.length === 0)
+      return { path: '', fillPath: '', points: [], maxSteps: GOAL_STEPS };
 
-    const maxSteps = Math.max(GOAL_STEPS, ...stepsData.map((d) => d.steps)) * 1.1;
+    const maxSteps =
+      Math.max(GOAL_STEPS, ...stepsData.map((d) => d.steps)) * 1.15;
     const xStep = CHART_WIDTH / (stepsData.length - 1 || 1);
 
     const points = stepsData.map((d, i) => ({
-      x: i * xStep,
+      x: CHART_PADDING_LEFT + i * xStep,
       y: CHART_HEIGHT - (d.steps / maxSteps) * CHART_HEIGHT,
       steps: d.steps,
       date: d.date,
@@ -112,164 +90,186 @@ export default function StepsScreen() {
       path += ` C ${cpX} ${prev.y}, ${cpX} ${curr.y}, ${curr.x} ${curr.y}`;
     }
 
-    const fillPath = path + ` L ${points[points.length - 1].x} ${CHART_HEIGHT} L ${points[0].x} ${CHART_HEIGHT} Z`;
+    const fillPath =
+      path +
+      ` L ${points[points.length - 1].x} ${CHART_HEIGHT} L ${points[0].x} ${CHART_HEIGHT} Z`;
 
     return { path, fillPath, points, maxSteps };
   }, [stepsData]);
 
-  const goalY = CHART_HEIGHT - (GOAL_STEPS / chartData.maxSteps) * CHART_HEIGHT;
+  const goalY =
+    CHART_HEIGHT - (GOAL_STEPS / chartData.maxSteps) * CHART_HEIGHT;
 
-  const formatDateLabel = (dateStr: string, index: number, total: number): string => {
+  const formatDateLabel = (
+    dateStr: string,
+    index: number,
+    total: number
+  ): string => {
     const date = new Date(dateStr);
     if (timeFilter === 'week') {
       const days = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
       return days[date.getDay()];
     } else if (timeFilter === 'month') {
-      if (index % 5 === 0 || index === total - 1) return date.getDate().toString();
+      if (index % 5 === 0 || index === total - 1)
+        return date.getDate().toString();
       return '';
     } else {
       if (index % 30 === 0) {
-        return date.toLocaleDateString('fr-FR', { month: 'short' }).substring(0, 3);
+        return date
+          .toLocaleDateString('fr-FR', { month: 'short' })
+          .substring(0, 3);
       }
       return '';
     }
   };
 
-  const getProgressColor = () => {
-    const progress = stats.todaySteps / GOAL_STEPS;
-    if (progress >= 1) return '#4ADE80';
-    if (progress >= 0.5) return '#3B82F6';
-    return '#F97316';
+  const progressPercent = Math.min(
+    (stats.todaySteps / GOAL_STEPS) * 100,
+    100
+  );
+  const progressColor =
+    progressPercent >= 100
+      ? '#4ADE80'
+      : progressPercent >= 50
+        ? '#3B82F6'
+        : '#F97316';
+
+  const selectFilter = (value: TimeFilter) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setTimeFilter(value);
   };
 
-  const progressColor = getProgressColor();
-  const progressPercent = Math.min((stats.todaySteps / GOAL_STEPS) * 100, 100);
+  const formatTotal = (n: number) => {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1000) return `${(n / 1000).toFixed(0)}k`;
+    return n.toLocaleString();
+  };
 
   return (
     <View style={styles.screen}>
-      {/* Ambient orbs */}
-      <View style={styles.orbBlue} />
-      <View style={styles.orbOrange} />
+      <View style={styles.orbBlue} pointerEvents="none" />
+      <View style={styles.orbOrange} pointerEvents="none" />
 
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <ChevronLeft size={22} color="#FFFFFF" />
-        </Pressable>
-        <Text style={styles.headerTitle}>Pas</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <ArrowLeft size={22} color="#fff" strokeWidth={2} />
+          </Pressable>
+          <Text style={styles.headerTitle}>Pas</Text>
+          <View style={{ width: 40 }} />
+        </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Hero Card */}
-        <Animated.View
-          style={[styles.heroCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
         >
-          <View style={styles.heroTop}>
-            <View style={styles.heroIconContainer}>
-              <Footprints size={28} color="#3B82F6" />
-            </View>
-            <View style={styles.heroTextContainer}>
-              <Text style={styles.heroLabel}>AUJOURD'HUI</Text>
-              <View style={styles.heroValueRow}>
-                <Text style={styles.heroValue}>
-                  {stats.todaySteps.toLocaleString()}
-                </Text>
-                <Text style={styles.heroUnit}>pas</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Progress Bar */}
-          <View style={styles.progressContainer}>
-            <View style={styles.progressBar}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${progressPercent}%`, backgroundColor: progressColor },
-                ]}
-              />
-            </View>
-            <View style={styles.progressLabels}>
-              <Text style={styles.progressText}>{Math.round(progressPercent)}%</Text>
-              <View style={styles.goalLabel}>
-                <Target size={12} color="#4ADE80" />
-                <Text style={styles.goalLabelText}>
-                  {GOAL_STEPS.toLocaleString()}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </Animated.View>
-
-        {/* Time Filter */}
-        <Animated.View
-          style={[styles.filterContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
-        >
-          {TIME_FILTERS.map((filter) => (
-            <Pressable
-              key={filter.value}
-              style={[
-                styles.filterButton,
-                timeFilter === filter.value && styles.filterButtonActive,
-              ]}
-              onPress={() => setTimeFilter(filter.value)}
-            >
-              <Text
-                style={[
-                  styles.filterText,
-                  timeFilter === filter.value && styles.filterTextActive,
-                ]}
-              >
-                {filter.label}
+          {/* ── Hero ── */}
+          <View style={styles.hero}>
+            <View style={styles.heroRow}>
+              <Text style={styles.heroNumber}>
+                {stats.todaySteps.toLocaleString()}
               </Text>
-            </Pressable>
-          ))}
-        </Animated.View>
-
-        {/* Chart */}
-        <Animated.View
-          style={[styles.chartCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
-        >
-          <View style={styles.chartHeader}>
-            <Text style={styles.chartTitle}>Progression</Text>
-            <Text style={styles.chartHint}>Avec objectif</Text>
+              <Text style={styles.heroUnit}>pas</Text>
+            </View>
+            <View style={styles.heroProgressRow}>
+              <View style={styles.progressTrack}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${progressPercent}%`,
+                      backgroundColor: progressColor,
+                    },
+                  ]}
+                />
+              </View>
+              <View style={styles.heroGoal}>
+                <Target size={11} color="#4ADE80" strokeWidth={2.5} />
+                <Text style={styles.heroGoalText}>
+                  {Math.round(progressPercent)}%
+                </Text>
+              </View>
+            </View>
           </View>
 
+          {/* ── Time Filter — ruler style ── */}
+          <View style={styles.filterRow}>
+            {TIME_FILTERS.map((f) => {
+              const isActive = timeFilter === f.value;
+              return (
+                <Pressable
+                  key={f.value}
+                  style={styles.filterItem}
+                  onPress={() => selectFilter(f.value)}
+                >
+                  <Text
+                    style={[
+                      styles.filterText,
+                      isActive && styles.filterTextActive,
+                    ]}
+                  >
+                    {f.label}
+                  </Text>
+                  <View
+                    style={[
+                      styles.filterTick,
+                      isActive && styles.filterTickActive,
+                    ]}
+                  />
+                  {isActive && <View style={styles.filterAccent} />}
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* ── Chart ── */}
           <View style={styles.chartContainer}>
-            <Svg width={CHART_WIDTH + CHART_PADDING} height={CHART_HEIGHT + 40}>
+            <Svg
+              width={CHART_WIDTH + CHART_PADDING_LEFT + CHART_PADDING_RIGHT}
+              height={CHART_HEIGHT + 30}
+            >
               <Defs>
-                <LinearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0%" stopColor="#3B82F6" stopOpacity={0.4} />
-                  <Stop offset="100%" stopColor="#3B82F6" stopOpacity={0} />
+                <LinearGradient
+                  id="areaGradient"
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <Stop
+                    offset="0%"
+                    stopColor="#3B82F6"
+                    stopOpacity={0.3}
+                  />
+                  <Stop
+                    offset="100%"
+                    stopColor="#3B82F6"
+                    stopOpacity={0}
+                  />
                 </LinearGradient>
               </Defs>
 
               {/* Goal line */}
               <Line
-                x1={0}
+                x1={CHART_PADDING_LEFT}
                 y1={goalY}
-                x2={CHART_WIDTH}
+                x2={CHART_PADDING_LEFT + CHART_WIDTH}
                 y2={goalY}
-                stroke="#4ADE80"
-                strokeWidth={1.5}
+                stroke="rgba(74,222,128,0.3)"
+                strokeWidth={1}
                 strokeDasharray="6,4"
               />
               <SvgText
-                x={CHART_WIDTH + 5}
+                x={CHART_PADDING_LEFT + CHART_WIDTH + 6}
                 y={goalY + 4}
-                fill="#4ADE80"
-                fontSize={10}
-                fontFamily={Fonts?.medium}
+                fill="rgba(74,222,128,0.5)"
+                fontSize={9}
               >
                 10k
               </SvgText>
 
-              {/* Area fill */}
+              {/* Area */}
               {chartData.fillPath ? (
                 <Path d={chartData.fillPath} fill="url(#areaGradient)" />
               ) : null}
@@ -280,37 +280,51 @@ export default function StepsScreen() {
                   d={chartData.path}
                   fill="none"
                   stroke="#3B82F6"
-                  strokeWidth={2.5}
+                  strokeWidth={2}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
               ) : null}
 
-              {/* Data points */}
-              {chartData.points.map((point, index) => (
-                <Circle
-                  key={index}
-                  cx={point.x}
-                  cy={point.y}
-                  r={index === chartData.points.length - 1 ? 5 : 3}
-                  fill={point.steps >= GOAL_STEPS ? '#4ADE80' : '#3B82F6'}
-                  stroke="#0C0C0C"
-                  strokeWidth={2}
-                />
-              ))}
-
-              {/* X-axis labels */}
+              {/* Dots — only show a subset to avoid clutter */}
               {chartData.points.map((point, index) => {
-                const label = formatDateLabel(point.date, index, chartData.points.length);
+                const isLast = index === chartData.points.length - 1;
+                const showDot =
+                  timeFilter === 'week' ||
+                  isLast ||
+                  (timeFilter === 'month' && index % 5 === 0) ||
+                  (timeFilter === 'year' && index % 30 === 0);
+                if (!showDot) return null;
+                return (
+                  <Circle
+                    key={index}
+                    cx={point.x}
+                    cy={point.y}
+                    r={isLast ? 4 : 2.5}
+                    fill={
+                      point.steps >= GOAL_STEPS ? '#4ADE80' : '#3B82F6'
+                    }
+                    stroke="#0C0C0C"
+                    strokeWidth={isLast ? 2 : 1}
+                  />
+                );
+              })}
+
+              {/* X labels */}
+              {chartData.points.map((point, index) => {
+                const label = formatDateLabel(
+                  point.date,
+                  index,
+                  chartData.points.length
+                );
                 if (!label) return null;
                 return (
                   <SvgText
-                    key={`label-${index}`}
+                    key={`l-${index}`}
                     x={point.x}
-                    y={CHART_HEIGHT + 20}
-                    fill="#6B7280"
+                    y={CHART_HEIGHT + 18}
+                    fill="rgba(120,120,130,1)"
                     fontSize={10}
-                    fontFamily={Fonts?.medium}
                     textAnchor="middle"
                   >
                     {label}
@@ -319,77 +333,71 @@ export default function StepsScreen() {
               })}
             </Svg>
           </View>
-        </Animated.View>
 
-        {/* Stats Grid */}
-        <Animated.View
-          style={[styles.statsGrid, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
-        >
-          <View style={styles.statCard}>
-            <View style={[styles.statIconContainer, { backgroundColor: 'rgba(249, 115, 22, 0.1)' }]}>
-              <TrendingUp size={18} color="#F97316" />
-            </View>
-            <Text style={styles.statValue}>{stats.average.toLocaleString()}</Text>
-            <Text style={styles.statLabel}>Moyenne</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={[styles.statIconContainer, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-              <Flame size={18} color="#3B82F6" />
-            </View>
-            <Text style={styles.statValue}>{stats.best.toLocaleString()}</Text>
-            <Text style={styles.statLabel}>Record</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={[styles.statIconContainer, { backgroundColor: 'rgba(74, 222, 128, 0.1)' }]}>
-              <Target size={18} color="#4ADE80" />
-            </View>
-            <Text style={styles.statValue}>{stats.goalDays}</Text>
-            <Text style={styles.statLabel}>Objectifs</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={[styles.statIconContainer, { backgroundColor: 'rgba(147, 51, 234, 0.1)' }]}>
-              <Calendar size={18} color="#9333EA" />
-            </View>
-            <Text style={styles.statValue}>
-              {stats.total >= 1000000
-                ? `${(stats.total / 1000000).toFixed(1)}M`
-                : stats.total >= 1000
-                ? `${(stats.total / 1000).toFixed(0)}k`
-                : stats.total.toLocaleString()}
-            </Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
-        </Animated.View>
-
-        {/* Goal Card */}
-        <Animated.View
-          style={[styles.goalCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
-        >
-          <View style={styles.goalHeader}>
-            <View style={styles.goalIconContainer}>
-              <Target size={20} color="#4ADE80" />
-            </View>
-            <View>
-              <Text style={styles.goalTitle}>Objectif quotidien</Text>
-              <Text style={styles.goalSubtitle}>
-                {GOAL_STEPS.toLocaleString()} pas/jour
+          {/* ── Metric Strip ── */}
+          <View style={styles.metricStrip}>
+            <View style={styles.metricItem}>
+              <Text style={styles.metricValue}>
+                {stats.average.toLocaleString()}
               </Text>
+              <Text style={styles.metricLabel}>moyenne</Text>
+            </View>
+            <View style={styles.metricDivider} />
+            <View style={styles.metricItem}>
+              <Text style={styles.metricValue}>
+                {stats.best.toLocaleString()}
+              </Text>
+              <Text style={styles.metricLabel}>record</Text>
+            </View>
+            <View style={styles.metricDivider} />
+            <View style={styles.metricItem}>
+              <Text style={[styles.metricValue, { color: '#4ADE80' }]}>
+                {stats.goalDays}
+              </Text>
+              <Text style={styles.metricLabel}>objectifs</Text>
+            </View>
+            <View style={styles.metricDivider} />
+            <View style={styles.metricItem}>
+              <Text style={styles.metricValue}>{formatTotal(stats.total)}</Text>
+              <Text style={styles.metricLabel}>total</Text>
             </View>
           </View>
-          <Text style={styles.goalDescription}>
-            Vous avez atteint votre objectif {stats.goalDays} fois sur les {filterDays} derniers jours.
-          </Text>
-          <View style={styles.goalStreak}>
-            <Text style={styles.goalStreakValue}>
-              {filterDays > 0 ? Math.round((stats.goalDays / filterDays) * 100) : 0}%
-            </Text>
-            <Text style={styles.goalStreakLabel}>taux de réussite</Text>
+
+          {/* ── Success Rate ── */}
+          <View style={styles.successRow}>
+            <View style={styles.successLeft}>
+              <Text style={styles.successValue}>
+                {filterDays > 0
+                  ? Math.round((stats.goalDays / filterDays) * 100)
+                  : 0}
+                %
+              </Text>
+              <Text style={styles.successLabel}>taux de réussite</Text>
+            </View>
+            <View style={styles.successBar}>
+              {Array.from({ length: Math.min(filterDays, 30) }, (_, i) => {
+                const dayData = stepsData[stepsData.length - 1 - i];
+                const hit = dayData ? dayData.steps >= GOAL_STEPS : false;
+                return (
+                  <View
+                    key={i}
+                    style={[
+                      styles.successTick,
+                      {
+                        backgroundColor: hit
+                          ? '#4ADE80'
+                          : 'rgba(255,255,255,0.06)',
+                      },
+                    ]}
+                  />
+                );
+              })}
+            </View>
           </View>
-        </Animated.View>
-      </ScrollView>
+
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </SafeAreaView>
     </View>
   );
 }
@@ -401,307 +409,228 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
-
-  // Ambient orbs — blue theme for steps
   orbBlue: {
     position: 'absolute',
-    top: -60,
-    right: -80,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
+    top: -96,
+    right: -96,
+    width: 256,
+    height: 256,
+    borderRadius: 128,
     backgroundColor: 'rgba(59, 130, 246, 0.10)',
-    shadowColor: '#3b82f6',
+    shadowColor: '#3B82F6',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.12,
-    shadowRadius: 80,
+    shadowOpacity: 0.15,
+    shadowRadius: 100,
   },
   orbOrange: {
     position: 'absolute',
-    top: '55%',
-    left: -100,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
+    top: '50%',
+    left: -128,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
     backgroundColor: 'rgba(249, 115, 22, 0.04)',
     shadowColor: '#f97316',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.06,
-    shadowRadius: 100,
+    shadowRadius: 120,
   },
 
   // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: 8,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+    gap: 12,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   headerTitle: {
-    fontSize: 18,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  headerSpacer: { width: 44 },
-
-  // Scroll
-  scrollView: { flex: 1 },
-  scrollContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: 40,
-    gap: 16,
-  },
-
-  // Hero Card — blue-tinted glass
-  heroCard: {
-    backgroundColor: 'rgba(59, 130, 246, 0.08)',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.15)',
-    padding: 22,
-    gap: 20,
-  },
-  heroTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  heroIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  heroTextContainer: {
     flex: 1,
-  },
-  heroLabel: {
-    fontSize: 11,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    color: 'rgba(160, 150, 140, 1)',
-    letterSpacing: 2,
-  },
-  heroValueRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
-  },
-  heroValue: {
-    fontSize: 40,
+    color: '#fff',
+    fontSize: 22,
     fontFamily: Fonts?.bold,
     fontWeight: '700',
-    color: '#FFFFFF',
+  },
+
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+
+  // ── Hero ──
+  hero: {
+    paddingTop: 8,
+    paddingBottom: 20,
+    gap: 14,
+  },
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 10,
+  },
+  heroNumber: {
+    color: '#fff',
+    fontSize: 52,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
     letterSpacing: -1,
   },
   heroUnit: {
-    fontSize: 16,
+    color: 'rgba(120,120,130,1)',
+    fontSize: 18,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.5)',
   },
-  progressContainer: { gap: 8 },
-  progressBar: {
-    height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 4,
+  heroProgressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  progressTrack: {
+    flex: 1,
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 2,
   },
-  progressLabels: {
+  heroGoal: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 4,
   },
-  progressText: {
-    fontSize: 14,
+  heroGoalText: {
+    color: 'rgba(120,120,130,1)',
+    fontSize: 12,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  goalLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  goalLabelText: {
-    fontSize: 12,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    color: '#4ADE80',
   },
 
-  // Time Filter
-  filterContainer: {
+  // ── Time Filter — ruler style ──
+  filterRow: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    padding: 4,
-    gap: 4,
+    justifyContent: 'center',
+    gap: 32,
+    marginBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.04)',
+    paddingBottom: 8,
   },
-  filterButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
+  filterItem: {
     alignItems: 'center',
-  },
-  filterButtonActive: {
-    backgroundColor: '#3B82F6',
+    paddingTop: 4,
+    paddingBottom: 2,
   },
   filterText: {
-    fontSize: 14,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    color: '#9CA3AF',
-  },
-  filterTextActive: {
-    color: '#FFFFFF',
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-  },
-
-  // Chart Card
-  chartCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    padding: 20,
-    gap: 16,
-  },
-  chartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-  },
-  chartTitle: {
-    fontSize: 17,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  chartHint: {
-    fontSize: 12,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-  chartContainer: {
-    alignItems: 'center',
-  },
-
-  // Stats Grid
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  statCard: {
-    width: (SCREEN_WIDTH - 48 - 12) / 2 - 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    padding: 16,
-    alignItems: 'center',
-    gap: 10,
-  },
-  statIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 22,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  statLabel: {
-    fontSize: 12,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-
-  // Goal Card — green-tinted glass
-  goalCard: {
-    backgroundColor: 'rgba(74, 222, 128, 0.06)',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(74, 222, 128, 0.12)',
-    padding: 22,
-    gap: 16,
-  },
-  goalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  goalIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: 'rgba(74, 222, 128, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  goalTitle: {
-    fontSize: 16,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    color: '#4ADE80',
-  },
-  goalSubtitle: {
+    color: 'rgba(100,100,110,1)',
     fontSize: 13,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
-    color: 'rgba(74, 222, 128, 0.7)',
-    marginTop: 2,
+    marginBottom: 6,
   },
-  goalDescription: {
-    fontSize: 14,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    color: '#9CA3AF',
-    lineHeight: 22,
-  },
-  goalStreak: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
-  },
-  goalStreakValue: {
-    fontSize: 32,
+  filterTextActive: {
+    color: '#fff',
     fontFamily: Fonts?.bold,
     fontWeight: '700',
-    color: '#FFFFFF',
   },
-  goalStreakLabel: {
-    fontSize: 14,
+  filterTick: {
+    width: 1,
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+  },
+  filterTickActive: {
+    width: 2,
+    height: 8,
+    backgroundColor: '#3B82F6',
+    borderRadius: 1,
+  },
+  filterAccent: {
+    width: 24,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#3B82F6',
+    marginTop: 3,
+  },
+
+  // ── Chart ──
+  chartContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+
+  // ── Metric Strip ──
+  metricStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  metricItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  metricValue: {
+    color: '#fff',
+    fontSize: 18,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+  },
+  metricLabel: {
+    color: 'rgba(100,100,110,1)',
+    fontSize: 10,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
-    color: '#6B7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  metricDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+
+  // ── Success Rate ──
+  successRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  successLeft: {
+    gap: 2,
+  },
+  successValue: {
+    color: '#4ADE80',
+    fontSize: 28,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+  },
+  successLabel: {
+    color: 'rgba(100,100,110,1)',
+    fontSize: 11,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+  },
+  successBar: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 3,
+  },
+  successTick: {
+    width: 6,
+    height: 6,
+    borderRadius: 1.5,
   },
 });

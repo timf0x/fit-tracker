@@ -61,6 +61,7 @@ import {
   announceSetComplete,
   handleTimerTick,
 } from '@/services/audio';
+import { detectPRs } from '@/lib/progressiveOverload';
 import type { CompletedSet, CompletedExercise, BodyPart } from '@/types';
 
 // ─── Types ───
@@ -134,9 +135,10 @@ export default function WorkoutSessionScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const store = useWorkoutStore();
-  const { workoutId, workoutName, exercises: exercisesParam } = useLocalSearchParams<{
+  const { workoutId, workoutName, sessionId: sessionIdParam, exercises: exercisesParam } = useLocalSearchParams<{
     workoutId: string;
     workoutName: string;
+    sessionId?: string;
     exercises: string;
   }>();
 
@@ -217,7 +219,12 @@ export default function WorkoutSessionScreen() {
   useEffect(() => {
     initAudio();
     if (workoutId && workoutName) {
-      sessionIdRef.current = store.startSession(workoutId, workoutName);
+      // If a sessionId was passed (e.g. from program day), reuse it instead of creating a new one
+      if (sessionIdParam) {
+        sessionIdRef.current = sessionIdParam;
+      } else {
+        sessionIdRef.current = store.startSession(workoutId, workoutName);
+      }
       sessionStartRef.current = Date.now();
     }
     // Announce first prepare phase (delay lets TTS warm-up finish)
@@ -543,6 +550,14 @@ export default function WorkoutSessionScreen() {
     router.back();
   }, [completedSets, sessionExercises, store, router]);
 
+  const discardStop = useCallback(() => {
+    setShowStopConfirm(false);
+    if (sessionIdRef.current) {
+      store.deleteSession(sessionIdRef.current);
+    }
+    router.back();
+  }, [store, router]);
+
   const cancelStop = useCallback(() => {
     setShowStopConfirm(false);
     setIsPaused(false);
@@ -733,6 +748,30 @@ export default function WorkoutSessionScreen() {
     return 0;
   }, [phase]);
 
+  // PR detection — compare current session against all previous history
+  const sessionPRs = useMemo(() => {
+    if (phase !== 'finished') return [];
+    const currentExercises: CompletedExercise[] = sessionExercises.map((ex, idx) => ({
+      exerciseId: ex.exerciseId,
+      sets: completedSets[idx] || [],
+    }));
+    // Exclude the current (still-open) session from history
+    const previousHistory = store.history.filter(
+      (s) => s.id !== sessionIdRef.current && s.endTime
+    );
+    return detectPRs({ completedExercises: currentExercises }, previousHistory);
+  }, [phase, completedSets, sessionExercises, store.history]);
+
+  // Map exerciseId → exercise names for PR display
+  const prExerciseNames = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const pr of sessionPRs) {
+      const ex = getExerciseById(pr.exerciseId);
+      if (ex) map[pr.exerciseId] = ex.nameFr || ex.name;
+    }
+    return map;
+  }, [sessionPRs]);
+
   // ═════════════════════════════════════════
   // Exercise Info Modal
   // ═════════════════════════════════════════
@@ -909,6 +948,46 @@ export default function WorkoutSessionScreen() {
               <Text style={s.summaryValue}>{completedExerciseCount}/{totalExercises}</Text>
             </View>
           </View>
+
+          {/* ─── Personal Records ─── */}
+          {sessionPRs.length > 0 && (
+            <View style={s.prSection}>
+              <View style={s.prHeader}>
+                <View style={s.prIconCircle}>
+                  <Zap size={14} color="#FBBF24" strokeWidth={2.5} />
+                </View>
+                <Text style={s.prTitle}>RECORDS PERSONNELS</Text>
+              </View>
+              {sessionPRs.map((pr, idx) => {
+                const exName = prExerciseNames[pr.exerciseId] || pr.exerciseId;
+                const typeLabel = pr.type === 'weight' ? 'Poids' : 'Volume';
+                const isNew = pr.previousValue === 0;
+                return (
+                  <View key={`${pr.exerciseId}-${pr.type}-${idx}`} style={s.prCard}>
+                    <View style={s.prCardLeft}>
+                      <Text style={s.prExerciseName} numberOfLines={1}>
+                        {exName}
+                      </Text>
+                      <Text style={s.prType}>{typeLabel}</Text>
+                    </View>
+                    <View style={s.prCardRight}>
+                      <Text style={s.prValue}>{pr.label}</Text>
+                      {!isNew && pr.previousValue > 0 && (
+                        <Text style={s.prPrevious}>
+                          avant: {pr.type === 'weight' ? `${pr.previousValue} kg` : `${pr.previousValue} kg`}
+                        </Text>
+                      )}
+                      {isNew && (
+                        <View style={s.prNewBadge}>
+                          <Text style={s.prNewText}>NOUVEAU</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
 
           {/* ─── Exercise Review ─── */}
           <Text style={s.reviewSectionTitle}>DÉTAILS DES EXERCICES</Text>
@@ -1386,13 +1465,16 @@ export default function WorkoutSessionScreen() {
               <Square size={22} color="#FF4B4B" fill="#FF4B4B" strokeWidth={0} />
             </View>
             <Text style={s.stopModalTitle}>Arrêter l'entraînement ?</Text>
-            <Text style={s.stopModalDesc}>Votre progression partielle sera sauvegardée.</Text>
+            <Text style={s.stopModalDesc}>Que souhaitez-vous faire de cette séance ?</Text>
             <View style={s.stopModalActions}>
+              <Pressable style={s.stopModalSaveBtn} onPress={confirmStop}>
+                <Text style={s.stopModalSaveText}>Sauvegarder & Quitter</Text>
+              </Pressable>
+              <Pressable style={s.stopModalDiscardBtn} onPress={discardStop}>
+                <Text style={s.stopModalDiscardText}>Quitter sans sauvegarder</Text>
+              </Pressable>
               <Pressable style={s.stopModalCancelBtn} onPress={cancelStop}>
                 <Text style={s.stopModalCancelText}>Continuer</Text>
-              </Pressable>
-              <Pressable style={s.stopModalConfirmBtn} onPress={confirmStop}>
-                <Text style={s.stopModalConfirmText}>Arrêter</Text>
               </Pressable>
             </View>
           </View>
@@ -2098,6 +2180,86 @@ const s = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
+  // PR Section
+  prSection: {
+    marginBottom: 24,
+  },
+  prHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+  },
+  prIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: 'rgba(251,191,36,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  prTitle: {
+    fontSize: 11,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+    color: '#FBBF24',
+    letterSpacing: 1.5,
+  },
+  prCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(251,191,36,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.15)',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 8,
+  },
+  prCardLeft: {
+    flex: 1,
+    gap: 2,
+  },
+  prExerciseName: {
+    fontSize: 14,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  prType: {
+    fontSize: 11,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    color: 'rgba(251,191,36,0.7)',
+  },
+  prCardRight: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  prValue: {
+    fontSize: 16,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+    color: '#FBBF24',
+  },
+  prPrevious: {
+    fontSize: 11,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.3)',
+  },
+  prNewBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: 'rgba(251,191,36,0.15)',
+  },
+  prNewText: {
+    fontSize: 9,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+    color: '#FBBF24',
+    letterSpacing: 1,
+  },
   reviewSectionTitle: {
     fontSize: 11,
     fontFamily: Fonts?.bold,
@@ -2217,12 +2379,33 @@ const s = StyleSheet.create({
     textAlign: 'center',
   },
   stopModalActions: {
-    flexDirection: 'row',
     gap: 10,
     width: '100%',
   },
+  stopModalSaveBtn: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: Colors.primary,
+  },
+  stopModalSaveText: {
+    color: '#fff',
+    fontSize: 15,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+  },
+  stopModalDiscardBtn: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  stopModalDiscardText: {
+    color: '#FF4B4B',
+    fontSize: 14,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+  },
   stopModalCancelBtn: {
-    flex: 1,
     alignItems: 'center',
     paddingVertical: 14,
     borderRadius: 14,
@@ -2230,19 +2413,6 @@ const s = StyleSheet.create({
   },
   stopModalCancelText: {
     color: 'rgba(160,160,170,1)',
-    fontSize: 15,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-  stopModalConfirmBtn: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: '#FF4B4B',
-  },
-  stopModalConfirmText: {
-    color: '#fff',
     fontSize: 15,
     fontFamily: Fonts?.bold,
     fontWeight: '700',

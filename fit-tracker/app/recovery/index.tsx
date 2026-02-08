@@ -1,7 +1,7 @@
 /**
- * Recovery Screen — Option B
- * Full-screen body map with floating score ring overlay
- * Rich muscle detail modal matching MVP design
+ * Recovery Screen — Premium Redesign
+ * Scrollable dashboard: body map hero, metric strip, smart nudge,
+ * muscle readiness list, lighter detail sheet. Real data from workout history.
  */
 
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
@@ -14,14 +14,12 @@ import {
   Easing,
   Modal,
   ScrollView,
-  PanResponder,
-  Dimensions,
+  Platform,
+  UIManager,
 } from 'react-native';
-
-const SCREEN_HEIGHT = Dimensions.get('window').height;
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, RotateCcw, X, Info, AlertTriangle } from 'lucide-react-native';
+import { ArrowLeft, RotateCcw, ChevronRight, Zap, BedDouble, Dumbbell, X, Info } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Fonts, Spacing } from '@/constants/theme';
 import {
@@ -30,81 +28,59 @@ import {
   BODY_PART_LABELS,
   MUSCLE_RECOVERY_HOURS,
 } from '@/constants/recovery';
-import {
-  RP_VOLUME_LANDMARKS,
-  getVolumeZone,
-  getZoneColor,
-} from '@/constants/volumeLandmarks';
-import { ScoreRing } from '@/components/recovery/ScoreRing';
 import { BodyMap } from '@/components/recovery/BodyMap';
-import { mockRecoveryOverview, mockWeeklyVolume } from '@/lib/mock-data';
-import { exercises } from '@/data/exercises';
+import { ScoreRing } from '@/components/recovery/ScoreRing';
+import { useWorkoutStore } from '@/stores/workoutStore';
+import { mockRecoveryOverview } from '@/lib/mock-data';
 import { MuscleRecoveryData, RecoveryBodyPart } from '@/types';
+import {
+  computeRecoveryOverview,
+  getMuscleRecoveryDetail,
+  getTrainingRecommendation,
+  formatTimeSince,
+} from '@/lib/recoveryHelpers';
 
-// Map muscle groups back to exercise targets for "recent exercises"
-const MUSCLE_TO_TARGETS: Record<string, string[]> = {};
-const TARGET_TO_MUSCLE: Record<string, string> = {
-  pecs: 'chest', 'upper chest': 'chest', 'lower chest': 'chest',
-  lats: 'lats', 'upper back': 'upper back', 'middle back': 'upper back',
-  'lower back': 'lower back', 'rear delts': 'shoulders',
-  delts: 'shoulders', 'front delts': 'shoulders', 'lateral delts': 'shoulders', traps: 'shoulders',
-  biceps: 'biceps', brachialis: 'biceps', triceps: 'triceps',
-  'forearm flexors': 'forearms', 'forearm extensors': 'forearms', brachioradialis: 'forearms', grip: 'forearms',
-  quads: 'quads', hamstrings: 'hamstrings', glutes: 'glutes',
-  calves: 'calves', gastrocnemius: 'calves', soleus: 'calves',
-  abs: 'abs', 'lower abs': 'abs', 'core stability': 'abs', obliques: 'obliques',
-};
-Object.entries(TARGET_TO_MUSCLE).forEach(([target, muscle]) => {
-  if (!MUSCLE_TO_TARGETS[muscle]) MUSCLE_TO_TARGETS[muscle] = [];
-  if (!MUSCLE_TO_TARGETS[muscle].includes(target)) MUSCLE_TO_TARGETS[muscle].push(target);
-});
-
-function getExercisesForMuscle(bodyPart: string): string[] {
-  const targets = MUSCLE_TO_TARGETS[bodyPart] || [];
-  return exercises
-    .filter((e) => targets.includes(e.target))
-    .slice(0, 6)
-    .map((e) => e.nameFr || e.name);
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-function formatTimeAgo(hours: number | null): string {
-  if (!hours) return '—';
-  if (hours < 24) return `il y a ${Math.round(hours)}h`;
-  const days = Math.round(hours / 24);
-  return days === 1 ? 'il y a 1 jour' : `il y a ${days} jours`;
-}
-
-function getRecoveryAdvice(status: string): string {
-  if (status === 'fatigued')
-    return 'Muscle récemment entraîné, encore en récupération. Concentrez-vous sur d\'autres groupes musculaires aujourd\'hui.';
-  if (status === 'fresh')
-    return 'Muscle bien récupéré et prêt pour l\'entraînement. Idéal pour une séance intensive.';
-  return 'Muscle non entraîné récemment. Pensez à l\'inclure dans votre prochaine séance.';
-}
-
-function getZoneLabelFr(zone: string): string {
-  switch (zone) {
-    case 'below_mv': return 'Sous le maintien';
-    case 'mv_mev': return 'Maintien';
-    case 'mev_mav': return 'Croissance optimale';
-    case 'mav_mrv': return 'Volume élevé';
-    case 'above_mrv': return 'Surentraînement';
-    default: return '';
-  }
-}
+const STATUS_ORDER: Record<string, number> = { fresh: 0, fatigued: 1, undertrained: 2 };
 
 export default function RecoveryScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const overview = mockRecoveryOverview;
+  const { history } = useWorkoutStore();
+
+  // Compute real recovery data (fallback to mock if no history)
+  const overview = useMemo(() => {
+    const hasData = history.some((s) => s.endTime && s.completedExercises.length > 0);
+    if (!hasData) return mockRecoveryOverview;
+    return computeRecoveryOverview(history);
+  }, [history]);
+
+  const recommendation = useMemo(() => getTrainingRecommendation(overview), [overview]);
+
+  // Sort muscles: fresh first (ready to train), then fatigued, then undertrained
+  const sortedMuscles = useMemo(() => {
+    return [...overview.muscles].sort((a, b) => {
+      const orderDiff = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+      if (orderDiff !== 0) return orderDiff;
+      // Within same status, sort by hours since (most recently trained first for fatigued)
+      if (a.status === 'fatigued') {
+        return (a.hoursSinceTraining || 0) - (b.hoursSinceTraining || 0);
+      }
+      return (b.hoursSinceTraining || 0) - (a.hoursSinceTraining || 0);
+    });
+  }, [overview.muscles]);
 
   const [selectedMuscle, setSelectedMuscle] = useState<MuscleRecoveryData | null>(null);
+  const [detailVisible, setDetailVisible] = useState(false);
   const [bodyView, setBodyView] = useState<'front' | 'back'>('front');
   const [showScoreInfo, setShowScoreInfo] = useState(false);
+  const [bodyMapTouching, setBodyMapTouching] = useState(false);
 
-  // Animations
+  // Entry animation
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const flipAnim = useRef(new Animated.Value(1)).current;
   const bodyMapScale = useRef(new Animated.Value(0.95)).current;
 
   useEffect(() => {
@@ -123,9 +99,7 @@ export default function RecoveryScreen() {
     ]).start();
   }, []);
 
-  const handleMusclePress = (muscle: MuscleRecoveryData) => {
-    setSelectedMuscle(muscle);
-  };
+  const flipAnim = useRef(new Animated.Value(1)).current;
 
   const flipBody = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -145,10 +119,9 @@ export default function RecoveryScreen() {
     });
   };
 
-  const getStatusMessage = () => {
-    if (overview.overallScore >= 70) return 'Excellent état';
-    if (overview.overallScore >= 40) return 'Récup. partielle';
-    return 'Repos conseillé';
+  const handleMusclePress = (muscle: MuscleRecoveryData) => {
+    setSelectedMuscle(muscle);
+    setDetailVisible(true);
   };
 
   const getStatusColor = () => {
@@ -157,102 +130,37 @@ export default function RecoveryScreen() {
     return '#EF4444';
   };
 
-  // Drag-to-dismiss for detail sheet
-  const sheetTranslateY = useRef(new Animated.Value(0)).current;
+  const getStatusMessage = () => {
+    if (overview.overallScore >= 70) return 'Excellent';
+    if (overview.overallScore >= 40) return 'Partiel';
+    return 'Repos conseillé';
+  };
 
+  const getRecommendationIcon = () => {
+    if (recommendation.type === 'rest') return BedDouble;
+    return Dumbbell;
+  };
+  const RecIcon = getRecommendationIcon();
+
+  // ─── Bottom Sheet ───
   const dismissSheet = useCallback(() => {
-    Animated.timing(sheetTranslateY, {
-      toValue: SCREEN_HEIGHT,
-      duration: 200,
-      useNativeDriver: true,
-      easing: Easing.in(Easing.ease),
-    }).start(() => {
-      setSelectedMuscle(null);
-      sheetTranslateY.setValue(0);
-    });
+    setDetailVisible(false);
+    // Delay clearing data so the Modal's native slide-out animation still has content
+    setTimeout(() => setSelectedMuscle(null), 350);
   }, []);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderMove: (_, gestureState) => {
-        // Only allow dragging down
-        if (gestureState.dy > 0) {
-          sheetTranslateY.setValue(gestureState.dy);
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 80 || gestureState.vy > 0.4) {
-          dismissSheet();
-        } else {
-          Animated.spring(sheetTranslateY, {
-            toValue: 0,
-            useNativeDriver: true,
-            friction: 8,
-          }).start();
-        }
-      },
-    })
-  ).current;
-
-  // Animate in when muscle selected
-  useEffect(() => {
-    if (selectedMuscle) {
-      sheetTranslateY.setValue(SCREEN_HEIGHT);
-      Animated.spring(sheetTranslateY, {
-        toValue: 0,
-        useNativeDriver: true,
-        friction: 9,
-        tension: 65,
-      }).start();
-    }
-  }, [selectedMuscle]);
-
-  // Computed data for the selected muscle detail
+  // Detail data for selected muscle
   const muscleDetail = useMemo(() => {
     if (!selectedMuscle) return null;
-    const bp = selectedMuscle.bodyPart;
-    const recoveryThresholds = MUSCLE_RECOVERY_HOURS[bp];
-    const landmarks = RP_VOLUME_LANDMARKS[bp];
-    const currentSets = mockWeeklyVolume[bp] || 0;
-    const zone = landmarks ? getVolumeZone(currentSets, landmarks) : 'below_mv';
-    const zoneColor = getZoneColor(zone);
-    const recentExercises = getExercisesForMuscle(bp);
+    return getMuscleRecoveryDetail(history, selectedMuscle.bodyPart);
+  }, [selectedMuscle, history]);
 
-    // Recovery progress (0→1)
-    let recoveryProgress = 1;
-    let hoursRemaining = 0;
-    const totalRecoveryHours = recoveryThresholds?.freshMin || 48;
-    if (selectedMuscle.hoursSinceTraining !== null && selectedMuscle.status === 'fatigued') {
-      recoveryProgress = Math.min(selectedMuscle.hoursSinceTraining / totalRecoveryHours, 0.95);
-      hoursRemaining = Math.max(0, totalRecoveryHours - selectedMuscle.hoursSinceTraining);
-    } else if (selectedMuscle.status === 'fresh') {
-      recoveryProgress = 1;
-    } else {
-      recoveryProgress = 0; // undertrained — no recent data
-    }
-
-    // Mock weekly stats for this muscle
-    const mockReps = currentSets * 10;
-    const mockKg = currentSets > 0 ? Math.round(currentSets * 10 * 22.5) : 0;
-
-    return {
-      landmarks,
-      currentSets,
-      zone,
-      zoneColor,
-      zoneLabelFr: getZoneLabelFr(zone),
-      recentExercises,
-      recoveryProgress,
-      hoursRemaining,
-      totalRecoveryHours,
-      daysTotal: Math.round(totalRecoveryHours / 24),
-      daysSince: selectedMuscle.hoursSinceTraining ? Math.round(selectedMuscle.hoursSinceTraining / 24) : 0,
-      mockReps,
-      mockKg,
-    };
-  }, [selectedMuscle]);
+  // Recovery bar color
+  const getRecoveryBarColor = (progress: number) => {
+    if (progress >= 0.9) return '#22C55E';
+    if (progress >= 0.5) return '#FBBF24';
+    return '#EF4444';
+  };
 
   return (
     <View style={styles.screen}>
@@ -261,279 +169,148 @@ export default function RecoveryScreen() {
       <View style={styles.orbGreen} />
 
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <ChevronLeft size={22} color="#FFFFFF" />
-        </Pressable>
-        <Text style={styles.headerTitle}>Récupération</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <SafeAreaView edges={['top']} style={styles.safeTop}>
+        <View style={styles.header}>
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <ArrowLeft size={22} color="#fff" strokeWidth={2} />
+          </Pressable>
+          <Text style={styles.headerTitle}>Récupération</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+      </SafeAreaView>
 
-      {/* Full-screen body map area */}
-      <Animated.View style={[styles.bodyMapArea, { opacity: fadeAnim }]}>
-        <Animated.View style={[
-          styles.bodyMapContainer,
-          { opacity: flipAnim, transform: [{ scale: bodyMapScale }] }
-        ]}>
-          <BodyMap
-            muscles={overview.muscles}
-            onMusclePress={handleMusclePress}
-            height={520}
-            view={bodyView}
-            showToggle={false}
-            showLegend={false}
-          />
-        </Animated.View>
-
-        {/* Floating Score Ring — top right */}
-        <Pressable
-          style={styles.floatingScore}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setShowScoreInfo(true);
-          }}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        scrollEnabled={!bodyMapTouching}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
+      >
+        {/* ─── Body Map Hero ─── */}
+        <Animated.View
+          style={[styles.bodyMapSection, { opacity: fadeAnim }]}
+          onTouchStart={() => setBodyMapTouching(true)}
+          onTouchEnd={() => setBodyMapTouching(false)}
+          onTouchCancel={() => setBodyMapTouching(false)}
         >
-          <ScoreRing score={overview.overallScore} size={80} />
-          <Text style={[styles.floatingScoreStatus, { color: getStatusColor() }]}>
-            {getStatusMessage()}
-          </Text>
-          <View style={styles.floatingScoreInfoHint}>
-            <Info size={10} color="#6B7280" />
-          </View>
-        </Pressable>
+          <Animated.View style={[
+            styles.bodyMapContainer,
+            { opacity: flipAnim, transform: [{ scale: bodyMapScale }] }
+          ]}>
+            <BodyMap
+              muscles={overview.muscles}
+              onMusclePress={handleMusclePress}
+              height={400}
+              view={bodyView}
+              showToggle={false}
+              showLegend={false}
+            />
+          </Animated.View>
 
-        {/* Bottom bar — flip button + legend */}
-        <View style={[styles.bottomBar, { marginBottom: insets.bottom > 0 ? insets.bottom : 12 }]}>
-          <Pressable style={styles.flipPill} onPress={flipBody}>
-            <RotateCcw size={14} color="#9CA3AF" />
-            <Text style={styles.flipPillText}>
+          {/* Floating score — top right */}
+          <Pressable
+            style={styles.floatingScore}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowScoreInfo(true);
+            }}
+          >
+            <ScoreRing score={overview.overallScore} size={64} />
+            <Text style={[styles.floatingScoreLabel, { color: getStatusColor() }]}>
+              {getStatusMessage()}
+            </Text>
+            <View style={styles.floatingScoreInfoHint}>
+              <Info size={8} color="#6B7280" />
+            </View>
+          </Pressable>
+
+          {/* Floating flip button — top left */}
+          <Pressable style={styles.floatingFlip} onPress={flipBody}>
+            <RotateCcw size={16} color="#D1D5DB" />
+            <Text style={styles.floatingFlipText}>
               {bodyView === 'front' ? 'Dos' : 'Face'}
             </Text>
           </Pressable>
-          <View style={styles.legendRow}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
-              <Text style={styles.legendText}>Fatigué</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#22C55E' }]} />
-              <Text style={styles.legendText}>Frais</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#6B7280' }]} />
-              <Text style={styles.legendText}>Sous-entraîné</Text>
-            </View>
+
+        </Animated.View>
+
+        {/* ─── Metric Strip ─── */}
+        <View style={styles.metricStrip}>
+          <View style={styles.metricItem}>
+            <Text style={[styles.metricValue, { color: '#22C55E' }]}>{overview.freshCount}</Text>
+            <Text style={styles.metricLabel}>frais</Text>
+          </View>
+          <View style={styles.metricDivider} />
+          <View style={styles.metricItem}>
+            <Text style={[styles.metricValue, { color: '#EF4444' }]}>{overview.fatiguedCount}</Text>
+            <Text style={styles.metricLabel}>fatigués</Text>
+          </View>
+          <View style={styles.metricDivider} />
+          <View style={styles.metricItem}>
+            <Text style={[styles.metricValue, { color: '#6B7280' }]}>{overview.undertrainedCount}</Text>
+            <Text style={styles.metricLabel}>sous-entraînés</Text>
           </View>
         </View>
-      </Animated.View>
 
-      {/* ═══════ Muscle Detail Bottom Sheet ═══════ */}
-      <Modal
-        visible={selectedMuscle !== null}
-        transparent
-        animationType="none"
-        onRequestClose={dismissSheet}
-      >
-        <View style={styles.modalOverlay}>
-          {/* Backdrop — tap to dismiss */}
-          <Pressable style={{ flex: 1 }} onPress={dismissSheet} />
-
-          {/* Sheet */}
-          <Animated.View
-            style={[styles.detailSheet, { transform: [{ translateY: sheetTranslateY }] }]}
-          >
-            {/* Drag handle area */}
-            <View {...panResponder.panHandlers}>
-              <View style={styles.modalHandle} />
-            </View>
-
-            {selectedMuscle && muscleDetail && (
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                bounces={false}
-              >
-                {/* Header: name */}
-                <View style={styles.detailHeader}>
-                  <Text style={styles.detailName}>
-                    {BODY_PART_LABELS[selectedMuscle.bodyPart]?.fr || selectedMuscle.bodyPart}
-                  </Text>
-                </View>
-
-                {/* Status badge + time ago */}
-                <View style={styles.statusRow}>
-                  <View style={[
-                    styles.statusBadge,
-                    { backgroundColor: `${RECOVERY_COLORS[selectedMuscle.status]}20` }
-                  ]}>
-                    {selectedMuscle.status === 'fatigued' && (
-                      <AlertTriangle size={12} color={RECOVERY_COLORS[selectedMuscle.status]} strokeWidth={2.5} />
-                    )}
-                    <Text style={[styles.statusBadgeText, { color: RECOVERY_COLORS[selectedMuscle.status] }]}>
-                      {RECOVERY_LABELS[selectedMuscle.status].fr}
-                    </Text>
-                  </View>
-                  <Text style={styles.timeAgo}>
-                    {formatTimeAgo(selectedMuscle.hoursSinceTraining)}
-                  </Text>
-                </View>
-
-                {/* Recovery insight card */}
-                <View style={styles.insightCard}>
-                  <Text style={styles.insightText}>
-                    {getRecoveryAdvice(selectedMuscle.status)}
-                  </Text>
-                  {selectedMuscle.status === 'fatigued' && selectedMuscle.hoursSinceTraining !== null && (
-                    <>
-                      <View style={styles.recoveryBarBg}>
-                        <View style={[
-                          styles.recoveryBarFill,
-                          {
-                            width: `${muscleDetail.recoveryProgress * 100}%`,
-                            backgroundColor: muscleDetail.recoveryProgress > 0.7 ? '#FBBF24' : '#EF4444',
-                          },
-                        ]} />
-                      </View>
-                      <View style={styles.recoveryTimeRow}>
-                        <Text style={styles.recoveryTimeLeft}>
-                          ~{Math.round(muscleDetail.hoursRemaining)}h restantes
-                        </Text>
-                        <Text style={styles.recoveryTimeRight}>
-                          {muscleDetail.daysSince}j / {muscleDetail.daysTotal}j
-                        </Text>
-                      </View>
-                    </>
-                  )}
-                </View>
-
-                {/* Volume this week */}
-                {muscleDetail.landmarks && (
-                  <View style={styles.volumeSection}>
-                    <View style={styles.volumeHeader}>
-                      <Text style={styles.volumeTitle}>Volume cette semaine</Text>
-                      <View style={[styles.zoneBadge, { backgroundColor: `${muscleDetail.zoneColor}20` }]}>
-                        <Text style={[styles.zoneBadgeText, { color: muscleDetail.zoneColor }]}>
-                          {muscleDetail.zoneLabelFr}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Volume bar */}
-                    <View style={styles.volumeBarBg}>
-                      <View style={[
-                        styles.volumeBarFill,
-                        {
-                          width: `${Math.min(muscleDetail.currentSets / muscleDetail.landmarks.mrv, 1) * 100}%`,
-                          backgroundColor: muscleDetail.zoneColor,
-                        },
-                      ]} />
-                      {/* MV marker */}
-                      <View style={[styles.volumeMarker, { left: `${(muscleDetail.landmarks.mv / muscleDetail.landmarks.mrv) * 100}%` }]} />
-                      {/* MEV marker */}
-                      <View style={[styles.volumeMarker, styles.volumeMarkerBlue, { left: `${(muscleDetail.landmarks.mev / muscleDetail.landmarks.mrv) * 100}%` }]} />
-                      {/* MAV marker */}
-                      <View style={[styles.volumeMarker, styles.volumeMarkerYellow, { left: `${(muscleDetail.landmarks.mavHigh / muscleDetail.landmarks.mrv) * 100}%` }]} />
-                    </View>
-
-                    {/* Marker labels */}
-                    <View style={styles.markerLabelsRow}>
-                      <Text style={[styles.markerLabel, { left: `${(muscleDetail.landmarks.mv / muscleDetail.landmarks.mrv) * 100}%` }]}>MV</Text>
-                      <Text style={[styles.markerLabel, { left: `${(muscleDetail.landmarks.mev / muscleDetail.landmarks.mrv) * 100}%` }]}>MEV</Text>
-                      <Text style={[styles.markerLabel, { left: `${(muscleDetail.landmarks.mavHigh / muscleDetail.landmarks.mrv) * 100}%` }]}>MAV</Text>
-                    </View>
-
-                    {/* Big number */}
-                    <View style={styles.volumeNumberRow}>
-                      <Text style={[styles.volumeNumberBig, { color: muscleDetail.zoneColor }]}>
-                        {muscleDetail.currentSets}
-                      </Text>
-                      <Text style={styles.volumeNumberTarget}>
-                        / {muscleDetail.landmarks.mavHigh} séries
-                      </Text>
-                    </View>
-
-                    {/* Landmark values row */}
-                    <View style={styles.landmarksRow}>
-                      <View style={styles.landmarkCell}>
-                        <Text style={styles.landmarkValue}>{muscleDetail.landmarks.mv}</Text>
-                        <Text style={styles.landmarkLabel}>MV</Text>
-                      </View>
-                      <View style={styles.landmarkDivider} />
-                      <View style={styles.landmarkCell}>
-                        <Text style={styles.landmarkValue}>{muscleDetail.landmarks.mev}</Text>
-                        <Text style={styles.landmarkLabel}>MEV</Text>
-                      </View>
-                      <View style={styles.landmarkDivider} />
-                      <View style={styles.landmarkCell}>
-                        <Text style={[styles.landmarkValue, { color: '#4ADE80' }]}>
-                          {muscleDetail.landmarks.mavLow}–{muscleDetail.landmarks.mavHigh}
-                        </Text>
-                        <Text style={[styles.landmarkLabel, { color: '#4ADE80' }]}>MAV</Text>
-                      </View>
-                      <View style={styles.landmarkDivider} />
-                      <View style={styles.landmarkCell}>
-                        <Text style={[styles.landmarkValue, { color: '#EF4444' }]}>
-                          {muscleDetail.landmarks.mrv}
-                        </Text>
-                        <Text style={[styles.landmarkLabel, { color: '#EF4444' }]}>MRV</Text>
-                      </View>
-                    </View>
-                  </View>
-                )}
-
-                {/* This week stats */}
-                <View style={styles.weekStatsCard}>
-                  <Text style={styles.weekStatsTitle}>CETTE SEMAINE</Text>
-                  <View style={styles.weekStatsRow}>
-                    <View style={styles.weekStat}>
-                      <Text style={styles.weekStatValue}>{muscleDetail.currentSets}</Text>
-                      <Text style={styles.weekStatLabel}>séries</Text>
-                    </View>
-                    <View style={styles.weekStatDivider} />
-                    <View style={styles.weekStat}>
-                      <Text style={styles.weekStatValue}>{muscleDetail.mockReps}</Text>
-                      <Text style={styles.weekStatLabel}>reps</Text>
-                    </View>
-                    <View style={styles.weekStatDivider} />
-                    <View style={styles.weekStat}>
-                      <Text style={styles.weekStatValue}>
-                        {muscleDetail.mockKg >= 1000
-                          ? `${(muscleDetail.mockKg / 1000).toFixed(1)}k`
-                          : muscleDetail.mockKg}
-                      </Text>
-                      <Text style={styles.weekStatLabel}>kg</Text>
-                    </View>
-                    <View style={styles.weekStatDivider} />
-                    <View style={styles.weekStat}>
-                      <Text style={styles.weekStatValue}>
-                        {selectedMuscle.totalSets > 0 ? Math.ceil(selectedMuscle.totalSets / 6) : 0}
-                      </Text>
-                      <Text style={styles.weekStatLabel}>sessions</Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Recent exercises */}
-                {muscleDetail.recentExercises.length > 0 && (
-                  <View style={styles.recentSection}>
-                    <Text style={styles.recentTitle}>Exercices récents</Text>
-                    <View style={styles.recentPills}>
-                      {muscleDetail.recentExercises.map((name, i) => (
-                        <View key={i} style={styles.recentPill}>
-                          <Text style={styles.recentPillText}>{name}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                <View style={{ height: 20 }} />
-              </ScrollView>
-            )}
-          </Animated.View>
+        {/* ─── Smart Nudge ─── */}
+        <View style={styles.nudgeContainer}>
+          <View style={styles.nudgeIconWrap}>
+            <RecIcon size={16} color={recommendation.type === 'rest' ? '#FBBF24' : '#22C55E'} />
+          </View>
+          <Text style={styles.nudgeText}>{recommendation.message}</Text>
         </View>
-      </Modal>
 
-      {/* Score Info Modal */}
+        {/* ─── Muscle Readiness ─── */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>ÉTAT DES MUSCLES</Text>
+        </View>
+
+        {sortedMuscles.map((muscle) => {
+          const thresholds = MUSCLE_RECOVERY_HOURS[muscle.bodyPart];
+          const totalHours = thresholds?.freshMin || 48;
+          let progress = 0;
+          if (muscle.status === 'fresh') progress = 1;
+          else if (muscle.status === 'fatigued' && muscle.hoursSinceTraining !== null) {
+            progress = Math.min(muscle.hoursSinceTraining / totalHours, 0.95);
+          }
+          const statusColor = RECOVERY_COLORS[muscle.status];
+          const label = BODY_PART_LABELS[muscle.bodyPart]?.fr || muscle.bodyPart;
+
+          return (
+            <Pressable
+              key={muscle.bodyPart}
+              style={styles.muscleRow}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setSelectedMuscle(muscle);
+                setDetailVisible(true);
+              }}
+            >
+              <View style={[styles.muscleStatusDot, { backgroundColor: statusColor }]} />
+              <View style={styles.muscleInfo}>
+                <Text style={styles.muscleName}>{label}</Text>
+                <View style={styles.muscleBarBg}>
+                  <View
+                    style={[
+                      styles.muscleBarFill,
+                      {
+                        width: `${(muscle.status === 'undertrained' ? 0 : progress) * 100}%`,
+                        backgroundColor: muscle.status === 'fresh'
+                          ? '#22C55E'
+                          : getRecoveryBarColor(progress),
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+              <Text style={styles.muscleTime}>
+                {formatTimeSince(muscle.hoursSinceTraining)}
+              </Text>
+              <ChevronRight size={14} color="rgba(255,255,255,0.2)" />
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      {/* ═══════ Score Info Modal ═══════ */}
       <Modal
         visible={showScoreInfo}
         transparent
@@ -544,7 +321,7 @@ export default function RecoveryScreen() {
           <Pressable style={styles.infoModal} onPress={(e) => e.stopPropagation()}>
             <View style={styles.infoModalHeader}>
               <Text style={styles.infoModalTitle}>Score de Récupération</Text>
-              <Pressable style={styles.modalClose} onPress={() => setShowScoreInfo(false)}>
+              <Pressable style={styles.infoModalClose} onPress={() => setShowScoreInfo(false)}>
                 <X size={18} color="#9CA3AF" />
               </Pressable>
             </View>
@@ -596,6 +373,100 @@ export default function RecoveryScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* ═══════ Muscle Detail Bottom Sheet ═══════ */}
+      <Modal
+        visible={detailVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={dismissSheet}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={{ flex: 1 }} onPress={dismissSheet} />
+
+          <View style={styles.detailSheet}>
+            <View style={styles.modalHandle} />
+
+            {selectedMuscle && muscleDetail && (
+              <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+                {/* Header */}
+                <View style={styles.detailHeader}>
+                  <Text style={styles.detailName}>
+                    {BODY_PART_LABELS[selectedMuscle.bodyPart]?.fr || selectedMuscle.bodyPart}
+                  </Text>
+                  <View style={[
+                    styles.statusBadge,
+                    { backgroundColor: `${RECOVERY_COLORS[selectedMuscle.status]}20` }
+                  ]}>
+                    <Text style={[styles.statusBadgeText, { color: RECOVERY_COLORS[selectedMuscle.status] }]}>
+                      {RECOVERY_LABELS[selectedMuscle.status].fr}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Time since training */}
+                <Text style={styles.detailTimeSince}>
+                  {formatTimeSince(selectedMuscle.hoursSinceTraining)}
+                </Text>
+
+                {/* Recovery progress bar (for fatigued muscles) */}
+                {selectedMuscle.status === 'fatigued' && muscleDetail.hoursSince !== null && (
+                  <View style={styles.recoverySection}>
+                    <Text style={styles.recoveryLabel}>Progression de récupération</Text>
+                    <View style={styles.recoveryBarBg}>
+                      <View style={[
+                        styles.recoveryBarFill,
+                        {
+                          width: `${muscleDetail.recoveryProgress * 100}%`,
+                          backgroundColor: getRecoveryBarColor(muscleDetail.recoveryProgress),
+                        },
+                      ]} />
+                    </View>
+                    <View style={styles.recoveryTimeRow}>
+                      <Text style={styles.recoveryTimeLeft}>
+                        ~{Math.round(muscleDetail.hoursRemaining)}h restantes
+                      </Text>
+                      <Text style={styles.recoveryTimeRight}>
+                        {Math.round(muscleDetail.hoursSince)}h / {muscleDetail.totalRecoveryHours}h
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Last session info */}
+                {muscleDetail.exerciseNames.length > 0 && (
+                  <View style={styles.lastSessionSection}>
+                    <Text style={styles.lastSessionTitle}>Dernière séance</Text>
+                    <View style={styles.lastSessionRow}>
+                      <Text style={styles.lastSessionSets}>{muscleDetail.totalSets} séries</Text>
+                      <Text style={styles.lastSessionDot}> · </Text>
+                      <Text style={styles.lastSessionExercises} numberOfLines={1}>
+                        {muscleDetail.exerciseNames.join(', ')}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Navigate to volume detail */}
+                <Pressable
+                  style={styles.detailLink}
+                  onPress={() => {
+                    dismissSheet();
+                    setTimeout(() => {
+                      router.push(`/volume/${selectedMuscle.bodyPart}`);
+                    }, 300);
+                  }}
+                >
+                  <Text style={styles.detailLinkText}>Voir volume & historique</Text>
+                  <ChevronRight size={16} color="#FF6B35" />
+                </Pressable>
+
+                <View style={{ height: 20 }} />
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -636,6 +507,11 @@ const styles = StyleSheet.create({
     shadowRadius: 100,
   },
 
+  // Safe area top
+  safeTop: {
+    backgroundColor: 'transparent',
+  },
+
   // Header
   header: {
     flexDirection: 'row',
@@ -645,14 +521,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   headerTitle: {
     fontSize: 18,
@@ -660,102 +534,198 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  headerSpacer: { width: 44 },
+  headerSpacer: { width: 40 },
 
-  // Body Map Area
-  bodyMapArea: {
-    flex: 1,
+  scrollContent: {
+    paddingBottom: 40,
+  },
+
+  // ─── Body Map Section ───
+  bodyMapSection: {
     position: 'relative',
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingTop: 4,
   },
   bodyMapContainer: {
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  // Floating Score Ring
+  // Floating Score
   floatingScore: {
     position: 'absolute',
     top: 8,
     right: Spacing.lg,
     alignItems: 'center',
     backgroundColor: 'rgba(12, 12, 12, 0.75)',
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 10,
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 8,
   },
-  floatingScoreStatus: {
-    fontSize: 10,
+  floatingScoreLabel: {
+    fontSize: 9,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    marginTop: 4,
+    marginTop: 2,
     textAlign: 'center',
   },
   floatingScoreInfoHint: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    top: 6,
+    right: 6,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  // Bottom bar
-  bottomBar: {
+  // Floating flip button — top left
+  floatingFlip: {
     position: 'absolute',
-    bottom: 0,
+    top: 8,
     left: Spacing.lg,
-    right: Spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(12, 12, 12, 0.8)',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  flipPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    backgroundColor: 'rgba(12, 12, 12, 0.75)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
-  flipPillText: {
-    fontSize: 12,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    color: '#9CA3AF',
-  },
-  legendRow: {
-    flexDirection: 'row',
-    gap: 14,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  legendDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-  },
-  legendText: {
-    fontSize: 10,
+  floatingFlipText: {
+    fontSize: 13,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
     color: '#D1D5DB',
   },
 
-  // ═══════ Modals shared ═══════
+
+  // ─── Metric Strip ───
+  metricStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    marginHorizontal: Spacing.lg,
+    paddingVertical: 14,
+  },
+  metricItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  metricValue: {
+    fontSize: 24,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  metricLabel: {
+    fontSize: 11,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  metricDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+
+  // ─── Smart Nudge ───
+  nudgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: Spacing.lg,
+    marginTop: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    gap: 10,
+  },
+  nudgeIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nudgeText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    color: '#D1D5DB',
+    lineHeight: 18,
+  },
+
+  // ─── Section Header ───
+  sectionHeader: {
+    marginTop: 24,
+    marginBottom: 8,
+    paddingHorizontal: Spacing.lg,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    color: '#6B7280',
+    letterSpacing: 1,
+  },
+
+  // ─── Muscle Row ───
+  muscleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  muscleStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  muscleInfo: {
+    flex: 1,
+    gap: 5,
+  },
+  muscleName: {
+    fontSize: 14,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  muscleBarBg: {
+    height: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 1.5,
+  },
+  muscleBarFill: {
+    height: '100%',
+    borderRadius: 1.5,
+  },
+  muscleTime: {
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    color: '#6B7280',
+    minWidth: 70,
+    textAlign: 'right',
+  },
+
+  // ═══════ Modal ═══════
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -769,16 +739,8 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 16,
   },
-  modalClose: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 
-  // ═══════ Muscle Detail Sheet ═══════
+  // ─── Detail Sheet ───
   detailSheet: {
     backgroundColor: '#1C1C1E',
     borderTopLeftRadius: 24,
@@ -788,24 +750,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
     borderBottomWidth: 0,
-    maxHeight: '85%',
+    maxHeight: '60%',
   },
   detailHeader: {
-    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
   detailName: {
-    fontSize: 24,
+    fontSize: 22,
     fontFamily: Fonts?.bold,
     fontWeight: '700',
     color: '#FFFFFF',
-  },
-
-  // Status badge + time
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 16,
   },
   statusBadge: {
     flexDirection: 'row',
@@ -816,33 +773,28 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   statusBadgeText: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
   },
-  timeAgo: {
+  detailTimeSince: {
     fontSize: 13,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
     color: '#6B7280',
+    marginBottom: 16,
   },
 
-  // Recovery insight card
-  insightCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    padding: 14,
-    marginBottom: 20,
-    gap: 10,
+  // Recovery progress
+  recoverySection: {
+    marginBottom: 16,
+    gap: 8,
   },
-  insightText: {
+  recoveryLabel: {
     fontSize: 13,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
-    color: '#D1D5DB',
-    lineHeight: 19,
+    color: '#9CA3AF',
   },
   recoveryBarBg: {
     height: 6,
@@ -870,201 +822,57 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
 
-  // Volume section
-  volumeSection: {
+  // Last session
+  lastSessionSection: {
     marginBottom: 16,
-    gap: 12,
+    gap: 6,
   },
-  volumeHeader: {
+  lastSessionTitle: {
+    fontSize: 13,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    color: '#9CA3AF',
+  },
+  lastSessionRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  volumeTitle: {
-    fontSize: 15,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  zoneBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  zoneBadgeText: {
-    fontSize: 12,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-  },
-
-  // Volume bar
-  volumeBarBg: {
-    height: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 5,
-    position: 'relative',
-  },
-  volumeBarFill: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    height: '100%',
-    borderRadius: 5,
-  },
-  volumeMarker: {
-    position: 'absolute',
-    top: -4,
-    width: 2,
-    height: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    borderRadius: 1,
-  },
-  volumeMarkerBlue: {
-    backgroundColor: 'rgba(59, 130, 246, 0.85)',
-  },
-  volumeMarkerYellow: {
-    backgroundColor: 'rgba(251, 191, 36, 0.85)',
-  },
-
-  // Marker labels
-  markerLabelsRow: {
-    position: 'relative',
-    height: 16,
-  },
-  markerLabel: {
-    position: 'absolute',
-    fontSize: 9,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    color: '#6B7280',
-    transform: [{ translateX: -10 }],
-  },
-
-  // Volume big number
-  volumeNumberRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  volumeNumberBig: {
-    fontSize: 36,
+  lastSessionSets: {
+    fontSize: 14,
     fontFamily: Fonts?.bold,
     fontWeight: '700',
+    color: '#FFFFFF',
   },
-  volumeNumberTarget: {
-    fontSize: 16,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
+  lastSessionDot: {
+    fontSize: 14,
     color: '#6B7280',
   },
-
-  // Landmark values row
-  landmarksRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    paddingVertical: 12,
-  },
-  landmarkCell: {
+  lastSessionExercises: {
     flex: 1,
-    alignItems: 'center',
-    gap: 2,
-  },
-  landmarkValue: {
-    fontSize: 15,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  landmarkLabel: {
-    fontSize: 10,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  landmarkDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-
-  // This week stats
-  weekStatsCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    padding: 14,
-    marginBottom: 16,
-    gap: 10,
-  },
-  weekStatsTitle: {
-    fontSize: 10,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    color: '#6B7280',
-    letterSpacing: 1,
-  },
-  weekStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  weekStat: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 2,
-  },
-  weekStatValue: {
-    fontSize: 18,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  weekStatLabel: {
-    fontSize: 10,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-  weekStatDivider: {
-    width: 1,
-    height: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-
-  // Recent exercises
-  recentSection: {
-    gap: 10,
-  },
-  recentTitle: {
-    fontSize: 15,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  recentPills: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  recentPill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  recentPillText: {
     fontSize: 13,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
     color: '#D1D5DB',
   },
 
-  // ═══════ Score Info Modal ═══════
+  // Detail link
+  detailLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    marginTop: 4,
+  },
+  detailLinkText: {
+    fontSize: 14,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    color: '#FF6B35',
+  },
+
+  // ─── Score Info Modal ───
   infoModal: {
     backgroundColor: '#1C1C1E',
     borderTopLeftRadius: 24,
@@ -1087,6 +895,14 @@ const styles = StyleSheet.create({
     fontFamily: Fonts?.bold,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  infoModalClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   infoModalText: {
     fontSize: 14,

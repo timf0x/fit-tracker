@@ -101,6 +101,10 @@ export interface WorkoutSession {
   endTime?: string;
   durationSeconds: number;
   completedExercises: CompletedExercise[];
+  // Program tracking (optional)
+  programId?: string;
+  programWeek?: number;
+  programDayIndex?: number;
 }
 
 export interface WorkoutStats {

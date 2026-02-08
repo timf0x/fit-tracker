@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useState, useMemo, useRef, useCallback } from 'react';
+import { View, Text, Pressable, StyleSheet, LayoutChangeEvent } from 'react-native';
 import Body, { Slug, ExtendedBodyPart } from 'react-native-body-highlighter';
 import * as Haptics from 'expo-haptics';
 import { MuscleRecoveryData, RecoveryBodyPart, RecoveryLevel } from '@/types';
 import { Fonts } from '@/constants/theme';
+import { BodyMapScrubOverlay } from './BodyMapScrubOverlay';
 
 interface BodyMapProps {
   muscles: MuscleRecoveryData[];
@@ -61,6 +62,22 @@ export function BodyMap({
   const view = externalView ?? internalView;
   const setView = setInternalView;
 
+  // Layout measurement for scrub overlay
+  const containerRef = useRef<View>(null);
+  const [containerLayout, setContainerLayout] = useState<{
+    width: number;
+    height: number;
+    pageX: number;
+    pageY: number;
+  } | null>(null);
+
+  const handleContainerLayout = useCallback((e: LayoutChangeEvent) => {
+    // measureInWindow gives absolute screen coordinates
+    containerRef.current?.measureInWindow((pageX, pageY, width, height) => {
+      setContainerLayout({ width, height, pageX, pageY });
+    });
+  }, []);
+
   const bodyData = useMemo((): ExtendedBodyPart[] => {
     const data: ExtendedBodyPart[] = [];
     muscles.forEach((muscle) => {
@@ -94,6 +111,21 @@ export function BodyMap({
 
   const scale = height / 300;
 
+  // Body SVG rendered dimensions (from react-native-body-highlighter internals)
+  // The SVG viewBox is 724x1448. With scale, the rendered size is:
+  //   width  = 200 * scale
+  //   height = 400 * scale
+  const bodyRenderedWidth = 200 * scale;
+  const bodyRenderedHeight = 400 * scale;
+
+  // Body is centered horizontally in the container
+  const bodyOffsetX = containerLayout
+    ? (containerLayout.width - bodyRenderedWidth) / 2
+    : 0;
+  const bodyOffsetY = containerLayout
+    ? (containerLayout.height - bodyRenderedHeight) / 2
+    : 0;
+
   return (
     <View style={styles.container}>
       {showToggle && (
@@ -117,7 +149,11 @@ export function BodyMap({
         </View>
       )}
 
-      <View style={[styles.bodyContainer, { minHeight: height }]}>
+      <View
+        ref={containerRef}
+        style={[styles.bodyContainer, { minHeight: height }]}
+        onLayout={handleContainerLayout}
+      >
         <Body
           data={bodyData}
           gender="male"
@@ -127,6 +163,21 @@ export function BodyMap({
           colors={BODY_COLORS}
           onBodyPartPress={handleBodyPress}
         />
+
+        {/* Scrub overlay — only render once we have layout measurements */}
+        {containerLayout && onMusclePress && (
+          <BodyMapScrubOverlay
+            bodyWidth={bodyRenderedWidth}
+            bodyHeight={bodyRenderedHeight}
+            bodyOffsetX={bodyOffsetX}
+            bodyOffsetY={bodyOffsetY}
+            containerPageX={containerLayout.pageX}
+            containerPageY={containerLayout.pageY}
+            view={view}
+            muscles={muscles}
+            onMuscleSelect={onMusclePress}
+          />
+        )}
       </View>
 
       {showLegend && (

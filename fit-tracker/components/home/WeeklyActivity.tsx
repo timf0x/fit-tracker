@@ -1,16 +1,43 @@
+import { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Calendar, Flame, ChevronRight } from 'lucide-react-native';
+import { Calendar, Flame, ChevronRight, Zap } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { useWorkoutStore } from '@/stores/workoutStore';
+import { getWeekSummary, getWeekPRs } from '@/lib/statsHelpers';
 import { mockWeekly } from '@/lib/mock-data';
 import i18n from '@/lib/i18n';
 import fr from '@/lib/translations/fr';
 
 const DAYS = fr.home.weekly.days;
 
+function formatVolume(kg: number): string {
+  if (kg >= 1000) return `${(kg / 1000).toFixed(1)}t`;
+  return `${kg}kg`;
+}
+
+
 export function WeeklyActivity() {
   const router = useRouter();
-  const { completedDays, currentDayIndex, streak } = mockWeekly;
+  const { history, stats } = useWorkoutStore();
+
+  const weekSummary = useMemo(
+    () => getWeekSummary(history, 0),
+    [history]
+  );
+
+  const weekPRs = useMemo(
+    () => getWeekPRs(history, 0),
+    [history]
+  );
+
+  const hasRealData = history.filter((s) => s.endTime).length > 0;
+
+  const completedDays = hasRealData
+    ? weekSummary.completedDays
+    : mockWeekly.completedDays;
+  const currentDayIndex = weekSummary.currentDayIndex;
+  const streak = hasRealData ? stats.currentStreak : mockWeekly.streak;
 
   return (
     <Pressable style={styles.container} onPress={() => router.push('/stats')}>
@@ -25,15 +52,7 @@ export function WeeklyActivity() {
               {i18n.t('home.weekly.title')}
             </Text>
           </View>
-          <View style={styles.headerRight}>
-            <View style={styles.streakBadge}>
-              <Flame size={12} color="#f97316" strokeWidth={2.5} />
-              <Text style={styles.streakText}>
-                {streak} {i18n.t('home.weekly.streak')}
-              </Text>
-            </View>
-            <ChevronRight size={16} color="rgba(120,120,130,1)" strokeWidth={2} />
-          </View>
+          <ChevronRight size={16} color="rgba(120,120,130,1)" strokeWidth={2} />
         </View>
 
         {/* Day circles + labels below */}
@@ -65,6 +84,36 @@ export function WeeklyActivity() {
           })}
         </View>
 
+        {/* Stats Chips Row */}
+        <View style={styles.chipsRow}>
+          {hasRealData && (
+            <>
+              <View style={styles.chip}>
+                <Text style={styles.chipValue}>{weekSummary.sessions}</Text>
+                <Text style={styles.chipLabel}> séances</Text>
+              </View>
+              <View style={styles.chip}>
+                <Text style={styles.chipValue}>
+                  {formatVolume(weekSummary.totalVolumeKg)}
+                </Text>
+              </View>
+              {weekPRs.total > 0 && (
+                <View style={[styles.chip, styles.chipPR]}>
+                  <Text style={styles.chipValuePR}>{weekPRs.total} PR</Text>
+                  <Zap size={10} color="#FF6B35" strokeWidth={2.5} />
+                </View>
+              )}
+            </>
+          )}
+          {streak > 0 && (
+            <View style={[styles.chip, styles.chipStreak]}>
+              <Flame size={10} color="#f97316" strokeWidth={2.5} />
+              <Text style={styles.chipValueStreak}>
+                {streak} {i18n.t('home.weekly.streak')}
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
     </Pressable>
   );
@@ -100,32 +149,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   headerLabel: {
     color: 'rgba(200,200,210,1)',
     fontSize: 12,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
     letterSpacing: 1.5,
-  },
-  streakBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  streakText: {
-    color: 'rgba(180,180,190,1)',
-    fontSize: 12,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
   },
   daysRow: {
     flexDirection: 'row',
@@ -164,5 +193,51 @@ const styles = StyleSheet.create({
   },
   dayLabelToday: {
     color: '#f97316',
+  },
+
+  // Stats Chips
+  chipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  chipPR: {
+    backgroundColor: 'rgba(255,107,53,0.12)',
+  },
+  chipValue: {
+    color: '#fff',
+    fontSize: 11,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+  },
+  chipLabel: {
+    color: 'rgba(160,150,140,1)',
+    fontSize: 11,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+  },
+  chipValuePR: {
+    color: '#FF6B35',
+    fontSize: 11,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    marginRight: 3,
+  },
+  chipStreak: {
+    backgroundColor: 'rgba(249,115,22,0.10)',
+    gap: 4,
+  },
+  chipValueStreak: {
+    color: '#f97316',
+    fontSize: 11,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
   },
 });

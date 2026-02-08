@@ -1,13 +1,21 @@
 import { View, ScrollView, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import MaskedView from '@react-native-masked-view/masked-view';
 import { Spacing } from '@/constants/theme';
 import { HeaderGreeting } from '@/components/home/HeaderGreeting';
 import { StatsRow } from '@/components/home/StatsRow';
 import { WeeklyActivity } from '@/components/home/WeeklyActivity';
 import { VolumeCard } from '@/components/home/VolumeCard';
+import { ActiveProgramCard } from '@/components/home/ActiveProgramCard';
 import { RecommendedSection } from '@/components/home/RecommendedSection';
 import { BrowseButton } from '@/components/home/BrowseButton';
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
+  const fadeHeight = insets.top + 30;
+
   return (
     <View style={styles.screen}>
       {/* Ambient decorative orbs */}
@@ -22,10 +30,30 @@ export default function HomeScreen() {
         <HeaderGreeting />
         <StatsRow />
         <WeeklyActivity />
+        <ActiveProgramCard />
         <VolumeCard />
         <RecommendedSection />
         <BrowseButton />
       </ScrollView>
+
+      {/* Gradient-masked blur behind status bar / notch */}
+      <MaskedView
+        style={[styles.topFade, { height: fadeHeight }]}
+        maskElement={
+          <LinearGradient
+            colors={['#000', '#000', 'transparent']}
+            locations={[0, 0.5, 1]}
+            style={{ flex: 1 }}
+          />
+        }
+        pointerEvents="none"
+      >
+        <BlurView
+          intensity={50}
+          tint="dark"
+          style={{ flex: 1 }}
+        />
+      </MaskedView>
     </View>
   );
 }
@@ -63,6 +91,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.08,
     shadowRadius: 120,
+  },
+  topFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
   },
   scrollView: {
     flex: 1,

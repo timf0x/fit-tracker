@@ -3,12 +3,14 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Workout, WorkoutSession, WorkoutStats, HistoryFilter } from '@/types';
 import { presetWorkouts } from '@/data/workouts';
+import { useProgramStore } from '@/stores/programStore';
 
 interface WorkoutStoreState {
   customWorkouts: Workout[];
   history: WorkoutSession[];
   stats: WorkoutStats;
   historyFilter: HistoryFilter;
+  muscleOrder: string[];
 
   // Custom Workouts
   addCustomWorkout: (workout: Omit<Workout, 'id' | 'isPreset' | 'createdAt' | 'updatedAt'>) => string;
@@ -17,10 +19,13 @@ interface WorkoutStoreState {
   duplicateWorkout: (id: string) => string;
 
   // History
-  startSession: (workoutId: string, workoutName?: string) => string;
+  startSession: (workoutId: string, workoutName?: string, programMeta?: { programId: string; programWeek: number; programDayIndex: number }) => string;
   endSession: (sessionId: string, data: Partial<WorkoutSession>) => void;
   deleteSession: (sessionId: string) => void;
   setHistoryFilter: (filter: HistoryFilter) => void;
+
+  // Preferences
+  setMuscleOrder: (order: string[]) => void;
 
   // Getters
   getWorkoutById: (id: string) => Workout | undefined;
@@ -48,6 +53,7 @@ export const useWorkoutStore = create<WorkoutStoreState>()(
       history: [],
       stats: initialStats,
       historyFilter: { dateRange: 'week' },
+      muscleOrder: [],
 
       addCustomWorkout: (workoutData) => {
         const id = generateId();
@@ -102,7 +108,7 @@ export const useWorkoutStore = create<WorkoutStoreState>()(
         });
       },
 
-      startSession: (workoutId, workoutName) => {
+      startSession: (workoutId, workoutName, programMeta) => {
         const workout = get().getWorkoutById(workoutId);
         const name = workoutName || workout?.name || 'Workout';
         const id = generateSessionId();
@@ -114,6 +120,11 @@ export const useWorkoutStore = create<WorkoutStoreState>()(
           startTime: new Date().toISOString(),
           durationSeconds: 0,
           completedExercises: [],
+          ...(programMeta && {
+            programId: programMeta.programId,
+            programWeek: programMeta.programWeek,
+            programDayIndex: programMeta.programDayIndex,
+          }),
         };
 
         set((state) => ({
@@ -123,14 +134,20 @@ export const useWorkoutStore = create<WorkoutStoreState>()(
       },
 
       endSession: (sessionId, data) => {
+        const session = get().history.find((s) => s.id === sessionId);
         set((state) => ({
-          history: state.history.map((session) =>
-            session.id === sessionId
-              ? { ...session, ...data, endTime: new Date().toISOString() }
-              : session
+          history: state.history.map((s) =>
+            s.id === sessionId
+              ? { ...s, ...data, endTime: new Date().toISOString() }
+              : s
           ),
         }));
         get().updateStats();
+
+        // Mark program day completed if this was a program session
+        if (session?.programId && session.programWeek != null && session.programDayIndex != null) {
+          useProgramStore.getState().markDayCompleted(session.programWeek, session.programDayIndex);
+        }
       },
 
       deleteSession: (sessionId) => {
@@ -141,6 +158,8 @@ export const useWorkoutStore = create<WorkoutStoreState>()(
       },
 
       setHistoryFilter: (filter) => set({ historyFilter: filter }),
+
+      setMuscleOrder: (order) => set({ muscleOrder: order }),
 
       getWorkoutById: (id) => {
         const { customWorkouts } = get();
@@ -196,55 +215,63 @@ export const useWorkoutStore = create<WorkoutStoreState>()(
           }, 0);
         }, 0);
 
-        // Calculate streaks from unique workout dates
+        // Calculate weekly streaks (consecutive weeks with ≥2 sessions)
+        // In musculation, rest days are essential — what matters is weekly consistency
         let currentStreak = 0;
         let longestStreak = 0;
 
         if (completed.length > 0) {
-          const uniqueDays = Array.from(
-            new Set(
-              completed.map((s) => {
-                const d = new Date(s.startTime);
-                return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-              })
-            )
-          )
-            .map((key) => {
-              const [y, m, d] = key.split('-').map(Number);
-              const date = new Date(y, m, d);
-              date.setHours(0, 0, 0, 0);
-              return date.getTime();
-            })
-            .sort((a, b) => b - a); // descending
+          // Get Monday 00:00 for a given date
+          const getMonday = (d: Date): number => {
+            const date = new Date(d);
+            const day = date.getDay();
+            const diff = day === 0 ? 6 : day - 1;
+            date.setDate(date.getDate() - diff);
+            date.setHours(0, 0, 0, 0);
+            return date.getTime();
+          };
 
-          const ONE_DAY = 86400000;
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const todayMs = today.getTime();
+          // Count sessions per week (keyed by Monday timestamp)
+          const sessionsPerWeek = new Map<number, number>();
+          for (const s of completed) {
+            const mondayMs = getMonday(new Date(s.startTime));
+            sessionsPerWeek.set(mondayMs, (sessionsPerWeek.get(mondayMs) || 0) + 1);
+          }
 
-          // Current streak: consecutive days from today or yesterday
-          if (uniqueDays[0] === todayMs || uniqueDays[0] === todayMs - ONE_DAY) {
-            currentStreak = 1;
-            for (let i = 1; i < uniqueDays.length; i++) {
-              if (uniqueDays[i] === uniqueDays[i - 1] - ONE_DAY) {
-                currentStreak++;
-              } else {
-                break;
+          // Get weeks with ≥2 sessions, sorted descending
+          const ONE_WEEK = 7 * 86400000;
+          const qualifiedWeeks = Array.from(sessionsPerWeek.entries())
+            .filter(([, count]) => count >= 2)
+            .map(([monday]) => monday)
+            .sort((a, b) => b - a);
+
+          if (qualifiedWeeks.length > 0) {
+            const currentMonday = getMonday(new Date());
+
+            // Current streak: consecutive weeks from this week or last week
+            if (qualifiedWeeks[0] === currentMonday || qualifiedWeeks[0] === currentMonday - ONE_WEEK) {
+              currentStreak = 1;
+              for (let i = 1; i < qualifiedWeeks.length; i++) {
+                if (qualifiedWeeks[i] === qualifiedWeeks[i - 1] - ONE_WEEK) {
+                  currentStreak++;
+                } else {
+                  break;
+                }
               }
             }
-          }
 
-          // Longest streak: longest consecutive run in entire history
-          let run = 1;
-          for (let i = 1; i < uniqueDays.length; i++) {
-            if (uniqueDays[i] === uniqueDays[i - 1] - ONE_DAY) {
-              run++;
-            } else {
-              if (run > longestStreak) longestStreak = run;
-              run = 1;
+            // Longest streak
+            let run = 1;
+            for (let i = 1; i < qualifiedWeeks.length; i++) {
+              if (qualifiedWeeks[i] === qualifiedWeeks[i - 1] - ONE_WEEK) {
+                run++;
+              } else {
+                if (run > longestStreak) longestStreak = run;
+                run = 1;
+              }
             }
+            if (run > longestStreak) longestStreak = run;
           }
-          if (run > longestStreak) longestStreak = run;
         }
 
         set({
@@ -266,6 +293,7 @@ export const useWorkoutStore = create<WorkoutStoreState>()(
         customWorkouts: state.customWorkouts,
         history: state.history,
         stats: state.stats,
+        muscleOrder: state.muscleOrder,
       }),
     }
   )

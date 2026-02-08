@@ -56,6 +56,9 @@ export default function RootLayout() {
           <Stack.Screen name="workout" options={{ headerShown: false }} />
           <Stack.Screen name="trophies" options={{ headerShown: false }} />
           <Stack.Screen name="stats" options={{ headerShown: false }} />
+          <Stack.Screen name="volume" options={{ headerShown: false }} />
+          <Stack.Screen name="exercise" options={{ headerShown: false }} />
+          <Stack.Screen name="program" options={{ headerShown: false }} />
         </Stack>
         <StatusBar style="light" />
       </ThemeProvider>

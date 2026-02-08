@@ -1,17 +1,16 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Pressable,
-  Dimensions,
-  Modal,
+  FlatList,
+  LayoutAnimation,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Svg, {
-  Rect,
   Line as SvgLine,
   Text as SvgText,
   Polygon,
@@ -19,34 +18,28 @@ import Svg, {
 } from 'react-native-svg';
 import {
   ArrowLeft,
-  Flame,
   ChevronRight,
   ChevronDown,
-  ChevronUp,
   BarChart3,
   Dumbbell,
-  Info,
-  X,
+  Trophy,
 } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { Fonts } from '@/constants/theme';
 import { useWorkoutStore } from '@/stores/workoutStore';
-import { getSetsPerMuscle, MUSCLE_LABELS_FR } from '@/lib/muscleMapping';
+import { RP_VOLUME_LANDMARKS } from '@/constants/volumeLandmarks';
+import { getExerciseById } from '@/data/exercises';
+import { ExerciseIcon } from '@/components/ExerciseIcon';
+import { ExerciseSparkline } from '@/components/ExerciseSparkline';
 import {
-  RP_VOLUME_LANDMARKS,
-  getVolumeZone,
-  getZoneColor,
-} from '@/constants/volumeLandmarks';
+  getWeekSummary,
+  getWeekPRs,
+  getMuscleFrequency,
+} from '@/lib/statsHelpers';
+import { getSetsForWeek, getWeekBounds, getWeekLabel } from '@/lib/weeklyVolume';
 import { mockWeeklyVolume } from '@/lib/mock-data';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-
-type TimeFilter = 'week' | '3months' | 'year';
-const FILTERS: { key: TimeFilter; label: string; days: number }[] = [
-  { key: 'week', label: 'Semaine', days: 7 },
-  { key: '3months', label: '3 Mois', days: 90 },
-  { key: 'year', label: 'Année', days: 365 },
-];
+const WEEKS_AVAILABLE = 12;
 
 /** Radar chart muscle groups (abbreviated French labels) */
 const RADAR_GROUPS: { label: string; muscles: string[] }[] = [
@@ -61,18 +54,34 @@ const RADAR_GROUPS: { label: string; muscles: string[] }[] = [
   { label: 'Poit', muscles: ['chest'] },
 ];
 
-// Radar chart layout
 const RADAR_SIZE = 280;
 const RADAR_CX = RADAR_SIZE / 2;
 const RADAR_CY = RADAR_SIZE / 2;
 const RADAR_R = 95;
 const RADAR_RINGS = [0.25, 0.5, 0.75, 1.0];
 
+const MUSCLE_ABBR: Record<string, string> = {
+  chest: 'Pec',
+  shoulders: 'Épa',
+  lats: 'Dor',
+  'upper back': 'Hdo',
+  biceps: 'Bic',
+  triceps: 'Tri',
+  quads: 'Quad',
+  hamstrings: 'Isch',
+  glutes: 'Fess',
+  calves: 'Moll',
+  abs: 'Abdo',
+  forearms: 'Avan',
+  'lower back': 'Bdo',
+  obliques: 'Obl',
+};
+
 function formatDuration(minutes: number): string {
   if (minutes < 60) return `${minutes}m`;
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return m > 0 ? `${h}h${m}m` : `${h}h`;
+  return m > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`;
 }
 
 function formatVolume(kg: number): string {
@@ -90,69 +99,71 @@ function formatSessionDuration(seconds: number): string {
   return `${m} min`;
 }
 
-function streakInWeeks(days: number): number {
-  return Math.floor(days / 7);
+function getShortWeekLabel(offset: number): string {
+  const { start } = getWeekBounds(offset);
+  const day = start.getDate();
+  const month = start
+    .toLocaleDateString('fr-FR', { month: 'short' })
+    .replace('.', '');
+  return `${day} ${month}`;
 }
 
 export default function StatsScreen() {
-  const [filter, setFilter] = useState<TimeFilter>('week');
-  const [volumeExpanded, setVolumeExpanded] = useState(false);
-  const [showVolumeInfo, setShowVolumeInfo] = useState(false);
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(
+    null
+  );
+  const [weekOffset, setWeekOffset] = useState(0);
   const router = useRouter();
-  const { stats, history } = useWorkoutStore();
+  const { history } = useWorkoutStore();
+  const weekStripRef = useRef<FlatList>(null);
 
-  const filterDays = FILTERS.find((f) => f.key === filter)!.days;
+  // Weeks array for picker
+  const weeks = useMemo(
+    () => Array.from({ length: WEEKS_AVAILABLE }, (_, i) => -i),
+    []
+  );
 
-  const filteredHistory = useMemo(() => {
-    const cutoff = Date.now() - filterDays * 86400000;
-    return history.filter(
-      (s) => s.endTime && new Date(s.startTime).getTime() >= cutoff
-    );
-  }, [filter, history, filterDays]);
+  // Global week label
+  const currentWeekLabel = useMemo(
+    () => getWeekLabel(weekOffset),
+    [weekOffset]
+  );
 
-  const periodStats = useMemo(() => {
-    const totalWorkouts = filteredHistory.length;
-    const totalMinutes = Math.round(
-      filteredHistory.reduce((acc, s) => acc + (s.durationSeconds || 0), 0) / 60
-    );
-    const totalVolume = Math.round(
-      filteredHistory.reduce((acc, session) => {
-        return (
-          acc +
-          session.completedExercises.reduce((exAcc, ex) => {
-            return (
-              exAcc +
-              ex.sets.reduce(
-                (setAcc, s) => setAcc + (s.weight || 0) * s.reps,
-                0
-              )
-            );
-          }, 0)
-        );
-      }, 0)
-    );
-    return { totalWorkouts, totalMinutes, totalVolume };
-  }, [filteredHistory]);
+  // All sections respond to weekOffset
+  const weekSummary = useMemo(
+    () => getWeekSummary(history, weekOffset),
+    [history, weekOffset]
+  );
 
-  // Raw muscle data (shared by volume bars and radar)
+  const muscleFreq = useMemo(
+    () => getMuscleFrequency(history, weekOffset),
+    [history, weekOffset]
+  );
+
+  const weekSetsData = useMemo(
+    () => getSetsForWeek(history, weekOffset),
+    [history, weekOffset]
+  );
+
+  const weekPRs = useMemo(
+    () => getWeekPRs(history, weekOffset),
+    [history, weekOffset]
+  );
+
+  // Radar uses the selected week's data
   const muscleData = useMemo(() => {
-    const fromHistory = getSetsPerMuscle(history, filterDays);
-    const hasData = Object.values(fromHistory).some((v) => v > 0);
-    return hasData ? fromHistory : mockWeeklyVolume;
-  }, [history, filterDays]);
+    const hasData = Object.values(weekSetsData).some((v) => v > 0);
+    return hasData ? weekSetsData : mockWeeklyVolume;
+  }, [weekSetsData]);
 
-  // Volume bar entries (sorted, only > 0)
-  const muscleVolume = useMemo(() => {
-    return Object.entries(RP_VOLUME_LANDMARKS)
-      .map(([muscle, landmarks]) => ({
-        muscle,
-        label: MUSCLE_LABELS_FR[muscle] || muscle,
-        sets: muscleData[muscle] || 0,
-        landmarks,
-      }))
-      .filter((e) => e.sets > 0)
-      .sort((a, b) => b.sets - a.sets);
-  }, [muscleData]);
+  // Volume shortcut data
+  const volumeShortcut = useMemo(() => {
+    const hasData = Object.values(weekSetsData).some((v) => v > 0);
+    const data = hasData ? weekSetsData : mockWeeklyVolume;
+    const totalSets = Object.values(data).reduce((a, b) => a + b, 0);
+    const muscleCount = Object.values(data).filter((v) => v > 0).length;
+    return { totalSets, muscleCount };
+  }, [weekSetsData]);
 
   // Radar chart data
   const radarData = useMemo(() => {
@@ -173,7 +184,6 @@ export default function StatsScreen() {
     });
   }, [muscleData]);
 
-  // Balance score (coefficient of variation)
   const isBalanced = useMemo(() => {
     const vals = radarData.map((d) => d.normalized);
     const max = Math.max(...vals);
@@ -187,8 +197,10 @@ export default function StatsScreen() {
 
   const hasRadarData = radarData.some((d) => d.sets > 0);
 
-  // Radar polygon points
-  const radarMaxNorm = Math.max(...radarData.map((d) => d.normalized), 0.01);
+  const radarMaxNorm = Math.max(
+    ...radarData.map((d) => d.normalized),
+    0.01
+  );
   const radarPoints = radarData
     .map((d, i) => {
       const angle =
@@ -198,38 +210,69 @@ export default function StatsScreen() {
     })
     .join(' ');
 
-  // Weekly bar chart data
-  const weeklyData = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const dayOfWeek = today.getDay();
-    const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    const monday = new Date(today.getTime() - mondayOffset * 86400000);
-
-    return DAY_LABELS.map((label, i) => {
-      const dayStart = new Date(monday.getTime() + i * 86400000);
-      const dayEnd = new Date(dayStart.getTime() + 86400000);
-      const count = history.filter((s) => {
-        if (!s.endTime) return false;
-        const d = new Date(s.startTime);
-        return d >= dayStart && d < dayEnd;
-      }).length;
-      const isToday = dayStart.getTime() === today.getTime();
-      return { label, count, isToday };
-    });
-  }, [history]);
-
-  const maxBarCount = Math.max(...weeklyData.map((d) => d.count), 1);
-
+  // Recent sessions filtered to selected week
   const recentSessions = useMemo(() => {
-    return history.filter((s) => s.endTime).slice(0, 5);
-  }, [history]);
+    const { start, end } = getWeekBounds(weekOffset);
+    const startMs = start.getTime();
+    const endMs = end.getTime();
+    return history.filter((s) => {
+      if (!s.endTime) return false;
+      const ms = new Date(s.startTime).getTime();
+      return ms >= startMs && ms <= endMs;
+    });
+  }, [history, weekOffset]);
 
   const isEmpty = history.filter((s) => s.endTime).length === 0;
 
-  const chartWidth = SCREEN_WIDTH - 80;
-  const chartHeight = 120;
-  const barWidth = (chartWidth - (7 - 1) * 8) / 7;
+
+  const toggleSession = (sessionId: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedSessionId((prev) =>
+      prev === sessionId ? null : sessionId
+    );
+  };
+
+  const selectWeek = useCallback((offset: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setWeekOffset(offset);
+    setExpandedSessionId(null);
+  }, []);
+
+  const renderWeekChip = useCallback(
+    ({ item }: { item: number }) => {
+      const isSelected = item === weekOffset;
+      const isCurrent = item === 0;
+      return (
+        <Pressable
+          style={styles.weekChip}
+          onPress={() => selectWeek(item)}
+        >
+          <Text
+            style={[
+              styles.weekChipText,
+              isSelected && styles.weekChipTextActive,
+              isCurrent && !isSelected && styles.weekChipTextCurrent,
+            ]}
+          >
+            {getShortWeekLabel(item)}
+          </Text>
+          <View style={styles.weekChipTickRow}>
+            <View
+              style={[
+                styles.weekChipTick,
+                isSelected && styles.weekChipTickActive,
+              ]}
+            />
+            {isCurrent && !isSelected && (
+              <View style={styles.weekChipCurrentDot} />
+            )}
+          </View>
+          {isSelected && <View style={styles.weekChipAccent} />}
+        </Pressable>
+      );
+    },
+    [weekOffset, selectWeek]
+  );
 
   return (
     <View style={styles.screen}>
@@ -237,18 +280,43 @@ export default function StatsScreen() {
       <View style={styles.orbBlue} pointerEvents="none" />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <ArrowLeft size={22} color="#fff" strokeWidth={2} />
+          </Pressable>
+          <Text style={styles.headerTitle}>Statistiques</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        {/* ── Sticky Week Picker ── */}
+        <View style={styles.weekStripContainer}>
+          <FlatList
+            ref={weekStripRef}
+            data={weeks}
+            keyExtractor={(item) => String(item)}
+            horizontal
+            inverted
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.weekStripContent}
+            renderItem={renderWeekChip}
+            getItemLayout={(_, index) => ({
+              length: 56,
+              offset: 56 * index,
+              index,
+            })}
+            initialScrollIndex={0}
+          />
+        </View>
+
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <Pressable style={styles.backButton} onPress={() => router.back()}>
-              <ArrowLeft size={22} color="#fff" strokeWidth={2} />
-            </Pressable>
-            <Text style={styles.headerTitle}>Cette Semaine</Text>
-            <View style={{ width: 40 }} />
-          </View>
+          <Text style={styles.weekLabel}>{currentWeekLabel}</Text>
 
           {isEmpty ? (
             <View style={styles.emptyContainer}>
@@ -267,80 +335,184 @@ export default function StatsScreen() {
                 style={styles.emptyCta}
                 onPress={() => {
                   router.back();
-                  setTimeout(() => router.push('/(tabs)/workouts'), 100);
+                  setTimeout(
+                    () => router.push('/(tabs)/workouts'),
+                    100
+                  );
                 }}
               >
                 <Dumbbell size={18} color="#fff" strokeWidth={2.2} />
-                <Text style={styles.emptyCtaText}>Voir les workouts</Text>
+                <Text style={styles.emptyCtaText}>
+                  Voir les workouts
+                </Text>
               </Pressable>
             </View>
           ) : (
             <>
-              {/* Time Filter */}
-              <View style={styles.filterRow}>
-                {FILTERS.map((f) => (
-                  <Pressable
-                    key={f.key}
-                    style={[
-                      styles.filterPill,
-                      filter === f.key && styles.filterPillActive,
-                    ]}
-                    onPress={() => setFilter(f.key)}
-                  >
-                    <Text
-                      style={[
-                        styles.filterText,
-                        filter === f.key && styles.filterTextActive,
-                      ]}
-                    >
-                      {f.label}
-                    </Text>
-                  </Pressable>
-                ))}
+              {/* ── Metric Strip ── */}
+              <View style={styles.metricStrip}>
+                <View style={styles.metricItem}>
+                  <Text style={styles.metricValue}>
+                    {weekSummary.sessions}
+                  </Text>
+                  <Text style={styles.metricLabel}>séances</Text>
+                </View>
+                <View style={styles.metricDivider} />
+                <View style={styles.metricItem}>
+                  <Text style={styles.metricValue}>
+                    {formatDuration(weekSummary.totalMinutes)}
+                  </Text>
+                  <Text style={styles.metricLabel}>durée</Text>
+                </View>
+                <View style={styles.metricDivider} />
+                <View style={styles.metricItem}>
+                  <Text style={styles.metricValue}>
+                    {formatVolume(weekSummary.totalVolumeKg)}
+                  </Text>
+                  <Text style={styles.metricLabel}>volume</Text>
+                </View>
               </View>
 
-              {/* Summary Row */}
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryItem}>
-                  <Text style={styles.summaryValue}>
-                    {periodStats.totalWorkouts}
-                  </Text>{' '}
-                  séances
-                </Text>
-                <Text style={styles.summaryDot}>·</Text>
-                <Text style={styles.summaryItem}>
-                  <Text style={styles.summaryValue}>
-                    {formatDuration(periodStats.totalMinutes)}
+              {/* ── Frequency — compact ── */}
+              {Object.keys(muscleFreq.perMuscle).length > 0 && (
+                <View style={styles.freqStrip}>
+                  {Object.entries(muscleFreq.perMuscle)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([muscle, count]) => {
+                      const isLow = count < 2;
+                      const color = isLow ? '#f97316' : '#22C55E';
+                      return (
+                        <View key={muscle} style={styles.freqItem}>
+                          <Text style={[styles.freqCount, { color }]}>
+                            {count}x
+                          </Text>
+                          <Text
+                            style={[
+                              styles.freqLabel,
+                              { color: isLow ? 'rgba(249,115,22,0.6)' : 'rgba(120,120,130,1)' },
+                            ]}
+                          >
+                            {MUSCLE_ABBR[muscle] || muscle}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                </View>
+              )}
+
+              {/* ── PR Section with Week Picker ── */}
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionHeaderLeft}>
+                  <Text style={styles.sectionLabel}>
+                    RECORDS PERSONNELS
                   </Text>
-                </Text>
-                <Text style={styles.summaryDot}>·</Text>
-                <Text style={styles.summaryItem}>
-                  <Text style={styles.summaryValue}>
-                    {formatVolume(periodStats.totalVolume)}
-                  </Text>{' '}
-                  volume
-                </Text>
+                  {weekPRs.total > 0 && (
+                    <View style={styles.prCountBadge}>
+                      <Trophy
+                        size={11}
+                        color="#f97316"
+                        strokeWidth={2.5}
+                      />
+                      <Text style={styles.prCountText}>
+                        {weekPRs.total} PR
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Pressable onPress={() => router.push('/exercise')}>
+                  <Text style={styles.seeAllLink}>Voir tous</Text>
+                </Pressable>
               </View>
 
-              {/* Streak */}
-              <View style={styles.streakRow}>
-                <Flame size={16} color="#f97316" strokeWidth={2.5} />
-                <Text style={styles.streakText}>
-                  Série:{' '}
-                  <Text style={styles.streakHighlight}>
-                    {streakInWeeks(stats.currentStreak)} sem
+              {weekPRs.prs.length > 0 ? (
+                <View style={styles.prList}>
+                  {weekPRs.prs.slice(0, 10).map((pr) => {
+                    const exercise = getExerciseById(pr.exerciseId);
+                    const typeLabelFr =
+                      pr.type === 'weight' ? 'Poids' : 'Volume';
+                    const oldVal =
+                      pr.type === 'weight'
+                        ? `${pr.previousValue}kg`
+                        : formatVolume(pr.previousValue);
+                    const newVal =
+                      pr.type === 'weight'
+                        ? `${pr.value}kg`
+                        : formatVolume(pr.value);
+                    return (
+                      <Pressable
+                        key={`${pr.exerciseId}_${pr.type}`}
+                        style={styles.prCard}
+                        onPress={() => router.push(`/exercise/${pr.exerciseId}`)}
+                      >
+                        <ExerciseIcon
+                          exerciseName={exercise?.name}
+                          bodyPart={exercise?.bodyPart}
+                          gifUrl={exercise?.gifUrl}
+                          size={18}
+                          containerSize={40}
+                        />
+                        <View style={styles.prInfo}>
+                          <Text
+                            style={styles.prName}
+                            numberOfLines={1}
+                          >
+                            {pr.exerciseNameFr}
+                          </Text>
+                          <View style={styles.prDetails}>
+                            <View
+                              style={[
+                                styles.prTypePill,
+                                pr.type === 'weight'
+                                  ? styles.prTypePillWeight
+                                  : styles.prTypePillVolume,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.prTypePillText,
+                                  pr.type === 'weight'
+                                    ? styles.prTypePillTextWeight
+                                    : styles.prTypePillTextVolume,
+                                ]}
+                              >
+                                {typeLabelFr}
+                              </Text>
+                            </View>
+                            <Text style={styles.prOldVal}>
+                              {oldVal}
+                            </Text>
+                            <Text style={styles.prArrow}>→</Text>
+                            <Text style={styles.prNewVal}>
+                              {newVal}
+                            </Text>
+                          </View>
+                        </View>
+                        <ExerciseSparkline
+                          exerciseId={pr.exerciseId}
+                          width={64}
+                          height={28}
+                          metric={
+                            pr.type === 'weight'
+                              ? 'bestWeight'
+                              : 'totalVolume'
+                          }
+                        />
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View style={styles.prEmptyCard}>
+                  <Text style={styles.prEmptyText}>
+                    Aucun record cette période
                   </Text>
-                </Text>
-                <View style={styles.streakSep} />
-                <Text style={styles.streakText}>
-                  Record:{' '}
-                  <Text style={styles.streakMuted}>
-                    {streakInWeeks(stats.longestStreak)} sem
+                  <Text style={styles.prEmptySubtext}>
+                    Continuez à pousser !
                   </Text>
-                </Text>
-              </View>
+                </View>
+              )}
 
-              {/* Radar Chart — Muscle Balance */}
+              {/* ── Radar Chart — Muscle Balance ── */}
               {hasRadarData && (
                 <View style={styles.radarCard}>
                   <View style={styles.radarHeader}>
@@ -357,13 +529,14 @@ export default function StatsScreen() {
                           !isBalanced && styles.balanceBadgeTextWarn,
                         ]}
                       >
-                        {isBalanced ? 'Bon équilibre' : 'Déséquilibré'}
+                        {isBalanced
+                          ? 'Bon équilibre'
+                          : 'Déséquilibré'}
                       </Text>
                     </View>
                   </View>
                   <View style={styles.radarContainer}>
                     <Svg width={RADAR_SIZE} height={RADAR_SIZE}>
-                      {/* Concentric rings */}
                       {RADAR_RINGS.map((pct) => (
                         <Circle
                           key={pct}
@@ -375,35 +548,39 @@ export default function StatsScreen() {
                           strokeWidth={1}
                         />
                       ))}
-                      {/* Spoke lines */}
                       {radarData.map((_, i) => {
                         const angle =
-                          (2 * Math.PI * i) / radarData.length - Math.PI / 2;
+                          (2 * Math.PI * i) / radarData.length -
+                          Math.PI / 2;
                         return (
                           <SvgLine
                             key={`spoke-${i}`}
                             x1={RADAR_CX}
                             y1={RADAR_CY}
-                            x2={RADAR_CX + RADAR_R * Math.cos(angle)}
-                            y2={RADAR_CY + RADAR_R * Math.sin(angle)}
+                            x2={
+                              RADAR_CX + RADAR_R * Math.cos(angle)
+                            }
+                            y2={
+                              RADAR_CY + RADAR_R * Math.sin(angle)
+                            }
                             stroke="rgba(255,255,255,0.06)"
                             strokeWidth={1}
                           />
                         );
                       })}
-                      {/* Filled polygon */}
                       <Polygon
                         points={radarPoints}
                         fill="rgba(249, 115, 22, 0.2)"
                         stroke="#f97316"
                         strokeWidth={2}
                       />
-                      {/* Data point dots */}
                       {radarData.map((d, i) => {
                         const angle =
-                          (2 * Math.PI * i) / radarData.length - Math.PI / 2;
+                          (2 * Math.PI * i) / radarData.length -
+                          Math.PI / 2;
                         const r =
-                          Math.min(d.normalized / radarMaxNorm, 1) * RADAR_R;
+                          Math.min(d.normalized / radarMaxNorm, 1) *
+                          RADAR_R;
                         return (
                           <Circle
                             key={`dot-${i}`}
@@ -414,13 +591,15 @@ export default function StatsScreen() {
                           />
                         );
                       })}
-                      {/* Labels */}
                       {radarData.map((d, i) => {
                         const angle =
-                          (2 * Math.PI * i) / radarData.length - Math.PI / 2;
+                          (2 * Math.PI * i) / radarData.length -
+                          Math.PI / 2;
                         const labelR = RADAR_R + 24;
-                        const lx = RADAR_CX + labelR * Math.cos(angle);
-                        const ly = RADAR_CY + labelR * Math.sin(angle);
+                        const lx =
+                          RADAR_CX + labelR * Math.cos(angle);
+                        const ly =
+                          RADAR_CY + labelR * Math.sin(angle);
                         const anchor =
                           Math.abs(lx - RADAR_CX) < 5
                             ? 'middle'
@@ -446,197 +625,135 @@ export default function StatsScreen() {
                 </View>
               )}
 
-              {/* Volume par muscle — Horizontal Bars */}
-              {muscleVolume.length > 0 && (
-                <View style={styles.volumeSection}>
-                  <View style={styles.volumeTitleRow}>
-                    <Text style={styles.sectionTitle}>Volume par muscle</Text>
-                    <Pressable
-                      style={styles.volumeInfoBtn}
-                      onPress={() => setShowVolumeInfo(true)}
-                    >
-                      <Info size={16} color="#6B7280" />
-                    </Pressable>
-                  </View>
-                  <View style={styles.volumeList}>
-                    {(volumeExpanded
-                      ? muscleVolume
-                      : muscleVolume.slice(0, 3)
-                    ).map((item) => {
-                      const zone = getVolumeZone(item.sets, item.landmarks);
-                      const zoneColor = getZoneColor(zone);
-                      const fillPct = Math.min(
-                        item.sets / item.landmarks.mrv,
-                        1
-                      );
-                      const mvPct = item.landmarks.mv / item.landmarks.mrv;
-                      const mevPct = item.landmarks.mev / item.landmarks.mrv;
-                      const mavPct =
-                        item.landmarks.mavHigh / item.landmarks.mrv;
-
-                      return (
-                        <View key={item.muscle} style={styles.volumeRow}>
-                          <Text style={styles.volumeLabel}>{item.label}</Text>
-                          <View style={styles.volumeBarBg}>
-                            <View
-                              style={[
-                                styles.volumeBarFill,
-                                {
-                                  width: `${fillPct * 100}%`,
-                                  backgroundColor: zoneColor,
-                                },
-                              ]}
-                            />
-                            <View
-                              style={[
-                                styles.volumeMarker,
-                                { left: `${mvPct * 100}%` },
-                              ]}
-                            />
-                            <View
-                              style={[
-                                styles.volumeMarker,
-                                styles.volumeMarkerGreen,
-                                { left: `${mevPct * 100}%` },
-                              ]}
-                            />
-                            <View
-                              style={[
-                                styles.volumeMarker,
-                                styles.volumeMarkerYellow,
-                                { left: `${mavPct * 100}%` },
-                              ]}
-                            />
-                          </View>
-                          <Text style={styles.volumeValue}>
-                            <Text style={{ color: zoneColor }}>
-                              {item.sets}
-                            </Text>
-                            <Text style={styles.volumeTarget}>
-                              /{item.landmarks.mavHigh}
-                            </Text>
-                          </Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                  {muscleVolume.length > 3 && (
-                    <Pressable
-                      style={styles.volumeExpandBtn}
-                      onPress={() => setVolumeExpanded(!volumeExpanded)}
-                    >
-                      <Text style={styles.volumeExpandText}>
-                        {volumeExpanded
-                          ? 'Réduire'
-                          : `Voir tout (${muscleVolume.length})`}
-                      </Text>
-                      {volumeExpanded ? (
-                        <ChevronUp
-                          size={14}
-                          color="rgba(160,150,140,1)"
-                          strokeWidth={2}
-                        />
-                      ) : (
-                        <ChevronDown
-                          size={14}
-                          color="rgba(160,150,140,1)"
-                          strokeWidth={2}
-                        />
-                      )}
-                    </Pressable>
-                  )}
+              {/* ── Volume Hebdo Shortcut ── */}
+              <Pressable
+                style={styles.volumeShortcut}
+                onPress={() => router.push('/volume')}
+              >
+                <View style={styles.volumeShortcutIcon}>
+                  <Dumbbell
+                    size={18}
+                    color="#FF6B35"
+                    strokeWidth={2.2}
+                  />
                 </View>
-              )}
-
-              {/* Weekly Bar Chart */}
-              <View style={styles.chartCard}>
-                <Text style={styles.sectionTitle}>Activité</Text>
-                <View style={styles.chartContainer}>
-                  <Svg width={chartWidth} height={chartHeight + 24}>
-                    <SvgLine
-                      x1={0}
-                      y1={chartHeight}
-                      x2={chartWidth}
-                      y2={chartHeight}
-                      stroke="rgba(255,255,255,0.06)"
-                      strokeWidth={1}
-                    />
-                    {weeklyData.map((day, i) => {
-                      const x = i * (barWidth + 8);
-                      const bh =
-                        day.count > 0
-                          ? (day.count / maxBarCount) * (chartHeight - 8)
-                          : 0;
-                      const y = chartHeight - bh;
-                      const barColor = day.isToday
-                        ? '#FF6B35'
-                        : 'rgba(255,255,255,0.15)';
-
-                      return (
-                        <View key={i}>
-                          {day.count === 0 && (
-                            <Rect
-                              x={x}
-                              y={chartHeight - 3}
-                              width={barWidth}
-                              height={3}
-                              rx={1.5}
-                              fill="rgba(255,255,255,0.06)"
-                            />
-                          )}
-                          {day.count > 0 && (
-                            <Rect
-                              x={x}
-                              y={y}
-                              width={barWidth}
-                              height={bh}
-                              rx={barWidth / 2}
-                              fill={barColor}
-                            />
-                          )}
-                          <SvgText
-                            x={x + barWidth / 2}
-                            y={chartHeight + 16}
-                            textAnchor="middle"
-                            fill={
-                              day.isToday
-                                ? '#FF6B35'
-                                : 'rgba(120,120,130,1)'
-                            }
-                            fontSize={11}
-                            fontWeight={day.isToday ? '700' : '500'}
-                          >
-                            {day.label}
-                          </SvgText>
-                        </View>
-                      );
-                    })}
-                  </Svg>
+                <View style={styles.volumeShortcutInfo}>
+                  <Text style={styles.volumeShortcutTitle}>
+                    Volume Hebdo
+                  </Text>
+                  <Text style={styles.volumeShortcutSub}>
+                    {volumeShortcut.totalSets} séries ·{' '}
+                    {volumeShortcut.muscleCount} muscles
+                  </Text>
                 </View>
-              </View>
+                <ChevronRight
+                  size={18}
+                  color="rgba(120,120,130,1)"
+                  strokeWidth={2}
+                />
+              </Pressable>
 
-              {/* Recent Sessions */}
+              {/* ── Recent Sessions (expandable) ── */}
               {recentSessions.length > 0 && (
                 <View style={styles.recentSection}>
-                  <Text style={styles.sectionTitle}>Dernières séances</Text>
-                  {recentSessions.map((session) => (
-                    <View key={session.id} style={styles.recentCard}>
-                      <View style={styles.recentInfo}>
-                        <Text style={styles.recentName} numberOfLines={1}>
-                          {session.workoutName}
-                        </Text>
-                        <Text style={styles.recentMeta}>
-                          {formatDate(session.startTime)} ·{' '}
-                          {formatSessionDuration(session.durationSeconds)}
-                        </Text>
-                      </View>
-                      <ChevronRight
-                        size={18}
-                        color="rgba(120,120,130,1)"
-                        strokeWidth={2}
-                      />
-                    </View>
-                  ))}
+                  <Text style={styles.sectionTitle}>
+                    Dernières séances
+                  </Text>
+                  {recentSessions.map((session) => {
+                    const isExpanded =
+                      expandedSessionId === session.id;
+                    return (
+                      <Pressable
+                        key={session.id}
+                        style={styles.recentCard}
+                        onPress={() => toggleSession(session.id)}
+                      >
+                        <View style={styles.recentTop}>
+                          <View style={styles.recentInfo}>
+                            <Text
+                              style={styles.recentName}
+                              numberOfLines={1}
+                            >
+                              {session.workoutName}
+                            </Text>
+                            <Text style={styles.recentMeta}>
+                              {formatDate(session.startTime)} ·{' '}
+                              {formatSessionDuration(
+                                session.durationSeconds
+                              )}{' '}
+                              ·{' '}
+                              {session.completedExercises.length}{' '}
+                              exos
+                            </Text>
+                          </View>
+                          {isExpanded ? (
+                            <ChevronDown
+                              size={18}
+                              color="rgba(120,120,130,1)"
+                              strokeWidth={2}
+                            />
+                          ) : (
+                            <ChevronRight
+                              size={18}
+                              color="rgba(120,120,130,1)"
+                              strokeWidth={2}
+                            />
+                          )}
+                        </View>
+                        {isExpanded && (
+                          <View style={styles.recentExercises}>
+                            {session.completedExercises.map(
+                              (compEx, idx) => {
+                                const exercise = getExerciseById(
+                                  compEx.exerciseId
+                                );
+                                const completedSets =
+                                  compEx.sets.filter(
+                                    (s) => s.completed
+                                  );
+                                if (completedSets.length === 0)
+                                  return null;
+                                return (
+                                  <View
+                                    key={idx}
+                                    style={styles.recentExRow}
+                                  >
+                                    <Text
+                                      style={styles.recentExName}
+                                      numberOfLines={1}
+                                    >
+                                      {exercise?.nameFr ||
+                                        exercise?.name ||
+                                        compEx.exerciseId}
+                                    </Text>
+                                    <View
+                                      style={styles.recentSetsList}
+                                    >
+                                      {completedSets.map(
+                                        (set, si) => (
+                                          <Text
+                                            key={si}
+                                            style={
+                                              styles.recentSetText
+                                            }
+                                          >
+                                            {set.weight
+                                              ? `${set.weight}kg`
+                                              : 'PDC'}{' '}
+                                            × {set.reps}
+                                          </Text>
+                                        )
+                                      )}
+                                    </View>
+                                  </View>
+                                );
+                              }
+                            )}
+                          </View>
+                        )}
+                      </Pressable>
+                    );
+                  })}
                 </View>
               )}
             </>
@@ -645,123 +762,6 @@ export default function StatsScreen() {
           <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
-
-      {/* Volume Info Modal */}
-      <Modal
-        visible={showVolumeInfo}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowVolumeInfo(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowVolumeInfo(false)}
-        >
-          <Pressable
-            style={styles.infoModal}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <View style={styles.infoModalHeader}>
-              <Text style={styles.infoModalTitle}>Repères de Volume</Text>
-              <Pressable
-                style={styles.modalClose}
-                onPress={() => setShowVolumeInfo(false)}
-              >
-                <X size={18} color="#9CA3AF" />
-              </Pressable>
-            </View>
-            <Text style={styles.infoModalText}>
-              Le volume (séries par semaine) détermine vos gains musculaires.
-              Ces repères vous aident à optimiser votre entraînement.
-            </Text>
-            <View style={styles.landmarkList}>
-              {[
-                {
-                  abbr: 'MV',
-                  name: 'Volume de Maintien',
-                  desc: 'Minimum pour conserver vos gains sans progresser.',
-                  color: '#6B7280',
-                },
-                {
-                  abbr: 'MEV',
-                  name: 'Volume Minimum Efficace',
-                  desc: 'Seuil à partir duquel vous commencez à progresser.',
-                  color: '#3B82F6',
-                },
-                {
-                  abbr: 'MAV',
-                  name: 'Volume Adaptatif Max',
-                  desc: 'Zone optimale pour la croissance musculaire. Visez cette plage !',
-                  color: '#4ADE80',
-                },
-                {
-                  abbr: 'MRV',
-                  name: 'Volume Max Récupérable',
-                  desc: "Au-delà, vous risquez le surentraînement et la régression.",
-                  color: '#EF4444',
-                },
-              ].map((item) => (
-                <View key={item.abbr} style={styles.landmarkItem}>
-                  <View style={styles.landmarkHeader}>
-                    <View
-                      style={[
-                        styles.landmarkDot,
-                        { backgroundColor: item.color },
-                      ]}
-                    />
-                    <Text style={styles.landmarkAbbr}>{item.abbr}</Text>
-                    <Text style={styles.landmarkName}>{item.name}</Text>
-                  </View>
-                  <Text style={styles.landmarkDesc}>{item.desc}</Text>
-                </View>
-              ))}
-            </View>
-            <View style={styles.progressionBox}>
-              <Text style={styles.progressionLabel}>PROGRESSION IDÉALE</Text>
-              <View style={styles.progressionBar}>
-                <View
-                  style={[
-                    styles.progressionZone,
-                    { flex: 1, backgroundColor: '#6B7280' },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.progressionZone,
-                    { flex: 1, backgroundColor: '#3B82F6' },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.progressionZone,
-                    { flex: 2, backgroundColor: '#4ADE80' },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.progressionZone,
-                    { flex: 1, backgroundColor: '#FBBF24' },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.progressionZone,
-                    { flex: 0.5, backgroundColor: '#EF4444' },
-                  ]}
-                />
-              </View>
-              <View style={styles.progressionLabels}>
-                <Text style={styles.progressionMarker}>MV</Text>
-                <Text style={styles.progressionMarker}>MEV</Text>
-                <Text style={[styles.progressionMarker, { color: '#4ADE80' }]}>
-                  MAV
-                </Text>
-                <Text style={styles.progressionMarker}>MRV</Text>
-              </View>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </View>
   );
 }
@@ -826,90 +826,268 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // Filters
-  filterRow: {
+  // ── Metric Strip ──
+  metricStrip: {
     flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 24,
-    gap: 8,
-    marginTop: 12,
+    marginTop: 8,
     marginBottom: 20,
   },
-  filterPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+  metricItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
   },
-  filterPillActive: {
-    backgroundColor: 'rgba(255,107,53,0.15)',
-    borderColor: 'rgba(255,107,53,0.3)',
+  metricValue: {
+    color: '#fff',
+    fontSize: 22,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
   },
-  filterText: {
-    color: 'rgba(160,150,140,1)',
+  metricLabel: {
+    color: 'rgba(100,100,110,1)',
+    fontSize: 11,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  metricDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+
+  // ── Section Headers ──
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    marginBottom: 10,
+  },
+  sectionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  seeAllLink: {
+    color: '#FF6B35',
     fontSize: 13,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
   },
-  filterTextActive: {
-    color: '#FF6B35',
+  sectionLabel: {
+    color: 'rgba(160,150,140,1)',
+    fontSize: 11,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    letterSpacing: 1,
   },
 
-  // Summary
-  summaryRow: {
+  // ── Frequency Strip ──
+  freqStrip: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexWrap: 'wrap',
     paddingHorizontal: 24,
-    marginBottom: 12,
-    gap: 6,
+    gap: 10,
+    marginBottom: 24,
   },
-  summaryItem: {
-    color: 'rgba(160,150,140,1)',
-    fontSize: 14,
+  freqItem: {
+    alignItems: 'center',
+    gap: 1,
+  },
+  freqCount: {
+    fontSize: 13,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+  },
+  freqLabel: {
+    fontSize: 9,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
+    letterSpacing: 0.3,
   },
-  summaryValue: {
+
+  // ── PR Section ──
+  prCountBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(249,115,22,0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  prCountText: {
+    color: '#f97316',
+    fontSize: 12,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+  },
+  weekStripContainer: {
+    marginTop: 4,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.04)',
+  },
+  weekStripContent: {
+    paddingHorizontal: 20,
+    gap: 0,
+  },
+  weekLabel: {
+    color: 'rgba(120,120,130,1)',
+    fontSize: 13,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    paddingHorizontal: 24,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  weekChip: {
+    width: 56,
+    alignItems: 'center',
+    paddingTop: 6,
+    paddingBottom: 2,
+  },
+  weekChipText: {
+    color: 'rgba(100,100,110,1)',
+    fontSize: 11,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    marginBottom: 6,
+  },
+  weekChipTextActive: {
     color: '#fff',
     fontFamily: Fonts?.bold,
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 12,
   },
-  summaryDot: {
-    color: 'rgba(100,100,110,1)',
-    fontSize: 14,
+  weekChipTextCurrent: {
+    color: 'rgba(160,150,140,1)',
   },
-
-  // Streak
-  streakRow: {
+  weekChipTickRow: {
+    alignItems: 'center',
+    height: 8,
+  },
+  weekChipTick: {
+    width: 1,
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+  },
+  weekChipTickActive: {
+    width: 2,
+    height: 8,
+    backgroundColor: '#FF6B35',
+    borderRadius: 1,
+  },
+  weekChipCurrentDot: {
+    position: 'absolute',
+    top: 0,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(160,150,140,0.5)',
+  },
+  weekChipAccent: {
+    width: 24,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#FF6B35',
+    marginTop: 3,
+  },
+  prList: {
+    paddingHorizontal: 20,
+    gap: 8,
+    marginBottom: 20,
+  },
+  prCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 24,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 10,
   },
-  streakText: {
+  prInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  prName: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+  },
+  prDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  prTypePill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  prTypePillWeight: {
+    backgroundColor: 'rgba(59,130,246,0.12)',
+  },
+  prTypePillVolume: {
+    backgroundColor: 'rgba(74,222,128,0.12)',
+  },
+  prTypePillText: {
+    fontSize: 10,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+  },
+  prTypePillTextWeight: {
+    color: '#3B82F6',
+  },
+  prTypePillTextVolume: {
+    color: '#4ADE80',
+  },
+  prOldVal: {
+    color: 'rgba(120,120,130,1)',
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+  },
+  prArrow: {
+    color: 'rgba(100,100,110,1)',
+    fontSize: 11,
+  },
+  prNewVal: {
+    color: '#f97316',
+    fontSize: 13,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+  },
+  prEmptyCard: {
+    marginHorizontal: 20,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    paddingVertical: 24,
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 20,
+  },
+  prEmptyText: {
     color: 'rgba(160,150,140,1)',
     fontSize: 14,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
   },
-  streakHighlight: {
-    color: '#f97316',
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-  streakMuted: {
-    color: 'rgba(120,120,130,1)',
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-  streakSep: {
-    width: 1,
-    height: 14,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+  prEmptySubtext: {
+    color: 'rgba(100,100,110,1)',
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
   },
 
   // Radar chart
@@ -950,134 +1128,68 @@ const styles = StyleSheet.create({
     color: '#FBBF24',
   },
 
-  // Volume bars
-  volumeSection: {
+  // Volume Shortcut
+  volumeShortcut: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginHorizontal: 20,
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
-    padding: 16,
-    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
     marginBottom: 16,
   },
-  volumeTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  volumeInfoBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
+  volumeShortcutIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,107,53,0.12)',
     justifyContent: 'center',
-  },
-  volumeList: {
-    gap: 10,
-  },
-  volumeRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
   },
-  volumeLabel: {
-    width: 80,
-    color: 'rgba(180,180,190,1)',
-    fontSize: 12,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-  volumeBarBg: {
+  volumeShortcutInfo: {
     flex: 1,
-    height: 8,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 4,
-    position: 'relative',
+    gap: 2,
   },
-  volumeBarFill: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    height: '100%',
-    borderRadius: 4,
+  volumeShortcutTitle: {
+    color: '#fff',
+    fontSize: 15,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
   },
-  volumeMarker: {
-    position: 'absolute',
-    top: -3,
-    width: 2,
-    height: 14,
-    backgroundColor: 'rgba(255,255,255,0.5)',
-    borderRadius: 1,
-  },
-  volumeMarkerGreen: {
-    backgroundColor: 'rgba(74, 222, 128, 0.85)',
-  },
-  volumeMarkerYellow: {
-    backgroundColor: 'rgba(251, 191, 36, 0.85)',
-  },
-  volumeValue: {
-    width: 46,
-    textAlign: 'right',
-    fontSize: 12,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-  volumeTarget: {
-    color: 'rgba(100,100,110,1)',
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-  volumeExpandBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingTop: 4,
-  },
-  volumeExpandText: {
-    color: 'rgba(160,150,140,1)',
-    fontSize: 12,
+  volumeShortcutSub: {
+    color: 'rgba(120,120,130,1)',
+    fontSize: 13,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
   },
 
-  // Chart
-  chartCard: {
-    marginHorizontal: 20,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    padding: 16,
-    gap: 16,
-    marginBottom: 16,
-  },
   sectionTitle: {
     color: '#fff',
     fontSize: 16,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
   },
-  chartContainer: {
-    alignItems: 'center',
-  },
 
-  // Recent
+  // Recent sessions
   recentSection: {
     marginHorizontal: 20,
     gap: 12,
   },
   recentCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
     paddingHorizontal: 16,
     paddingVertical: 14,
+  },
+  recentTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   recentInfo: {
@@ -1096,121 +1208,37 @@ const styles = StyleSheet.create({
     fontFamily: Fonts?.medium,
     fontWeight: '500',
   },
-
-  // Volume Info Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'flex-end',
+  recentExercises: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+    gap: 10,
   },
-  infoModal: {
-    backgroundColor: '#1C1C1E',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    borderBottomWidth: 0,
-    maxHeight: '85%',
+  recentExRow: {
+    gap: 4,
   },
-  infoModalHeader: {
+  recentExName: {
+    color: 'rgba(200,200,210,1)',
+    fontSize: 13,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+  },
+  recentSetsList: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+    flexWrap: 'wrap',
+    gap: 6,
   },
-  infoModalTitle: {
-    fontSize: 18,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  modalClose: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  infoModalText: {
-    fontSize: 14,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    color: '#9CA3AF',
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  landmarkList: { gap: 16 },
-  landmarkItem: { gap: 4 },
-  landmarkHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  landmarkDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  landmarkAbbr: {
-    fontSize: 14,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    width: 36,
-  },
-  landmarkName: {
-    fontSize: 12,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    color: '#D1D5DB',
-    flex: 1,
-  },
-  landmarkDesc: {
-    fontSize: 12,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    color: '#6B7280',
-    marginLeft: 54,
-    lineHeight: 16,
-  },
-  progressionBox: {
-    marginTop: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 12,
-    padding: 16,
-  },
-  progressionLabel: {
+  recentSetText: {
+    color: 'rgba(140,140,150,1)',
     fontSize: 11,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    color: '#9CA3AF',
-    letterSpacing: 0.5,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  progressionBar: {
-    flexDirection: 'row',
-    height: 8,
-    borderRadius: 4,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
     overflow: 'hidden',
-  },
-  progressionZone: {
-    height: '100%',
-  },
-  progressionLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-    paddingHorizontal: 4,
-  },
-  progressionMarker: {
-    fontSize: 10,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    color: '#6B7280',
   },
 
   // Empty
