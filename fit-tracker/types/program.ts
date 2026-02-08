@@ -30,6 +30,7 @@ export interface ProgramExercise {
   maxReps: number;
   targetRir: number;
   restTime: number;
+  setTime?: number; // seconds per set execution (default 35)
   suggestedWeight?: number; // kg — estimated from bodyweight, 0 for bodyweight exercises
   notes?: string;
   // Original values for reset (populated during generation)

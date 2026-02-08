@@ -61,6 +61,26 @@ export const MUSCLE_LABELS_FR: Record<string, string> = {
   obliques: 'Obliques',
 };
 
+/**
+ * Maps RP muscle keys → BODY_ICONS body-part keys (from ActiveProgramCard)
+ */
+export const MUSCLE_TO_BODYPART: Record<string, string> = {
+  chest: 'chest',
+  'upper back': 'back',
+  lats: 'back',
+  'lower back': 'back',
+  shoulders: 'shoulders',
+  biceps: 'upper arms',
+  triceps: 'upper arms',
+  forearms: 'lower arms',
+  quads: 'upper legs',
+  hamstrings: 'upper legs',
+  glutes: 'upper legs',
+  calves: 'lower legs',
+  abs: 'waist',
+  obliques: 'waist',
+};
+
 const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
 
 /**

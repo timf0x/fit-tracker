@@ -1,0 +1,442 @@
+/**
+ * Smart Workout Engine
+ *
+ * Computes data-driven training suggestions and generates
+ * ad-hoc workouts based on recovery + volume + history.
+ */
+
+import { WorkoutSession, RecoveryLevel } from '@/types';
+import { EquipmentSetup, ExperienceLevel } from '@/types/program';
+import { exercises, getExerciseById } from '@/data/exercises';
+import { computeRecoveryOverview, getTrainingRecommendation } from '@/lib/recoveryHelpers';
+import { getSetsForWeek } from '@/lib/weeklyVolume';
+import { MUSCLE_LABELS_FR } from '@/lib/muscleMapping';
+import {
+  RP_VOLUME_LANDMARKS,
+  VolumeLandmarkZone,
+  getVolumeZone,
+  getZoneColor,
+} from '@/constants/volumeLandmarks';
+import {
+  EXERCISE_POOLS,
+  EQUIPMENT_BY_SETUP,
+  GOAL_CONFIG,
+} from '@/constants/programTemplates';
+import { isCompound } from '@/lib/programGenerator';
+import { getExerciseCategory } from '@/lib/exerciseClassification';
+import { getEstimatedWeight, getLastLoggedWeight, roundToIncrement } from '@/lib/weightEstimation';
+import { RECOVERY_COLORS, TRACKABLE_BODY_PARTS } from '@/constants/recovery';
+
+// ─── Types ───
+
+export interface SmartMuscleSuggestion {
+  muscle: string;
+  labelFr: string;
+  recoveryStatus: RecoveryLevel;
+  zone: VolumeLandmarkZone;
+  zoneLabelShort: string;
+  zoneColor: string;
+  currentSets: number;
+}
+
+export interface SmartSuggestion {
+  sessionType: 'push' | 'pull' | 'legs' | 'upper' | 'lower' | 'full_body' | 'rest';
+  sessionLabel: string;
+  sessionColor: string;
+  muscles: SmartMuscleSuggestion[];
+  nudge: string;
+  hasHistory: boolean;
+}
+
+export interface GeneratedExercise {
+  exerciseId: string;
+  sets: number;
+  reps: number;
+  minReps: number;
+  maxReps: number;
+  restTime: number;
+  setTime: number;
+  suggestedWeight: number;
+  muscle: string;
+}
+
+export interface GeneratedWorkout {
+  exercises: GeneratedExercise[];
+  sessionLabel: string;
+  muscleTargets: string[];
+  totalSets: number;
+  estimatedMinutes: number;
+}
+
+export interface SessionSummary {
+  muscleCount: number;
+  totalSets: number;
+  estimatedMinutes: number;
+}
+
+// ─── Zone Labels ───
+
+const ZONE_LABEL_SHORT: Record<VolumeLandmarkZone, string> = {
+  below_mv: 'Sous MV',
+  mv_mev: 'MV',
+  mev_mav: 'MEV',
+  mav_mrv: 'MAV',
+  above_mrv: 'MRV+',
+};
+
+// ─── Session Type Mapping ───
+
+const SESSION_TYPE_LABEL: Record<string, string> = {
+  push: 'Push',
+  pull: 'Pull',
+  legs: 'Jambes',
+  upper: 'Haut du corps',
+  lower: 'Bas du corps',
+  full_body: 'Full Body',
+  rest: 'Repos',
+  general: 'Entraînement',
+};
+
+const SESSION_TYPE_COLOR: Record<string, string> = {
+  push: '#FF6B35',
+  pull: '#3B82F6',
+  legs: '#4ADE80',
+  upper: '#FF6B35',
+  lower: '#4ADE80',
+  full_body: '#A855F7',
+  rest: '#6B7280',
+  general: '#FF6B35',
+};
+
+// ─── Muscle Sort Order (compounds first) ───
+
+const MUSCLE_SORT_ORDER: Record<string, number> = {
+  quads: 0, hamstrings: 1, glutes: 2, chest: 3, lats: 4,
+  'upper back': 5, 'lower back': 6, shoulders: 7,
+  triceps: 8, biceps: 9, forearms: 10, calves: 11,
+  abs: 12, obliques: 13,
+};
+
+// ─── Muscle Size Classification ───
+
+const LARGE_MUSCLES = new Set(['chest', 'lats', 'quads', 'hamstrings', 'glutes']);
+const SMALL_MUSCLES = new Set(['biceps', 'triceps', 'forearms', 'calves', 'abs', 'obliques']);
+// Everything else is medium: shoulders, upper back, lower back
+
+// ─── Main Functions ───
+
+const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
+
+/**
+ * Compute a smart training suggestion based on recovery + volume data.
+ */
+export function computeSmartSuggestion(
+  history: WorkoutSession[],
+): SmartSuggestion {
+  const hasHistory = history.some((s) => s.endTime && s.completedExercises.length > 0);
+
+  if (!hasHistory) {
+    return {
+      sessionType: 'full_body',
+      sessionLabel: 'Full Body',
+      sessionColor: SESSION_TYPE_COLOR.full_body,
+      muscles: [],
+      nudge: '',
+      hasHistory: false,
+    };
+  }
+
+  // 1. Recovery overview
+  const overview = computeRecoveryOverview(history);
+
+  // 2. Current week volume
+  const currentWeekSets = getSetsForWeek(history, 0);
+
+  // 3. Training recommendation
+  const rec = getTrainingRecommendation(overview);
+
+  // 4. Map session type
+  const sessionType = rec.type === 'general' ? 'full_body' : rec.type;
+
+  // 5. Build muscle suggestions from recommended muscles
+  const muscles: SmartMuscleSuggestion[] = rec.muscles
+    .filter((m) => m !== 'cardio')
+    .slice(0, 4)
+    .map((muscle) => {
+      const landmarks = RP_VOLUME_LANDMARKS[muscle];
+      const currentSets = currentWeekSets[muscle] || 0;
+      const zone = landmarks ? getVolumeZone(currentSets, landmarks) : 'below_mv' as VolumeLandmarkZone;
+      const zoneColor = getZoneColor(zone);
+      const recoveryData = overview.muscles.find((m) => m.bodyPart === muscle);
+
+      return {
+        muscle,
+        labelFr: MUSCLE_LABELS_FR[muscle] || muscle,
+        recoveryStatus: recoveryData?.status || 'fresh',
+        zone,
+        zoneLabelShort: ZONE_LABEL_SHORT[zone],
+        zoneColor,
+        currentSets,
+      };
+    });
+
+  return {
+    sessionType: sessionType as SmartSuggestion['sessionType'],
+    sessionLabel: SESSION_TYPE_LABEL[sessionType] || 'Entraînement',
+    sessionColor: SESSION_TYPE_COLOR[sessionType] || '#FF6B35',
+    muscles,
+    nudge: rec.message,
+    hasHistory: true,
+  };
+}
+
+/**
+ * Get recovery + volume data for ALL muscles (for the generator selector screen).
+ */
+export function getAllMuscleData(
+  history: WorkoutSession[],
+): SmartMuscleSuggestion[] {
+  const overview = computeRecoveryOverview(history);
+  const currentWeekSets = getSetsForWeek(history, 0);
+
+  return TRACKABLE_BODY_PARTS
+    .filter((bp) => bp !== 'cardio')
+    .map((muscle) => {
+      const landmarks = RP_VOLUME_LANDMARKS[muscle];
+      const currentSets = currentWeekSets[muscle] || 0;
+      const zone = landmarks ? getVolumeZone(currentSets, landmarks) : 'below_mv' as VolumeLandmarkZone;
+      const zoneColor = getZoneColor(zone);
+      const recoveryData = overview.muscles.find((m) => m.bodyPart === muscle);
+
+      return {
+        muscle,
+        labelFr: MUSCLE_LABELS_FR[muscle] || muscle,
+        recoveryStatus: recoveryData?.status || 'undertrained',
+        zone,
+        zoneLabelShort: ZONE_LABEL_SHORT[zone],
+        zoneColor,
+        currentSets,
+      };
+    });
+}
+
+/**
+ * Lightweight session summary for live preview in the selector step.
+ */
+export function estimateSessionSummary(
+  selectedMuscles: string[],
+  equipment: EquipmentSetup,
+): SessionSummary {
+  let totalSets = 0;
+  const allowedEquipment = EQUIPMENT_BY_SETUP[equipment];
+
+  for (const muscle of selectedMuscles) {
+    const landmarks = RP_VOLUME_LANDMARKS[muscle];
+    if (!landmarks) continue;
+
+    // Target sets per session = MAV low / 2 (assumes ~2x/week frequency)
+    let setsPerSession = Math.floor(landmarks.mavLow / 2);
+
+    // Cap by muscle size
+    if (LARGE_MUSCLES.has(muscle)) setsPerSession = Math.min(Math.max(setsPerSession, 2), 6);
+    else if (SMALL_MUSCLES.has(muscle)) setsPerSession = Math.min(Math.max(setsPerSession, 2), 4);
+    else setsPerSession = Math.min(Math.max(setsPerSession, 2), 5);
+
+    totalSets += setsPerSession;
+  }
+
+  // Estimate duration: ~2.5 min per set average (set + rest)
+  const estimatedMinutes = Math.round(totalSets * 2.5);
+
+  return {
+    muscleCount: selectedMuscles.length,
+    totalSets,
+    estimatedMinutes,
+  };
+}
+
+/**
+ * Generate a complete workout for the selected muscles.
+ */
+export function generateSmartWorkout(params: {
+  selectedMuscles: string[];
+  equipment: EquipmentSetup;
+  goal?: string;
+  history: WorkoutSession[];
+  userWeight?: number;
+  userSex?: 'male' | 'female';
+  userExperience?: ExperienceLevel;
+}): GeneratedWorkout {
+  const {
+    selectedMuscles,
+    equipment,
+    history,
+    goal = 'hypertrophy',
+    userWeight = 80,
+    userSex = 'male',
+    userExperience = 'intermediate',
+  } = params;
+
+  const allowedEquipment = EQUIPMENT_BY_SETUP[equipment];
+  const goalConfig = GOAL_CONFIG[goal] || GOAL_CONFIG.hypertrophy;
+
+  // Get last session's exercises for variety
+  const lastSessionExercises = new Set<string>();
+  const completedHistory = history.filter((s) => s.endTime && s.completedExercises.length > 0);
+  if (completedHistory.length > 0) {
+    for (const ce of completedHistory[0].completedExercises) {
+      lastSessionExercises.add(ce.exerciseId);
+    }
+  }
+
+  const usedExercises = new Set<string>();
+  const allExercises: GeneratedExercise[] = [];
+
+  // Process muscles sorted by MUSCLE_SORT_ORDER (big muscles first)
+  const sortedMuscles = [...selectedMuscles].sort(
+    (a, b) => (MUSCLE_SORT_ORDER[a] ?? 99) - (MUSCLE_SORT_ORDER[b] ?? 99)
+  );
+
+  for (const muscle of sortedMuscles) {
+    const landmarks = RP_VOLUME_LANDMARKS[muscle];
+    if (!landmarks) continue;
+
+    // Target sets for this session
+    let setsForMuscle = Math.floor(landmarks.mavLow / 2);
+
+    // Cap by muscle size
+    if (LARGE_MUSCLES.has(muscle)) setsForMuscle = Math.min(Math.max(setsForMuscle, 2), 6);
+    else if (SMALL_MUSCLES.has(muscle)) setsForMuscle = Math.min(Math.max(setsForMuscle, 2), 4);
+    else setsForMuscle = Math.min(Math.max(setsForMuscle, 2), 5);
+
+    if (setsForMuscle <= 0) continue;
+
+    // Pick exercises
+    const pool = EXERCISE_POOLS[muscle] || [];
+    const available = pool.filter((id) => {
+      const ex = exerciseMap.get(id);
+      return ex && allowedEquipment.includes(ex.equipment);
+    });
+
+    if (available.length === 0) continue;
+
+    // Number of exercises: 1 if <=4 sets, 2 if >4
+    const exerciseCount = setsForMuscle > 4 ? 2 : 1;
+
+    for (let i = 0; i < exerciseCount; i++) {
+      let picked: string | null = null;
+
+      // Prefer exercises NOT in the last session for variety
+      for (const id of available) {
+        if (usedExercises.has(id)) continue;
+        if (!lastSessionExercises.has(id)) {
+          // For first exercise, prefer compound
+          if (i === 0 && !isCompound(id)) continue;
+          picked = id;
+          break;
+        }
+      }
+
+      // Fallback: accept any unused exercise
+      if (!picked) {
+        for (const id of available) {
+          if (usedExercises.has(id)) continue;
+          if (i === 0 && isCompound(id)) { picked = id; break; }
+        }
+      }
+
+      // Final fallback: any available
+      if (!picked) {
+        for (const id of available) {
+          if (!usedExercises.has(id)) { picked = id; break; }
+        }
+      }
+
+      if (!picked) picked = available[0];
+
+      usedExercises.add(picked);
+
+      const setsForThis = exerciseCount === 1
+        ? setsForMuscle
+        : i === 0
+          ? Math.ceil(setsForMuscle / 2)
+          : Math.floor(setsForMuscle / 2);
+
+      // Get rep/rest config based on exercise category
+      const category = getExerciseCategory(picked);
+      const catConfig = goalConfig[category];
+
+      // Weight: check history first, then estimate
+      const ex = exerciseMap.get(picked);
+      let weight = 0;
+
+      if (ex) {
+        const logged = getLastLoggedWeight(picked, completedHistory);
+        if (logged !== null) {
+          weight = logged;
+        } else {
+          weight = getEstimatedWeight(
+            picked, ex.equipment, ex.target,
+            userWeight, userSex, userExperience,
+          );
+        }
+      }
+
+      allExercises.push({
+        exerciseId: picked,
+        sets: Math.max(setsForThis, 1),
+        reps: catConfig.maxReps,
+        minReps: catConfig.minReps,
+        maxReps: catConfig.maxReps,
+        restTime: catConfig.restTime,
+        setTime: catConfig.setTime,
+        suggestedWeight: weight,
+        muscle,
+      });
+    }
+  }
+
+  // Sort: compounds first by muscle order, then isolations
+  allExercises.sort((a, b) => {
+    const aComp = isCompound(a.exerciseId);
+    const bComp = isCompound(b.exerciseId);
+    if (aComp !== bComp) return aComp ? -1 : 1;
+    return (MUSCLE_SORT_ORDER[a.muscle] ?? 99) - (MUSCLE_SORT_ORDER[b.muscle] ?? 99);
+  });
+
+  // Estimate duration
+  let totalSeconds = 0;
+  for (const ex of allExercises) {
+    totalSeconds += ex.sets * (ex.setTime + ex.restTime);
+  }
+
+  // Build session label
+  const sessionLabel = getSessionLabel(selectedMuscles);
+
+  return {
+    exercises: allExercises,
+    sessionLabel,
+    muscleTargets: selectedMuscles,
+    totalSets: allExercises.reduce((sum, e) => sum + e.sets, 0),
+    estimatedMinutes: Math.round(totalSeconds / 60),
+  };
+}
+
+/**
+ * Infer a session label from selected muscles.
+ */
+function getSessionLabel(muscles: string[]): string {
+  const set = new Set(muscles);
+  const hasPush = set.has('chest') || set.has('shoulders') || set.has('triceps');
+  const hasPull = set.has('lats') || set.has('upper back') || set.has('biceps');
+  const hasLegs = set.has('quads') || set.has('hamstrings') || set.has('glutes');
+
+  if (hasPush && !hasPull && !hasLegs) return 'Push';
+  if (hasPull && !hasPush && !hasLegs) return 'Pull';
+  if (hasLegs && !hasPush && !hasPull) return 'Jambes';
+  if (hasPush && hasPull && !hasLegs) return 'Haut du corps';
+  if (hasLegs && !hasPush && !hasPull) return 'Bas du corps';
+  if (hasPush && hasPull && hasLegs) return 'Full Body';
+
+  return 'Entraînement';
+}

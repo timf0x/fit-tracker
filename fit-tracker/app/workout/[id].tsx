@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import DraggableFlatList, { ScaleDecorator, RenderItemParams } from 'react-native-draggable-flatlist';
 import {
   ArrowLeft,
@@ -20,20 +21,26 @@ import {
   Search,
   Check,
   ChevronDown,
-  Minus as MinusIcon,
+  Minus,
   Trash2,
   MoreVertical,
   Pencil,
   Info,
+  Repeat,
+  Weight,
+  Clock,
 } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { ExerciseIcon } from '@/components/ExerciseIcon';
-import { ExerciseSparkline } from '@/components/ExerciseSparkline';
 import { ExerciseInfoSheet } from '@/components/ExerciseInfoSheet';
 import { ReadinessCheck } from '@/components/program/ReadinessCheck';
+import { ConfirmModal } from '@/components/program/ConfirmModal';
+import { SessionInsights } from '@/components/program/SessionInsights';
+import { computeWorkoutInsights } from '@/lib/sessionInsights';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { exercises as allExercises, getExerciseById } from '@/data/exercises';
 import type { WorkoutExercise, Exercise, BodyPart, Equipment } from '@/types';
+import { DEFAULT_SET_TIME } from '@/types';
 import type { ReadinessCheck as ReadinessCheckType } from '@/types/program';
 
 // ─── Constants ───
@@ -81,7 +88,7 @@ interface SelectedExercise extends WorkoutExercise {
   uid: string;
 }
 
-type EditingParam = 'sets' | 'reps' | 'weight' | 'restTime' | null;
+type EditableField = 'sets' | 'reps' | 'weight' | 'restTime' | 'setTime';
 
 // ─── Dropdown Modal Component ───
 
@@ -137,6 +144,7 @@ export default function WorkoutDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const store = useWorkoutStore();
+  const history = useWorkoutStore((s) => s.history);
 
   const workout = store.getWorkoutById(id || '');
   const isCustom = !!workout?.isCustom;
@@ -155,10 +163,8 @@ export default function WorkoutDetailScreen() {
   const [showEquipmentDropdown, setShowEquipmentDropdown] = useState(false);
   const [infoExercise, setInfoExercise] = useState<Exercise | null>(null);
 
-  // Parameter stepper
+  // Inline editor — tap row to expand (matches program day pattern)
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editingParam, setEditingParam] = useState<EditingParam>(null);
-  const [editingValue, setEditingValue] = useState(0);
 
   // Kebab menu & rename modal
   const [showMenu, setShowMenu] = useState(false);
@@ -166,8 +172,21 @@ export default function WorkoutDetailScreen() {
   const [renameValue, setRenameValue] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Pre-session readiness
+  // Pre-session readiness & pacing guard
   const [showReadiness, setShowReadiness] = useState(false);
+  const [showPacingWarning, setShowPacingWarning] = useState(false);
+
+  // Pacing guard — check if user already completed a session today
+  const hasSessionToday = useMemo(() => {
+    const today = new Date().toDateString();
+    return history.some((s) => s.endTime && new Date(s.endTime).toDateString() === today);
+  }, [history]);
+
+  // ─── Session insights (muscle impact) ───
+  const insightsData = useMemo(
+    () => computeWorkoutInsights(selectedExercises, history),
+    [selectedExercises, history],
+  );
 
   // ─── Load workout exercises into local state ───
   useEffect(() => {
@@ -200,9 +219,10 @@ export default function WorkoutDetailScreen() {
         reps: ex.reps,
         weight: ex.weight,
         restTime: ex.restTime,
+        setTime: ex.setTime,
       }));
       const duration = Math.ceil(
-        exercises.reduce((acc, ex) => acc + (45 + ex.restTime) * ex.sets, 0) / 60
+        exercises.reduce((acc, ex) => acc + ((ex.setTime || 35) + ex.restTime) * ex.sets, 0) / 60
       );
       store.updateCustomWorkout(id, {
         exercises: workoutExercises,
@@ -240,6 +260,7 @@ export default function WorkoutDetailScreen() {
       reps: 12,
       weight: 0,
       restTime: 60,
+      setTime: DEFAULT_SET_TIME,
       uid: `${exercise.id}_${Date.now()}_${i}`,
     }));
     const updated = [...selectedExercises, ...newExercises];
@@ -260,52 +281,38 @@ export default function WorkoutDetailScreen() {
     setSelectedEquipment('all');
   };
 
-  // ─── Parameter stepper logic ───
-  const openParamStepper = (index: number, param: EditingParam) => {
-    const ex = selectedExercises[index];
-    let value = 0;
-    if (param === 'sets') value = ex.sets;
-    else if (param === 'reps') value = ex.reps;
-    else if (param === 'weight') value = ex.weight || 0;
-    else if (param === 'restTime') value = ex.restTime;
-    setEditingIndex(index);
-    setEditingParam(param);
-    setEditingValue(value);
-  };
-
-  const updateParamValue = (delta: number) => {
-    let newVal = editingValue + delta;
-    if (editingParam === 'restTime') newVal = Math.max(15, Math.min(300, newVal));
-    else if (editingParam === 'weight') newVal = Math.max(0, newVal);
-    else newVal = Math.max(1, Math.min(50, newVal));
-    setEditingValue(newVal);
-  };
-
-  const saveParamValue = () => {
-    if (editingIndex === null || !editingParam) return;
-    const updated = selectedExercises.map((ex, i) =>
-      i === editingIndex ? { ...ex, [editingParam!]: editingValue } : ex
-    );
+  // ─── Inline field stepper (matches program day pattern) ───
+  const handleEditField = (index: number, field: EditableField, delta: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const updated = selectedExercises.map((ex, i) => {
+      if (i !== index) return ex;
+      let newValue: number;
+      switch (field) {
+        case 'sets':
+          newValue = Math.max(1, ex.sets + delta);
+          break;
+        case 'reps':
+          newValue = Math.max(1, ex.reps + delta);
+          break;
+        case 'weight': {
+          const equip = ex.exercise.equipment;
+          const step = (equip === 'barbell' || equip === 'ez bar' || equip === 'smith machine') ? 2.5 : 2;
+          newValue = Math.max(0, (ex.weight || 0) + delta * step);
+          break;
+        }
+        case 'restTime':
+          newValue = Math.max(15, ex.restTime + delta * 15);
+          break;
+        case 'setTime':
+          newValue = Math.max(10, (ex.setTime || 35) + delta * 5);
+          break;
+        default:
+          return ex;
+      }
+      return { ...ex, [field]: newValue };
+    });
     setSelectedExercises(updated);
     autoSave(updated);
-    setEditingIndex(null);
-    setEditingParam(null);
-  };
-
-  const getParamLabel = (p: EditingParam) => {
-    if (p === 'sets') return 'SÉRIES';
-    if (p === 'reps') return 'RÉPÉTITIONS';
-    if (p === 'weight') return 'POIDS (KG)';
-    if (p === 'restTime') return 'REPOS (SEC)';
-    return '';
-  };
-
-  const getQuickOptions = (p: EditingParam) => {
-    if (p === 'sets') return [3, 4, 5];
-    if (p === 'reps') return [8, 12, 15];
-    if (p === 'weight') return [10, 20, 40];
-    if (p === 'restTime') return [30, 60, 90];
-    return [];
   };
 
   // ─── Drag reorder ───
@@ -561,64 +568,136 @@ export default function WorkoutDetailScreen() {
 
   const displayName = workout.nameFr || workout.name;
 
-  // ─── Render editable exercise card (custom) ───
+  // ─── Render exercise row (custom — matches program day pattern) ───
   const renderEditableItem = ({ item: ex, drag, isActive, getIndex }: RenderItemParams<SelectedExercise>) => {
     const index = getIndex()!;
+    const isEditing = editingIndex === index;
+    const isLast = index === selectedExercises.length - 1;
+
     return (
       <ScaleDecorator>
-        <Pressable
-          onLongPress={drag}
-          disabled={isActive}
-          style={[
-            s.exerciseCard,
-            isActive && {
-              shadowColor: Colors.primary,
-              shadowOpacity: 0.3,
-              shadowRadius: 12,
-              shadowOffset: { width: 0, height: 8 },
-              elevation: 10,
-            },
-          ]}
-        >
-          <View style={s.exerciseCardHeader}>
-            <Pressable onPress={() => setInfoExercise(ex.exercise)}>
-              <ExerciseIcon
-                exerciseName={ex.exercise.name}
-                bodyPart={ex.exercise.bodyPart}
-                size={16}
-                containerSize={40}
-              />
-            </Pressable>
-            <View style={s.exerciseCardInfo}>
-              <Text style={s.exerciseCardName} numberOfLines={1}>
-                {ex.exercise.nameFr}
-              </Text>
-              <Text style={s.exerciseCardTarget}>{ex.exercise.target}</Text>
+        <View>
+          <Pressable
+            style={[s.exRow, isEditing && s.exRowEditing]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setEditingIndex(isEditing ? null : index);
+            }}
+            onLongPress={drag}
+            disabled={isActive}
+          >
+            <View style={s.exNumber}>
+              <Text style={s.exNumberText}>{String(index + 1).padStart(2, '0')}</Text>
             </View>
-            <ExerciseSparkline exerciseId={ex.exerciseId} width={72} height={28} />
-            <Pressable style={s.removeBtn} onPress={() => handleRemoveExercise(index)}>
-              <X size={14} color="#FF4B4B" strokeWidth={2.5} />
+
+            <ExerciseIcon
+              exerciseName={ex.exercise.name}
+              bodyPart={ex.exercise.bodyPart}
+              gifUrl={ex.exercise.gifUrl}
+              size={20}
+              containerSize={44}
+            />
+
+            <View style={s.exInfo}>
+              <Text style={s.exName} numberOfLines={1}>{ex.exercise.nameFr}</Text>
+              <View style={s.exMeta}>
+                <View style={s.exMetaPill}>
+                  <Repeat size={10} color="rgba(255,255,255,0.4)" />
+                  <Text style={s.exMetaText}>{ex.sets} x {ex.reps}</Text>
+                </View>
+                {(ex.weight || 0) > 0 && (
+                  <View style={[s.exMetaPill, s.exWeightPill]}>
+                    <Weight size={10} color={Colors.primary} />
+                    <Text style={[s.exMetaText, s.exWeightText]}>{ex.weight}kg</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            <Pressable style={s.infoButton} onPress={() => setInfoExercise(ex.exercise)} hitSlop={8}>
+              <Info size={16} color="rgba(255,255,255,0.25)" />
             </Pressable>
-          </View>
-          <View style={s.paramGrid}>
-            <Pressable style={s.paramCell} onPress={() => openParamStepper(index, 'sets')}>
-              <Text style={s.paramCellLabel}>SÉRIES</Text>
-              <Text style={s.paramCellValue}>{ex.sets}</Text>
-            </Pressable>
-            <Pressable style={s.paramCell} onPress={() => openParamStepper(index, 'reps')}>
-              <Text style={s.paramCellLabel}>REPS</Text>
-              <Text style={s.paramCellValue}>{ex.reps}</Text>
-            </Pressable>
-            <Pressable style={s.paramCell} onPress={() => openParamStepper(index, 'weight')}>
-              <Text style={s.paramCellLabel}>POIDS</Text>
-              <Text style={s.paramCellValue}>{ex.weight || 0} kg</Text>
-            </Pressable>
-            <Pressable style={[s.paramCell, { borderRightWidth: 0 }]} onPress={() => openParamStepper(index, 'restTime')}>
-              <Text style={s.paramCellLabel}>REPOS</Text>
-              <Text style={s.paramCellValue}>{ex.restTime}s</Text>
-            </Pressable>
-          </View>
-        </Pressable>
+          </Pressable>
+
+          {/* Inline editor panel */}
+          {isEditing && (
+            <View style={s.editorPanel}>
+              <Text style={s.editorLabel}>Ajuste selon ton ressenti</Text>
+
+              <View style={s.editorRow}>
+                <Text style={s.editorFieldLabel}>Séries</Text>
+                <View style={s.stepperRow}>
+                  <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'sets', -1)}>
+                    <Minus size={14} color="#fff" />
+                  </Pressable>
+                  <Text style={s.stepperValue}>{ex.sets}</Text>
+                  <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'sets', 1)}>
+                    <Plus size={14} color="#fff" />
+                  </Pressable>
+                </View>
+              </View>
+
+              <View style={s.editorRow}>
+                <Text style={s.editorFieldLabel}>Reps</Text>
+                <View style={s.stepperRow}>
+                  <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'reps', -1)}>
+                    <Minus size={14} color="#fff" />
+                  </Pressable>
+                  <Text style={s.stepperValue}>{ex.reps}</Text>
+                  <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'reps', 1)}>
+                    <Plus size={14} color="#fff" />
+                  </Pressable>
+                </View>
+              </View>
+
+              <View style={s.editorRow}>
+                <Text style={s.editorFieldLabel}>Charge (kg)</Text>
+                <View style={s.stepperRow}>
+                  <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'weight', -1)}>
+                    <Minus size={14} color="#fff" />
+                  </Pressable>
+                  <Text style={s.stepperValue}>{ex.weight || 0}</Text>
+                  <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'weight', 1)}>
+                    <Plus size={14} color="#fff" />
+                  </Pressable>
+                </View>
+              </View>
+
+              <View style={s.editorRow}>
+                <Text style={s.editorFieldLabel}>Repos (s)</Text>
+                <View style={s.stepperRow}>
+                  <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'restTime', -1)}>
+                    <Minus size={14} color="#fff" />
+                  </Pressable>
+                  <Text style={s.stepperValue}>{ex.restTime}</Text>
+                  <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'restTime', 1)}>
+                    <Plus size={14} color="#fff" />
+                  </Pressable>
+                </View>
+              </View>
+
+              <View style={s.editorRow}>
+                <Text style={s.editorFieldLabel}>Tempo (s/set)</Text>
+                <View style={s.stepperRow}>
+                  <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'setTime', -1)}>
+                    <Minus size={14} color="#fff" />
+                  </Pressable>
+                  <Text style={s.stepperValue}>{ex.setTime || 35}</Text>
+                  <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'setTime', 1)}>
+                    <Plus size={14} color="#fff" />
+                  </Pressable>
+                </View>
+              </View>
+
+              <Pressable style={s.removeRow} onPress={() => handleRemoveExercise(index)}>
+                <Trash2 size={12} color="#FF4B4B" />
+                <Text style={s.removeText}>Retirer cet exercice</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {!isEditing && !isLast && <View style={s.exSeparator} />}
+        </View>
       </ScaleDecorator>
     );
   };
@@ -657,6 +736,7 @@ export default function WorkoutDetailScreen() {
           contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: 140, paddingTop: 8 }}
           showsVerticalScrollIndicator={false}
           renderItem={renderEditableItem}
+          ListHeaderComponent={<SessionInsights data={insightsData} />}
           ListFooterComponent={
             <View style={{ marginTop: 4 }}>
               <Pressable style={s.addExerciseBtn} onPress={() => setShowExercisePicker(true)}>
@@ -671,51 +751,134 @@ export default function WorkoutDetailScreen() {
           }
         />
       ) : (
-        // Preset workouts — same card style, editable reps/weight/rest
+        // Preset workouts — row pattern matching program day
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: 140, paddingTop: 8 }}
           showsVerticalScrollIndicator={false}
         >
-          {selectedExercises.map((ex, index) => (
-            <View key={ex.uid} style={s.exerciseCard}>
-              <View style={s.exerciseCardHeader}>
-                <Pressable onPress={() => setInfoExercise(ex.exercise)}>
+          <SessionInsights data={insightsData} />
+          {selectedExercises.map((ex, index) => {
+            const isEditing = editingIndex === index;
+            const isLast = index === selectedExercises.length - 1;
+            return (
+              <View key={ex.uid}>
+                <Pressable
+                  style={[s.exRow, isEditing && s.exRowEditing]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setEditingIndex(isEditing ? null : index);
+                  }}
+                >
+                  <View style={s.exNumber}>
+                    <Text style={s.exNumberText}>{String(index + 1).padStart(2, '0')}</Text>
+                  </View>
+
                   <ExerciseIcon
                     exerciseName={ex.exercise.name}
                     bodyPart={ex.exercise.bodyPart}
-                    size={16}
-                    containerSize={40}
+                    gifUrl={ex.exercise.gifUrl}
+                    size={20}
+                    containerSize={44}
                   />
+
+                  <View style={s.exInfo}>
+                    <Text style={s.exName} numberOfLines={1}>{ex.exercise.nameFr}</Text>
+                    <View style={s.exMeta}>
+                      <View style={s.exMetaPill}>
+                        <Repeat size={10} color="rgba(255,255,255,0.4)" />
+                        <Text style={s.exMetaText}>{ex.sets} x {ex.reps}</Text>
+                      </View>
+                      {(ex.weight || 0) > 0 && (
+                        <View style={[s.exMetaPill, s.exWeightPill]}>
+                          <Weight size={10} color={Colors.primary} />
+                          <Text style={[s.exMetaText, s.exWeightText]}>{ex.weight}kg</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+
+                  <Pressable style={s.infoButton} onPress={() => setInfoExercise(ex.exercise)} hitSlop={8}>
+                    <Info size={16} color="rgba(255,255,255,0.25)" />
+                  </Pressable>
                 </Pressable>
-                <View style={s.exerciseCardInfo}>
-                  <Text style={s.exerciseCardName} numberOfLines={1}>
-                    {ex.exercise.nameFr}
-                  </Text>
-                  <Text style={s.exerciseCardTarget}>{ex.exercise.target}</Text>
-                </View>
-                <ExerciseSparkline exerciseId={ex.exerciseId} width={72} height={28} />
+
+                {/* Inline editor panel */}
+                {isEditing && (
+                  <View style={s.editorPanel}>
+                    <Text style={s.editorLabel}>Ajuste selon ton ressenti</Text>
+
+                    <View style={s.editorRow}>
+                      <Text style={s.editorFieldLabel}>Séries</Text>
+                      <View style={s.stepperRow}>
+                        <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'sets', -1)}>
+                          <Minus size={14} color="#fff" />
+                        </Pressable>
+                        <Text style={s.stepperValue}>{ex.sets}</Text>
+                        <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'sets', 1)}>
+                          <Plus size={14} color="#fff" />
+                        </Pressable>
+                      </View>
+                    </View>
+
+                    <View style={s.editorRow}>
+                      <Text style={s.editorFieldLabel}>Reps</Text>
+                      <View style={s.stepperRow}>
+                        <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'reps', -1)}>
+                          <Minus size={14} color="#fff" />
+                        </Pressable>
+                        <Text style={s.stepperValue}>{ex.reps}</Text>
+                        <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'reps', 1)}>
+                          <Plus size={14} color="#fff" />
+                        </Pressable>
+                      </View>
+                    </View>
+
+                    <View style={s.editorRow}>
+                      <Text style={s.editorFieldLabel}>Charge (kg)</Text>
+                      <View style={s.stepperRow}>
+                        <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'weight', -1)}>
+                          <Minus size={14} color="#fff" />
+                        </Pressable>
+                        <Text style={s.stepperValue}>{ex.weight || 0}</Text>
+                        <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'weight', 1)}>
+                          <Plus size={14} color="#fff" />
+                        </Pressable>
+                      </View>
+                    </View>
+
+                    <View style={s.editorRow}>
+                      <Text style={s.editorFieldLabel}>Repos (s)</Text>
+                      <View style={s.stepperRow}>
+                        <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'restTime', -1)}>
+                          <Minus size={14} color="#fff" />
+                        </Pressable>
+                        <Text style={s.stepperValue}>{ex.restTime}</Text>
+                        <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'restTime', 1)}>
+                          <Plus size={14} color="#fff" />
+                        </Pressable>
+                      </View>
+                    </View>
+
+                    <View style={s.editorRow}>
+                      <Text style={s.editorFieldLabel}>Tempo (s/set)</Text>
+                      <View style={s.stepperRow}>
+                        <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'setTime', -1)}>
+                          <Minus size={14} color="#fff" />
+                        </Pressable>
+                        <Text style={s.stepperValue}>{ex.setTime || 35}</Text>
+                        <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'setTime', 1)}>
+                          <Plus size={14} color="#fff" />
+                        </Pressable>
+                      </View>
+                    </View>
+                  </View>
+                )}
+
+                {!isEditing && !isLast && <View style={s.exSeparator} />}
               </View>
-              <View style={s.paramGrid}>
-                <View style={s.paramCell}>
-                  <Text style={s.paramCellLabel}>SÉRIES</Text>
-                  <Text style={s.paramCellValue}>{ex.sets}</Text>
-                </View>
-                <Pressable style={s.paramCell} onPress={() => openParamStepper(index, 'reps')}>
-                  <Text style={s.paramCellLabel}>REPS</Text>
-                  <Text style={s.paramCellValue}>{ex.reps}</Text>
-                </Pressable>
-                <Pressable style={s.paramCell} onPress={() => openParamStepper(index, 'weight')}>
-                  <Text style={s.paramCellLabel}>POIDS</Text>
-                  <Text style={s.paramCellValue}>{ex.weight || 0} kg</Text>
-                </Pressable>
-                <Pressable style={[s.paramCell, { borderRightWidth: 0 }]} onPress={() => openParamStepper(index, 'restTime')}>
-                  <Text style={s.paramCellLabel}>REPOS</Text>
-                  <Text style={s.paramCellValue}>{ex.restTime}s</Text>
-                </Pressable>
-              </View>
-            </View>
-          ))}
+            );
+          })}
         </ScrollView>
       )}
 
@@ -725,6 +888,10 @@ export default function WorkoutDetailScreen() {
           style={s.startButton}
           onPress={() => {
             if (!workout || selectedExercises.length === 0) return;
+            if (hasSessionToday) {
+              setShowPacingWarning(true);
+              return;
+            }
             setShowReadiness(true);
           }}
         >
@@ -799,89 +966,24 @@ export default function WorkoutDetailScreen() {
         </View>
       </Modal>
 
-      {/* ─── Parameter Stepper Modal ─── */}
-      <Modal
-        visible={editingIndex !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
-          setEditingIndex(null);
-          setEditingParam(null);
+      {/* Parameter stepper modal removed — inline editors used instead */}
+
+      {/* ─── Pacing Warning Modal ─── */}
+      <ConfirmModal
+        visible={showPacingWarning}
+        onClose={() => setShowPacingWarning(false)}
+        icon={<Clock size={28} color="#FBBF24" />}
+        iconBgColor="rgba(251,191,36,0.12)"
+        title="Déjà une séance aujourd'hui"
+        description="Tu as déjà terminé une séance aujourd'hui. La récupération est essentielle pour la progression."
+        cancelText="Reporter"
+        confirmText="Continuer"
+        confirmColor={Colors.primary}
+        onConfirm={() => {
+          setShowPacingWarning(false);
+          setShowReadiness(true);
         }}
-      >
-        <View style={s.modalOverlay}>
-          <View style={s.stepperModal}>
-            {editingIndex !== null && editingParam && (
-              <>
-                <View style={s.stepperHeader}>
-                  <ExerciseIcon
-                    exerciseName={selectedExercises[editingIndex]?.exercise.name}
-                    bodyPart={selectedExercises[editingIndex]?.exercise.bodyPart}
-                    size={16}
-                    containerSize={40}
-                  />
-                  <View style={s.stepperInfo}>
-                    <Text style={s.stepperLabel}>{getParamLabel(editingParam)}</Text>
-                    <Text style={s.stepperName} numberOfLines={1}>
-                      {selectedExercises[editingIndex]?.exercise.nameFr}
-                    </Text>
-                  </View>
-                  <Pressable
-                    onPress={() => {
-                      setEditingIndex(null);
-                      setEditingParam(null);
-                    }}
-                  >
-                    <X size={20} color="rgba(120,120,130,1)" strokeWidth={2} />
-                  </Pressable>
-                </View>
-                <View style={s.stepperControls}>
-                  <Pressable
-                    style={s.stepperBtn}
-                    onPress={() =>
-                      updateParamValue(editingParam === 'restTime' ? -15 : editingParam === 'weight' ? -5 : -1)
-                    }
-                  >
-                    <MinusIcon size={24} color={Colors.text} strokeWidth={2} />
-                  </Pressable>
-                  <Text style={s.stepperValue}>
-                    {editingValue}
-                    <Text style={s.stepperUnit}>
-                      {editingParam === 'weight' ? ' kg' : editingParam === 'restTime' ? 's' : ''}
-                    </Text>
-                  </Text>
-                  <Pressable
-                    style={[s.stepperBtn, s.stepperBtnPlus]}
-                    onPress={() =>
-                      updateParamValue(editingParam === 'restTime' ? 15 : editingParam === 'weight' ? 5 : 1)
-                    }
-                  >
-                    <Plus size={24} color="#000" strokeWidth={2} />
-                  </Pressable>
-                </View>
-                <View style={s.quickRow}>
-                  {getQuickOptions(editingParam).map((val) => (
-                    <Pressable
-                      key={val}
-                      style={[s.quickChip, editingValue === val && s.quickChipActive]}
-                      onPress={() => setEditingValue(val)}
-                    >
-                      <Text style={[s.quickChipText, editingValue === val && s.quickChipTextActive]}>
-                        {val}
-                        {editingParam === 'restTime' ? 's' : editingParam === 'weight' ? ' kg' : ''}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-                <Pressable style={s.updateBtn} onPress={saveParamValue}>
-                  <Text style={s.updateBtnText}>Valider</Text>
-                  <Check size={18} color="#000" strokeWidth={2.5} />
-                </Pressable>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
+      />
 
       {/* ─── Readiness Check Modal ─── */}
       <ReadinessCheck
@@ -976,70 +1078,147 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // ─── Editable Exercise Card (custom) ───
-  exerciseCard: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 16,
-    marginBottom: 10,
-    overflow: 'hidden',
-  },
-  exerciseCardHeader: {
+  // ─── Exercise rows (matches program day pattern) ───
+  exRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    gap: 12,
+    gap: 10,
+    paddingVertical: 10,
   },
-  exerciseCardInfo: { flex: 1 },
-  exerciseCardName: {
-    color: 'rgba(220,220,230,1)',
-    fontSize: 14,
+  exRowEditing: {
+    backgroundColor: 'rgba(255,107,53,0.04)',
+    borderRadius: 14,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    paddingHorizontal: 10,
+    marginHorizontal: -10,
+  },
+  exNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exNumberText: {
+    color: 'rgba(120,120,130,1)',
+    fontSize: 11,
     fontFamily: Fonts?.bold,
     fontWeight: '700',
-    letterSpacing: -0.2,
   },
-  exerciseCardTarget: {
-    color: 'rgba(120,120,130,1)',
+  exInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  exName: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+  },
+  exMeta: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
+  exMetaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+  },
+  exWeightPill: {
+    backgroundColor: 'rgba(255,107,53,0.1)',
+  },
+  exMetaText: {
+    color: 'rgba(255,255,255,0.45)',
     fontSize: 11,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
-    marginTop: 2,
-    textTransform: 'capitalize',
   },
-  removeBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,75,75,0.12)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  exWeightText: {
+    color: Colors.primary,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
   },
-  paramGrid: {
+  exSeparator: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    marginLeft: 82,
+  },
+  infoButton: {
+    padding: 6,
+    borderRadius: 12,
+  },
+
+  // ─── Inline editor panel ───
+  editorPanel: {
+    backgroundColor: 'rgba(255,107,53,0.04)',
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: 'rgba(255,107,53,0.15)',
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
+    padding: 14,
+    marginHorizontal: -10,
+    gap: 10,
+  },
+  editorLabel: {
+    color: 'rgba(255,255,255,0.35)',
+    fontSize: 11,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  editorRow: {
     flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
-  },
-  paramCell: {
-    flex: 1,
-    paddingVertical: 12,
     alignItems: 'center',
-    borderRightWidth: 1,
-    borderRightColor: 'rgba(255,255,255,0.06)',
+    justifyContent: 'space-between',
   },
-  paramCellLabel: {
-    fontSize: 9,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    color: 'rgba(100,100,110,1)',
-    letterSpacing: 0.5,
-    marginBottom: 3,
+  editorFieldLabel: {
+    color: 'rgba(255,255,255,0.55)',
+    fontSize: 13,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
   },
-  paramCellValue: {
+  stepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  stepperBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperValue: {
+    color: '#FFFFFF',
     fontSize: 16,
     fontFamily: Fonts?.bold,
     fontWeight: '700',
-    color: Colors.text,
+    minWidth: 40,
+    textAlign: 'center',
+  },
+  removeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingTop: 4,
+  },
+  removeText: {
+    color: '#FF4B4B',
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
   },
 
   // ─── Add Exercise / Delete Buttons ───
@@ -1506,105 +1685,4 @@ const s = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // ─── Parameter Stepper Modal ───
-  stepperModal: {
-    backgroundColor: 'rgba(28,28,32,0.98)',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    width: '100%',
-    maxWidth: 360,
-    padding: 24,
-  },
-  stepperHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 28,
-  },
-  stepperInfo: { flex: 1 },
-  stepperLabel: {
-    color: 'rgba(120,120,130,1)',
-    fontSize: 10,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
-  stepperName: {
-    color: Colors.text,
-    fontSize: 14,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-  stepperControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 24,
-    marginBottom: 20,
-  },
-  stepperBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  stepperBtnPlus: {
-    backgroundColor: Colors.primary,
-  },
-  stepperValue: {
-    fontSize: 44,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    color: Colors.text,
-    minWidth: 100,
-    textAlign: 'center',
-  },
-  stepperUnit: {
-    fontSize: 16,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    color: 'rgba(140,140,150,1)',
-  },
-  quickRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 24,
-  },
-  quickChip: {
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 12,
-  },
-  quickChipActive: {
-    backgroundColor: 'rgba(255,107,53,0.15)',
-  },
-  quickChipText: {
-    fontSize: 13,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    color: 'rgba(140,140,150,1)',
-  },
-  quickChipTextActive: {
-    color: Colors.primary,
-  },
-  updateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.primary,
-    borderRadius: 14,
-    paddingVertical: 15,
-  },
-  updateBtnText: {
-    color: '#000',
-    fontSize: 15,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
 });

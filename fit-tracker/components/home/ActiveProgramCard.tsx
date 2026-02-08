@@ -16,6 +16,7 @@ import {
   Play,
   Trophy,
   Check,
+  Clock,
   Flame,
   Mountain,
   Zap,
@@ -33,6 +34,7 @@ import { getExerciseById } from '@/data/exercises';
 import { estimateDuration } from '@/lib/programGenerator';
 import { buildProgramExercisesParam } from '@/lib/programSession';
 import { ReadinessCheck } from '@/components/program/ReadinessCheck';
+import { ConfirmModal } from '@/components/program/ConfirmModal';
 import type { ReadinessCheck as ReadinessCheckType } from '@/types/program';
 
 const SPLIT_LABELS: Record<string, { label: string; color: string; bg: string }> = {
@@ -61,7 +63,7 @@ export const BODY_ICONS: Record<string, BodyIcon> = {
   neck:        { Icon: Shield,    ...NEUTRAL },
 };
 
-const DEFAULT_BODY_ICON: BodyIcon = { Icon: Dumbbell, ...NEUTRAL };
+export const DEFAULT_BODY_ICON: BodyIcon = { Icon: Dumbbell, ...NEUTRAL };
 
 
 export function ActiveProgramCard() {
@@ -69,8 +71,16 @@ export function ActiveProgramCard() {
   const { userProfile, program, activeState, isProgramComplete, saveReadiness } = useProgramStore();
   const startSession = useWorkoutStore((s) => s.startSession);
   const saveSessionReadiness = useWorkoutStore((s) => s.saveSessionReadiness);
+  const workoutHistory = useWorkoutStore((s) => s.history);
 
   const [showReadiness, setShowReadiness] = useState(false);
+  const [showPacingWarning, setShowPacingWarning] = useState(false);
+
+  // Pacing guard — check if user already completed a session today
+  const hasSessionToday = useMemo(() => {
+    const today = new Date().toDateString();
+    return workoutHistory.some((s) => s.endTime && new Date(s.endTime).toDateString() === today);
+  }, [workoutHistory]);
 
   // Pulsing glow for start button
   const pulse = useSharedValue(0);
@@ -220,6 +230,10 @@ export function ActiveProgramCard() {
 
   const handleStart = () => {
     if (!todayDay || isDayDone) return;
+    if (hasSessionToday) {
+      setShowPacingWarning(true);
+      return;
+    }
     setShowReadiness(true);
   };
 
@@ -353,6 +367,22 @@ export function ActiveProgramCard() {
           )}
         </PressableScale>
       </View>
+
+      <ConfirmModal
+        visible={showPacingWarning}
+        onClose={() => setShowPacingWarning(false)}
+        icon={<Clock size={28} color="#FBBF24" />}
+        iconBgColor="rgba(251,191,36,0.12)"
+        title="Déjà une séance aujourd'hui"
+        description="Tu as déjà terminé une séance aujourd'hui. La récupération est essentielle pour la progression."
+        cancelText="Reporter"
+        confirmText="Continuer"
+        confirmColor={Colors.primary}
+        onConfirm={() => {
+          setShowPacingWarning(false);
+          setShowReadiness(true);
+        }}
+      />
 
       <ReadinessCheck
         visible={showReadiness}

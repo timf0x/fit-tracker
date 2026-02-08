@@ -251,34 +251,35 @@ export interface CategoryConfig {
   minReps: number;
   maxReps: number;
   restTime: number;
+  setTime: number; // seconds per set execution
 }
 
 export type GoalCategoryConfig = Record<ExerciseCategory, CategoryConfig>;
 
 export const GOAL_CONFIG: Record<string, GoalCategoryConfig> = {
   hypertrophy: {
-    heavy_barbell_compound: { minReps: 6,  maxReps: 10, restTime: 150 },
-    dumbbell_compound:      { minReps: 8,  maxReps: 12, restTime: 120 },
-    machine_compound:       { minReps: 8,  maxReps: 15, restTime: 120 },
-    isolation:              { minReps: 10, maxReps: 15, restTime: 90  },
-    machine_isolation:      { minReps: 12, maxReps: 20, restTime: 75  },
-    abs_calves:             { minReps: 12, maxReps: 25, restTime: 60  },
+    heavy_barbell_compound: { minReps: 6,  maxReps: 10, restTime: 150, setTime: 50 },
+    dumbbell_compound:      { minReps: 8,  maxReps: 12, restTime: 120, setTime: 45 },
+    machine_compound:       { minReps: 8,  maxReps: 15, restTime: 120, setTime: 40 },
+    isolation:              { minReps: 10, maxReps: 15, restTime: 90,  setTime: 35 },
+    machine_isolation:      { minReps: 12, maxReps: 20, restTime: 75,  setTime: 35 },
+    abs_calves:             { minReps: 12, maxReps: 25, restTime: 60,  setTime: 30 },
   },
   strength: {
-    heavy_barbell_compound: { minReps: 3,  maxReps: 6,  restTime: 180 },
-    dumbbell_compound:      { minReps: 5,  maxReps: 8,  restTime: 150 },
-    machine_compound:       { minReps: 6,  maxReps: 10, restTime: 120 },
-    isolation:              { minReps: 8,  maxReps: 12, restTime: 90  },
-    machine_isolation:      { minReps: 10, maxReps: 15, restTime: 75  },
-    abs_calves:             { minReps: 12, maxReps: 20, restTime: 60  },
+    heavy_barbell_compound: { minReps: 3,  maxReps: 6,  restTime: 180, setTime: 50 },
+    dumbbell_compound:      { minReps: 5,  maxReps: 8,  restTime: 150, setTime: 45 },
+    machine_compound:       { minReps: 6,  maxReps: 10, restTime: 120, setTime: 40 },
+    isolation:              { minReps: 8,  maxReps: 12, restTime: 90,  setTime: 35 },
+    machine_isolation:      { minReps: 10, maxReps: 15, restTime: 75,  setTime: 35 },
+    abs_calves:             { minReps: 12, maxReps: 20, restTime: 60,  setTime: 30 },
   },
   recomposition: {
-    heavy_barbell_compound: { minReps: 5,  maxReps: 8,  restTime: 150 },
-    dumbbell_compound:      { minReps: 6,  maxReps: 10, restTime: 120 },
-    machine_compound:       { minReps: 8,  maxReps: 12, restTime: 120 },
-    isolation:              { minReps: 8,  maxReps: 12, restTime: 90  },
-    machine_isolation:      { minReps: 10, maxReps: 15, restTime: 75  },
-    abs_calves:             { minReps: 12, maxReps: 20, restTime: 60  },
+    heavy_barbell_compound: { minReps: 5,  maxReps: 8,  restTime: 150, setTime: 50 },
+    dumbbell_compound:      { minReps: 6,  maxReps: 10, restTime: 120, setTime: 45 },
+    machine_compound:       { minReps: 8,  maxReps: 12, restTime: 120, setTime: 40 },
+    isolation:              { minReps: 8,  maxReps: 12, restTime: 90,  setTime: 35 },
+    machine_isolation:      { minReps: 10, maxReps: 15, restTime: 75,  setTime: 35 },
+    abs_calves:             { minReps: 12, maxReps: 20, restTime: 60,  setTime: 30 },
   },
 };
 

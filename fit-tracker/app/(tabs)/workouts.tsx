@@ -1,147 +1,40 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
-import { Plus, Dumbbell, Search } from 'lucide-react-native';
+import { Plus, Dumbbell } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
-import { SegmentedControl } from '@/components/workouts/SegmentedControl';
-import { FilterPills } from '@/components/workouts/FilterPills';
 import { WorkoutListCard } from '@/components/workouts/WorkoutListCard';
-import { presetWorkouts } from '@/data/workouts';
+import { SmartSuggestionCard } from '@/components/workouts/SmartSuggestionCard';
 import { useWorkoutStore } from '@/stores/workoutStore';
+import { computeSmartSuggestion } from '@/lib/smartWorkout';
 import i18n from '@/lib/i18n';
-import type { Workout } from '@/types';
-
-const TABS = ['Custom', 'Presets'];
-
-const FILTER_CONFIGS = [
-  {
-    key: 'level',
-    label: 'Niveau',
-    options: [
-      { label: 'Débutant', value: 'beginner' },
-      { label: 'Intermédiaire', value: 'intermediate' },
-      { label: 'Avancé', value: 'advanced' },
-      { label: 'Tous niveaux', value: 'all' },
-    ],
-  },
-  {
-    key: 'focus',
-    label: 'Focus',
-    options: [
-      { label: 'Full Body', value: 'full_body' },
-      { label: 'Push', value: 'push' },
-      { label: 'Pull', value: 'pull' },
-      { label: 'Jambes', value: 'legs' },
-      { label: 'Haut du corps', value: 'upper' },
-      { label: 'Bas du corps', value: 'lower' },
-      { label: 'Abdos', value: 'core' },
-      { label: 'Cardio', value: 'cardio' },
-    ],
-  },
-  {
-    key: 'equipment',
-    label: 'Équipement',
-    options: [
-      { label: 'Poids du corps', value: 'bodyweight' },
-      { label: 'Haltères', value: 'dumbbell' },
-      { label: 'Barre', value: 'barbell' },
-      { label: 'Salle', value: 'gym' },
-    ],
-  },
-  {
-    key: 'duration',
-    label: 'Durée',
-    options: [
-      { label: '< 20 min', value: 'short' },
-      { label: '20-35 min', value: 'medium' },
-      { label: '35-50 min', value: 'long' },
-      { label: '50+ min', value: 'extra' },
-    ],
-  },
-];
-
-const LEVEL_ORDER = ['beginner', 'intermediate', 'advanced', 'all'] as const;
-const LEVEL_LABELS: Record<string, string> = {
-  beginner: 'Débutant',
-  intermediate: 'Intermédiaire',
-  advanced: 'Avancé',
-  all: 'Express / Tous niveaux',
-};
-
-interface WorkoutGroup {
-  level: string;
-  label: string;
-  workouts: Workout[];
-}
 
 export default function WorkoutsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const history = useWorkoutStore((s) => s.history);
   const customWorkouts = useWorkoutStore((s) => s.customWorkouts);
-  const [activeTab, setActiveTab] = useState(1);
-  const [activeFilters, setActiveFilters] = useState<Record<string, string | null>>({});
-  const isPresets = activeTab === 1;
 
-  const handleFilterChange = useCallback((key: string, value: string | null) => {
-    setActiveFilters(prev => ({ ...prev, [key]: value }));
-  }, []);
+  const suggestion = useMemo(
+    () => computeSmartSuggestion(history),
+    [history],
+  );
 
-  const filteredWorkouts = useMemo(() => {
-    if (!isPresets) return [];
+  const handleAdd = () => router.push('/workout/create');
 
-    let results = presetWorkouts;
+  const handleGenerate = () => {
+    router.push({
+      pathname: '/workout/generate',
+      params: {
+        suggestedMuscles: JSON.stringify(suggestion.muscles.map((m) => m.muscle)),
+        sessionType: suggestion.sessionType,
+      },
+    });
+  };
 
-    // Level filter
-    if (activeFilters.level) {
-      results = results.filter(w => w.level === activeFilters.level);
-    }
-
-    // Focus filter
-    if (activeFilters.focus) {
-      results = results.filter(w => w.focus === activeFilters.focus);
-    }
-
-    // Equipment filter
-    if (activeFilters.equipment) {
-      results = results.filter(w =>
-        w.equipment?.includes(activeFilters.equipment!)
-      );
-    }
-
-    // Duration filter
-    if (activeFilters.duration) {
-      const d = activeFilters.duration;
-      results = results.filter(w => {
-        if (d === 'short') return w.durationMinutes < 20;
-        if (d === 'medium') return w.durationMinutes >= 20 && w.durationMinutes < 35;
-        if (d === 'long') return w.durationMinutes >= 35 && w.durationMinutes < 50;
-        if (d === 'extra') return w.durationMinutes >= 50;
-        return true;
-      });
-    }
-
-    return results;
-  }, [isPresets, activeFilters]);
-
-  const hasActiveFilters = Object.values(activeFilters).some(v => v !== null && v !== undefined);
-
-  const groupedWorkouts = useMemo((): WorkoutGroup[] => {
-    // Don't group if any filters or search are active — show flat list
-    if (hasActiveFilters) {
-      return [{ level: 'results', label: `${filteredWorkouts.length} résultats`, workouts: filteredWorkouts }];
-    }
-
-    return LEVEL_ORDER
-      .map(level => ({
-        level,
-        label: LEVEL_LABELS[level],
-        workouts: filteredWorkouts.filter(w => w.level === level),
-      }))
-      .filter(g => g.workouts.length > 0);
-  }, [filteredWorkouts, hasActiveFilters]);
-
-  const activeFilterCount = Object.values(activeFilters).filter(Boolean).length;
+  const handleCreateManual = () => router.push('/workout/create');
+  const handleCreateProgram = () => router.push('/program/onboarding');
 
   return (
     <View style={styles.screen}>
@@ -156,29 +49,11 @@ export default function WorkoutsScreen() {
             <Text style={styles.headerLabel}>MES WORKOUTS</Text>
             <Text style={styles.headerTitle}>Entraînements</Text>
           </View>
-          <Pressable style={styles.addButton} onPress={() => router.push('/workout/create')}>
+          <Pressable style={styles.addButton} onPress={handleAdd}>
             <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
           </Pressable>
         </View>
       </View>
-
-      {/* Fixed Segmented Control */}
-      <View style={styles.segmentWrapper}>
-        <SegmentedControl
-          tabs={TABS}
-          activeIndex={activeTab}
-          onTabChange={setActiveTab}
-        />
-      </View>
-
-      {/* Fixed Filters (Presets only) */}
-      {isPresets && (
-        <FilterPills
-          filters={FILTER_CONFIGS}
-          activeFilters={activeFilters}
-          onFilterChange={handleFilterChange}
-        />
-      )}
 
       {/* Scrollable Content */}
       <ScrollView
@@ -187,41 +62,24 @@ export default function WorkoutsScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {isPresets ? (
-          <View style={styles.list}>
-            {groupedWorkouts.map((group) => (
-              <View key={group.level} style={styles.groupSection}>
-                <View style={styles.groupHeader}>
-                  <Text style={styles.groupTitle}>{group.label}</Text>
-                  <Text style={styles.groupCount}>{group.workouts.length}</Text>
-                </View>
-                {group.workouts.map((workout) => (
-                  <WorkoutListCard
-                    key={workout.id}
-                    workout={workout}
-                    onPress={() => router.push(`/workout/${workout.id}`)}
-                  />
-                ))}
-              </View>
-            ))}
+        {/* Smart Suggestion Hero Card */}
+        <View style={styles.section}>
+          <SmartSuggestionCard
+            suggestion={suggestion}
+            onGenerate={handleGenerate}
+            onCreateManual={handleCreateManual}
+            onCreateProgram={handleCreateProgram}
+          />
+        </View>
 
-            {filteredWorkouts.length === 0 && (
-              <View style={styles.noResults}>
-                <Search size={24} color="rgba(100, 100, 110, 1)" strokeWidth={1.5} />
-                <Text style={styles.noResultsTitle}>Aucun résultat</Text>
-                <Text style={styles.noResultsSubtitle}>
-                  Essayez d'autres filtres ou termes de recherche
-                </Text>
-              </View>
-            )}
-          </View>
-        ) : customWorkouts.length > 0 ? (
-          <View style={styles.list}>
-            <View style={styles.groupSection}>
-              <View style={styles.groupHeader}>
-                <Text style={styles.groupTitle}>Mes workouts</Text>
-                <Text style={styles.groupCount}>{customWorkouts.length}</Text>
-              </View>
+        {/* Custom Workouts */}
+        {customWorkouts.length > 0 ? (
+          <View style={styles.section}>
+            <View style={styles.groupHeader}>
+              <Text style={styles.groupTitle}>Mes workouts</Text>
+              <Text style={styles.groupCount}>{customWorkouts.length}</Text>
+            </View>
+            <View style={styles.groupList}>
               {customWorkouts.map((workout) => (
                 <WorkoutListCard
                   key={workout.id}
@@ -231,7 +89,7 @@ export default function WorkoutsScreen() {
               ))}
             </View>
           </View>
-        ) : (
+        ) : suggestion.hasHistory ? (
           <View style={styles.emptyState}>
             <View style={styles.emptyIconBox}>
               <Dumbbell size={28} color="rgba(120, 120, 130, 1)" strokeWidth={1.5} />
@@ -242,14 +100,14 @@ export default function WorkoutsScreen() {
             <Text style={styles.emptySubtitle}>
               {i18n.t('workouts.noCustomDesc')}
             </Text>
-            <Pressable style={styles.createButton} onPress={() => router.push('/workout/create')}>
-              <Plus size={16} color="#fff" strokeWidth={2.5} />
+            <Pressable style={styles.createButton} onPress={handleCreateManual}>
+              <Plus size={14} color={Colors.primary} strokeWidth={2.5} />
               <Text style={styles.createButtonText}>
                 {i18n.t('workouts.createWorkout')}
               </Text>
             </Pressable>
           </View>
-        )}
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -295,8 +153,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 16,
+    paddingTop: 8,
     paddingBottom: 120,
+    gap: 24,
   },
 
   // Header
@@ -338,27 +197,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // Segment
-  segmentWrapper: {
+  // Sections
+  section: {
     paddingHorizontal: Spacing.lg,
-    marginBottom: 16,
-  },
-
-  // List
-  list: {
-    paddingHorizontal: Spacing.lg,
-    gap: 24,
   },
 
   // Group sections
-  groupSection: {
-    gap: 10,
-  },
   groupHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 4,
+    marginBottom: 10,
   },
   groupTitle: {
     color: 'rgba(200, 200, 210, 1)',
@@ -370,38 +219,17 @@ const styles = StyleSheet.create({
   groupCount: {
     color: 'rgba(100, 100, 110, 1)',
     fontSize: 12,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    overflow: 'hidden',
-  },
-
-  // No results
-  noResults: {
-    alignItems: 'center',
-    paddingTop: 48,
-    gap: 10,
-  },
-  noResultsTitle: {
-    color: 'rgba(180, 180, 190, 1)',
-    fontSize: 16,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-  noResultsSubtitle: {
-    color: 'rgba(100, 100, 110, 1)',
-    fontSize: 13,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
+  },
+  groupList: {
+    gap: 8,
   },
 
   // Empty state
   emptyState: {
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: 40,
     paddingHorizontal: Spacing.lg,
     gap: 10,
   },
@@ -431,22 +259,13 @@ const styles = StyleSheet.create({
   createButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 14,
+    gap: 6,
     marginTop: 8,
-    shadowColor: '#FF6B35',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
   },
   createButtonText: {
-    color: '#fff',
+    color: Colors.primary,
     fontSize: 14,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
   },
 });

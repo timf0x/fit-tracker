@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import DraggableFlatList, { ScaleDecorator, RenderItemParams } from 'react-native-draggable-flatlist';
+import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import {
   ArrowLeft,
   Plus,
@@ -21,8 +21,10 @@ import {
   Search,
   Check,
   ChevronDown,
-  Minus as MinusIcon,
+  Minus,
   Info,
+  Repeat,
+  Timer,
 } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { ExerciseIcon, CategoryIcon } from '@/components/ExerciseIcon';
@@ -74,8 +76,6 @@ interface SelectedExercise extends WorkoutExercise {
   uid: string;
 }
 
-type EditingParam = 'sets' | 'reps' | 'weight' | 'restTime' | null;
-
 // ─── Component ────────────────────────────────────
 
 export default function CreateWorkoutScreen() {
@@ -85,7 +85,6 @@ export default function CreateWorkoutScreen() {
 
   // Form state
   const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
   const [selectedIcon, setSelectedIcon] = useState('push');
   const [selectedExercises, setSelectedExercises] = useState<SelectedExercise[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -104,10 +103,8 @@ export default function CreateWorkoutScreen() {
   // Exercise info sheet state
   const [infoExercise, setInfoExercise] = useState<Exercise | null>(null);
 
-  // Parameter stepper state
+  // Inline editor state (replaces stepper modal)
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editingParam, setEditingParam] = useState<EditingParam>(null);
-  const [editingValue, setEditingValue] = useState(0);
 
   // ─── Filtered exercises ─────────────────────────
 
@@ -139,6 +136,7 @@ export default function CreateWorkoutScreen() {
       reps: 12,
       weight: 0,
       restTime: 60,
+      setTime: 35,
       uid: `${exercise.id}_${Date.now()}_${i}`,
     }));
     setSelectedExercises([...selectedExercises, ...newExercises]);
@@ -157,60 +155,36 @@ export default function CreateWorkoutScreen() {
     setSelectedEquipment('all');
   };
 
-  // ─── Parameter stepper actions ──────────────────
+  // ─── Inline editor actions ─────────────────────
 
-  const openParamStepper = (index: number, param: EditingParam) => {
-    const ex = selectedExercises[index];
-    let value = 0;
-    if (param === 'sets') value = ex.sets;
-    else if (param === 'reps') value = ex.reps;
-    else if (param === 'weight') value = ex.weight || 0;
-    else if (param === 'restTime') value = ex.restTime;
-    setEditingIndex(index);
-    setEditingParam(param);
-    setEditingValue(value);
-  };
-
-  const updateParamValue = (delta: number) => {
-    let newVal = editingValue + delta;
-    if (editingParam === 'restTime') newVal = Math.max(15, Math.min(300, newVal));
-    else if (editingParam === 'weight') newVal = Math.max(0, newVal);
-    else newVal = Math.max(1, Math.min(50, newVal));
-    setEditingValue(newVal);
-  };
-
-  const saveParamValue = () => {
-    if (editingIndex === null || !editingParam) return;
-    setSelectedExercises(
-      selectedExercises.map((ex, i) =>
-        i === editingIndex ? { ...ex, [editingParam!]: editingValue } : ex
-      )
-    );
-    setEditingIndex(null);
-    setEditingParam(null);
-  };
-
-  const getParamLabel = (p: EditingParam) => {
-    if (p === 'sets') return 'SÉRIES';
-    if (p === 'reps') return 'RÉPÉTITIONS';
-    if (p === 'weight') return 'POIDS (KG)';
-    if (p === 'restTime') return 'REPOS (SEC)';
-    return '';
-  };
-
-  const getQuickOptions = (p: EditingParam) => {
-    if (p === 'sets') return [3, 4, 5];
-    if (p === 'reps') return [8, 12, 15];
-    if (p === 'weight') return [10, 20, 40];
-    if (p === 'restTime') return [30, 60, 90];
-    return [];
+  const handleEditField = (index: number, field: string, delta: number) => {
+    setSelectedExercises((prev) => {
+      const next = [...prev];
+      const ex = { ...next[index] };
+      switch (field) {
+        case 'sets':
+          ex.sets = Math.max(1, ex.sets + delta);
+          break;
+        case 'reps':
+          ex.reps = Math.max(1, ex.reps + delta);
+          break;
+        case 'weight':
+          ex.weight = Math.max(0, (ex.weight || 0) + delta * 2.5);
+          break;
+        case 'restTime':
+          ex.restTime = Math.max(15, ex.restTime + delta * 15);
+          break;
+      }
+      next[index] = ex;
+      return next;
+    });
   };
 
   // ─── Calculate duration ─────────────────────────
 
   const calculateDuration = () => {
     const totalSeconds = selectedExercises.reduce((acc, ex) => {
-      return acc + (45 + ex.restTime) * ex.sets;
+      return acc + ((ex.setTime || 35) + ex.restTime) * ex.sets;
     }, 0);
     return Math.ceil(totalSeconds / 60);
   };
@@ -241,13 +215,14 @@ export default function CreateWorkoutScreen() {
         reps: ex.reps,
         weight: ex.weight,
         restTime: ex.restTime,
+        setTime: ex.setTime || 35,
       }));
 
       addCustomWorkout({
         name: name.trim(),
         nameFr: name.trim(),
-        description: description.trim(),
-        descriptionFr: description.trim(),
+        description: '',
+        descriptionFr: '',
         level: 'intermediate',
         focus: selectedIcon as any,
         durationMinutes: calculateDuration(),
@@ -444,21 +419,6 @@ export default function CreateWorkoutScreen() {
                 />
               </View>
 
-              {/* Description */}
-              <View style={s.section}>
-                <Text style={s.sectionLabel}>DESCRIPTION (OPTIONNEL)</Text>
-                <View style={s.descContainer}>
-                  <TextInput
-                    style={s.descInput}
-                    placeholder="Focus sur les mouvements composés..."
-                    placeholderTextColor="rgba(100,100,110,1)"
-                    value={description}
-                    onChangeText={setDescription}
-                    multiline
-                  />
-                </View>
-              </View>
-
               {/* Icon picker */}
               <View style={s.section}>
                 <Text style={s.sectionLabel}>ICÔNE</Text>
@@ -489,13 +449,12 @@ export default function CreateWorkoutScreen() {
           }
           renderItem={({ item: ex, drag, isActive, getIndex }) => {
             const index = getIndex()!;
+            const isEditing = editingIndex === index;
+            const isLast = index === selectedExercises.length - 1;
             return (
               <ScaleDecorator>
-                <Pressable
-                  onLongPress={drag}
-                  disabled={isActive}
+                <View
                   style={[
-                    s.exerciseCard,
                     isActive && {
                       shadowColor: Colors.primary,
                       shadowOpacity: 0.3,
@@ -505,43 +464,111 @@ export default function CreateWorkoutScreen() {
                     },
                   ]}
                 >
-                  <View style={s.exerciseCardHeader}>
+                  <Pressable
+                    onPress={() => setEditingIndex(isEditing ? null : index)}
+                    onLongPress={drag}
+                    disabled={isActive}
+                    style={[s.exRow, isEditing && s.exRowEditing]}
+                  >
+                    {/* Number badge */}
+                    <View style={s.exNumber}>
+                      <Text style={s.exNumberText}>{String(index + 1).padStart(2, '0')}</Text>
+                    </View>
+
                     <ExerciseIcon
                       exerciseName={ex.exercise.name}
                       bodyPart={ex.exercise.bodyPart}
-                      size={16}
-                      containerSize={40}
+                      size={20}
+                      containerSize={44}
                     />
-                    <View style={s.exerciseCardInfo}>
-                      <Text style={s.exerciseCardName} numberOfLines={1}>{ex.exercise.nameFr}</Text>
-                      <Text style={s.exerciseCardMeta}>
-                        {ex.sets} séries × {ex.reps} reps{ex.weight ? ` · ${ex.weight} kg` : ''}
-                      </Text>
+
+                    <View style={s.exInfo}>
+                      <Text style={s.exName} numberOfLines={1}>{ex.exercise.nameFr}</Text>
+                      <View style={s.exMeta}>
+                        <View style={s.exMetaPill}>
+                          <Repeat size={10} color="rgba(255,255,255,0.4)" />
+                          <Text style={s.exMetaText}>{ex.sets}×{ex.reps}</Text>
+                        </View>
+                        {(ex.weight || 0) > 0 && (
+                          <View style={[s.exMetaPill, s.exWeightPill]}>
+                            <Text style={[s.exMetaText, s.exWeightText]}>{ex.weight}kg</Text>
+                          </View>
+                        )}
+                        <View style={s.exMetaPill}>
+                          <Timer size={10} color="rgba(255,255,255,0.3)" />
+                          <Text style={s.exMetaText}>{ex.restTime}s</Text>
+                        </View>
+                      </View>
                     </View>
-                    <Pressable style={s.removeBtn} onPress={() => setSelectedExercises(prev => prev.filter((_, i) => i !== index))}>
+
+                    <Pressable
+                      style={s.removeBtn}
+                      onPress={() => {
+                        if (editingIndex === index) setEditingIndex(null);
+                        setSelectedExercises(prev => prev.filter((_, i) => i !== index));
+                      }}
+                      hitSlop={6}
+                    >
                       <X size={14} color="#FF4B4B" strokeWidth={2.5} />
                     </Pressable>
-                  </View>
+                  </Pressable>
 
-                  <View style={s.paramGrid}>
-                    <Pressable style={s.paramCell} onPress={() => openParamStepper(index, 'sets')}>
-                      <Text style={s.paramLabel}>SÉRIES</Text>
-                      <Text style={s.paramValue}>{ex.sets}</Text>
-                    </Pressable>
-                    <Pressable style={s.paramCell} onPress={() => openParamStepper(index, 'reps')}>
-                      <Text style={s.paramLabel}>REPS</Text>
-                      <Text style={s.paramValue}>{ex.reps}</Text>
-                    </Pressable>
-                    <Pressable style={s.paramCell} onPress={() => openParamStepper(index, 'weight')}>
-                      <Text style={s.paramLabel}>POIDS</Text>
-                      <Text style={s.paramValue}>{ex.weight || 0} kg</Text>
-                    </Pressable>
-                    <Pressable style={s.paramCell} onPress={() => openParamStepper(index, 'restTime')}>
-                      <Text style={s.paramLabel}>REPOS</Text>
-                      <Text style={s.paramValue}>{ex.restTime}s</Text>
-                    </Pressable>
-                  </View>
-                </Pressable>
+                  {/* Inline editor */}
+                  {isEditing && (
+                    <View style={s.editorPanel}>
+                      <View style={s.editorRow}>
+                        <Text style={s.editorFieldLabel}>Séries</Text>
+                        <View style={s.stepperRow}>
+                          <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'sets', -1)}>
+                            <Minus size={14} color="#fff" />
+                          </Pressable>
+                          <Text style={s.stepperValue}>{ex.sets}</Text>
+                          <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'sets', 1)}>
+                            <Plus size={14} color="#fff" />
+                          </Pressable>
+                        </View>
+                      </View>
+                      <View style={s.editorRow}>
+                        <Text style={s.editorFieldLabel}>Répétitions</Text>
+                        <View style={s.stepperRow}>
+                          <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'reps', -1)}>
+                            <Minus size={14} color="#fff" />
+                          </Pressable>
+                          <Text style={s.stepperValue}>{ex.reps}</Text>
+                          <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'reps', 1)}>
+                            <Plus size={14} color="#fff" />
+                          </Pressable>
+                        </View>
+                      </View>
+                      <View style={s.editorRow}>
+                        <Text style={s.editorFieldLabel}>Poids (kg)</Text>
+                        <View style={s.stepperRow}>
+                          <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'weight', -1)}>
+                            <Minus size={14} color="#fff" />
+                          </Pressable>
+                          <Text style={s.stepperValue}>{ex.weight || 0}</Text>
+                          <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'weight', 1)}>
+                            <Plus size={14} color="#fff" />
+                          </Pressable>
+                        </View>
+                      </View>
+                      <View style={s.editorRow}>
+                        <Text style={s.editorFieldLabel}>Repos (sec)</Text>
+                        <View style={s.stepperRow}>
+                          <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'restTime', -1)}>
+                            <Minus size={14} color="#fff" />
+                          </Pressable>
+                          <Text style={s.stepperValue}>{ex.restTime}</Text>
+                          <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'restTime', 1)}>
+                            <Plus size={14} color="#fff" />
+                          </Pressable>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+
+                  {!isEditing && !isLast && <View style={s.exSeparator} />}
+                </View>
               </ScaleDecorator>
             );
           }}
@@ -556,82 +583,6 @@ export default function CreateWorkoutScreen() {
         />
       </KeyboardAvoidingView>
 
-      {/* Parameter stepper modal */}
-      <Modal
-        visible={editingIndex !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => { setEditingIndex(null); setEditingParam(null); }}
-      >
-        <View style={s.modalOverlay}>
-          <View style={s.stepperModal}>
-            {editingIndex !== null && editingParam && (
-              <>
-                <View style={s.stepperHeader}>
-                  <ExerciseIcon
-                    exerciseName={selectedExercises[editingIndex]?.exercise.name}
-                    bodyPart={selectedExercises[editingIndex]?.exercise.bodyPart}
-                    size={16}
-                    containerSize={40}
-                  />
-                  <View style={s.stepperInfo}>
-                    <Text style={s.stepperLabel}>{getParamLabel(editingParam)}</Text>
-                    <Text style={s.stepperName} numberOfLines={1}>
-                      {selectedExercises[editingIndex]?.exercise.nameFr}
-                    </Text>
-                  </View>
-                  <Pressable onPress={() => { setEditingIndex(null); setEditingParam(null); }}>
-                    <X size={20} color="rgba(120,120,130,1)" strokeWidth={2} />
-                  </Pressable>
-                </View>
-
-                {/* Stepper controls */}
-                <View style={s.stepperControls}>
-                  <Pressable
-                    style={s.stepperBtn}
-                    onPress={() => updateParamValue(editingParam === 'restTime' ? -15 : editingParam === 'weight' ? -5 : -1)}
-                  >
-                    <MinusIcon size={24} color={Colors.text} strokeWidth={2} />
-                  </Pressable>
-                  <Text style={s.stepperValue}>
-                    {editingValue}
-                    <Text style={s.stepperUnit}>
-                      {editingParam === 'weight' ? ' kg' : editingParam === 'restTime' ? 's' : ''}
-                    </Text>
-                  </Text>
-                  <Pressable
-                    style={[s.stepperBtn, s.stepperBtnPlus]}
-                    onPress={() => updateParamValue(editingParam === 'restTime' ? 15 : editingParam === 'weight' ? 5 : 1)}
-                  >
-                    <Plus size={24} color="#000" strokeWidth={2} />
-                  </Pressable>
-                </View>
-
-                {/* Quick select */}
-                <View style={s.quickRow}>
-                  {getQuickOptions(editingParam).map((val) => (
-                    <Pressable
-                      key={val}
-                      style={[s.quickChip, editingValue === val && s.quickChipActive]}
-                      onPress={() => setEditingValue(val)}
-                    >
-                      <Text style={[s.quickChipText, editingValue === val && s.quickChipTextActive]}>
-                        {val}{editingParam === 'restTime' ? 's' : editingParam === 'weight' ? ' kg' : ''}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-
-                {/* Update button */}
-                <Pressable style={s.updateBtn} onPress={saveParamValue}>
-                  <Text style={s.updateBtnText}>Valider</Text>
-                  <Check size={18} color="#000" strokeWidth={2.5} />
-                </Pressable>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -744,10 +695,6 @@ const s = StyleSheet.create({
     fontWeight: '700',
   },
 
-  content: {
-    flex: 1,
-  },
-
   // Name
   nameContainer: {
     backgroundColor: 'rgba(255,255,255,0.04)',
@@ -788,37 +735,20 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
 
-  // Description
-  descContainer: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 16,
-  },
-  descInput: {
-    fontSize: 14,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    color: Colors.text,
-    padding: 16,
-    minHeight: 72,
-    textAlignVertical: 'top',
-  },
-
-  // Icon picker
+  // Icon picker (lightened)
   iconPickerRow: { gap: 8 },
   iconOption: {
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 2,
-    borderColor: 'transparent',
-    minWidth: 74,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    minWidth: 70,
   },
   iconOptionSelected: {
-    borderColor: Colors.primary,
+    borderColor: 'rgba(255,107,53,0.4)',
     backgroundColor: 'rgba(255,107,53,0.08)',
   },
   iconOptionLabel: {
@@ -834,36 +764,73 @@ const s = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // Exercise card
-  exerciseCard: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 16,
-    marginBottom: 10,
-    overflow: 'hidden',
-  },
-  exerciseCardHeader: {
+  // ─── Exercise rows (generate.tsx pattern) ──────
+
+  exRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    gap: 10,
   },
-  exerciseCardInfo: { flex: 1 },
-  exerciseCardName: {
+  exRowEditing: {
+    backgroundColor: 'rgba(255,255,255,0.02)',
+  },
+  exNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exNumberText: {
+    color: 'rgba(255,255,255,0.35)',
+    fontSize: 11,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+  },
+  exInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  exName: {
     color: 'rgba(220,220,230,1)',
     fontSize: 14,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    letterSpacing: -0.2,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
   },
-  exerciseCardMeta: {
-    color: 'rgba(120,120,130,1)',
-    fontSize: 12,
+  exMeta: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  exMetaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  exMetaText: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 11,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
-    marginTop: 2,
   },
+  exWeightPill: {
+    backgroundColor: 'rgba(255,107,53,0.08)',
+  },
+  exWeightText: {
+    color: Colors.primary,
+  },
+  exSeparator: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    marginLeft: 52,
+  },
+
   removeBtn: {
     width: 30,
     height: 30,
@@ -873,38 +840,49 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // Param grid
-  paramGrid: {
-    flexDirection: 'row',
+  // ─── Inline editor ────────────────────────────
+
+  editorPanel: {
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+    paddingTop: 4,
+    gap: 10,
+    backgroundColor: 'rgba(255,255,255,0.02)',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
+    borderTopColor: 'rgba(255,255,255,0.04)',
   },
-  paramCell: {
-    flex: 1,
-    paddingVertical: 12,
+  editorRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderRightWidth: 1,
-    borderRightColor: 'rgba(255,255,255,0.06)',
+    justifyContent: 'space-between',
   },
-  paramCellHighlight: {
-    backgroundColor: 'rgba(255,107,53,0.06)',
+  editorFieldLabel: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 13,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
   },
-  paramLabel: {
-    fontSize: 9,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    color: 'rgba(100,100,110,1)',
-    letterSpacing: 0.5,
-    marginBottom: 3,
+  stepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  paramLabelHighlight: { color: Colors.primary },
-  paramValue: {
-    fontSize: 16,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    color: Colors.text,
+  stepperBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  paramValueHighlight: { color: Colors.primary },
+  stepperValue: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    minWidth: 36,
+    textAlign: 'center',
+  },
 
   // Add exercise button
   addExerciseBtn: {
@@ -1018,8 +996,8 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 2,
-    borderColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
     borderRadius: 16,
     padding: 12,
     marginBottom: 6,
@@ -1027,7 +1005,7 @@ const s = StyleSheet.create({
     gap: 12,
   },
   exercisePickerCardSelected: {
-    borderColor: Colors.primary,
+    borderColor: 'rgba(255,107,53,0.4)',
     backgroundColor: 'rgba(255,107,53,0.04)',
   },
   exercisePickerInfo: { flex: 1 },
@@ -1144,112 +1122,6 @@ const s = StyleSheet.create({
   },
   dropdownOptionTextActive: {
     color: Colors.primary,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-
-  // ─── Stepper modal ─────────────────────────────
-
-  stepperModal: {
-    backgroundColor: 'rgba(28,28,32,0.98)',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    width: '100%',
-    maxWidth: 360,
-    padding: 24,
-  },
-  stepperHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 28,
-  },
-  stepperInfo: { flex: 1 },
-  stepperLabel: {
-    color: 'rgba(120,120,130,1)',
-    fontSize: 10,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
-  stepperName: {
-    color: Colors.text,
-    fontSize: 14,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-
-  stepperControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 24,
-    marginBottom: 20,
-  },
-  stepperBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  stepperBtnPlus: {
-    backgroundColor: Colors.primary,
-  },
-  stepperValue: {
-    fontSize: 44,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    color: Colors.text,
-    minWidth: 100,
-    textAlign: 'center',
-  },
-  stepperUnit: {
-    fontSize: 16,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    color: 'rgba(140,140,150,1)',
-  },
-
-  quickRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 24,
-  },
-  quickChip: {
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 12,
-  },
-  quickChipActive: {
-    backgroundColor: 'rgba(255,107,53,0.15)',
-  },
-  quickChipText: {
-    fontSize: 13,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    color: 'rgba(140,140,150,1)',
-  },
-  quickChipTextActive: {
-    color: Colors.primary,
-  },
-
-  updateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.primary,
-    borderRadius: 14,
-    paddingVertical: 15,
-  },
-  updateBtnText: {
-    color: '#000',
-    fontSize: 15,
     fontFamily: Fonts?.bold,
     fontWeight: '700',
   },

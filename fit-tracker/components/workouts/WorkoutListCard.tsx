@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useMemo } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import {
   Flame,
   Anchor,
@@ -9,36 +9,14 @@ import {
   Footprints,
   Zap,
   User,
-  Clock,
+  ChevronRight,
 } from 'lucide-react-native';
-import Svg, {
-  Defs,
-  LinearGradient as SvgGradient,
-  Stop,
-  Circle,
-} from 'react-native-svg';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withTiming,
-  Easing,
-} from 'react-native-reanimated';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { Fonts } from '@/constants/theme';
 import { getCategoryIcon } from '@/constants/icons';
+import { getExerciseById } from '@/data/exercises';
 import { Workout } from '@/types';
 import type { LucideIcon } from 'lucide-react-native';
-
-const FOCUS_COLORS: Record<string, string> = {
-  push: '#ff7043',
-  pull: '#42a5f5',
-  legs: '#66bb6a',
-  core: '#fbbf24',
-  cardio: '#ff4444',
-  full_body: '#ff7043',
-  upper: '#42a5f5',
-  lower: '#66bb6a',
-};
 
 const LUCIDE_MAP: Record<string, LucideIcon> = {
   flame: Flame,
@@ -66,64 +44,18 @@ const LEVEL_LABELS: Record<string, string> = {
   all: 'Tous niveaux',
 };
 
-// ─── Kinetic Orb ─────────────────────────────────
-
-const ORB_SIZE = 48;
-const STROKE_W = 1.5;
-const ORB_R = (ORB_SIZE - STROKE_W) / 2;
-
-function KineticOrb({ color, icon: Icon }: { color: string; icon: LucideIcon }) {
-  const rotation = useSharedValue(0);
-
-  useEffect(() => {
-    rotation.value = withRepeat(
-      withTiming(360, { duration: 6000, easing: Easing.linear }),
-      -1,
-      false,
-    );
-  }, []);
-
-  const ringStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${rotation.value}deg` }],
-  }));
-
-  return (
-    <View style={orbStyles.container}>
-      <Animated.View style={[StyleSheet.absoluteFill, ringStyle]}>
-        <Svg width={ORB_SIZE} height={ORB_SIZE}>
-          <Defs>
-            <SvgGradient id="g" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0" stopColor={color} stopOpacity="0.12" />
-              <Stop offset="0.35" stopColor={color} stopOpacity="0.5" />
-              <Stop offset="0.55" stopColor={color} stopOpacity="0.06" />
-              <Stop offset="0.85" stopColor={color} stopOpacity="0.4" />
-              <Stop offset="1" stopColor={color} stopOpacity="0.1" />
-            </SvgGradient>
-          </Defs>
-          <Circle
-            cx={ORB_SIZE / 2}
-            cy={ORB_SIZE / 2}
-            r={ORB_R}
-            stroke="url(#g)"
-            strokeWidth={STROKE_W}
-            fill="#0d0d0d"
-          />
-        </Svg>
-      </Animated.View>
-      <Icon size={18} color={`${color}B3`} strokeWidth={2} />
-    </View>
-  );
-}
-
-const orbStyles = StyleSheet.create({
-  container: {
-    width: ORB_SIZE,
-    height: ORB_SIZE,
-    borderRadius: ORB_SIZE / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+// BodyPart → French labels (for exercise body parts)
+const BODY_PART_LABELS_FR: Record<string, string> = {
+  back: 'Dos',
+  shoulders: 'Épaules',
+  chest: 'Pecs',
+  'upper arms': 'Bras',
+  'lower arms': 'Avant-bras',
+  'upper legs': 'Jambes',
+  'lower legs': 'Mollets',
+  waist: 'Abdos',
+  cardio: 'Cardio',
+};
 
 // ─── Card ────────────────────────────────────────
 
@@ -133,39 +65,65 @@ interface WorkoutListCardProps {
 }
 
 export function WorkoutListCard({ workout, onPress }: WorkoutListCardProps) {
-  const color = FOCUS_COLORS[workout.focus || 'full_body'] || '#ff7043';
-  const iconKey = workout.icon || workout.focus || 'push';
+  const focusKey = workout.focus || 'full_body';
+  const iconKey = workout.icon || focusKey;
   // Resolve icon: legacy alias → direct Lucide name → category lookup
   const resolvedLucide = LEGACY_ICON_ALIAS[iconKey] || iconKey;
-  const IconComponent = LUCIDE_MAP[resolvedLucide] || LUCIDE_MAP[getCategoryIcon(iconKey).icon] || Flame;
+  const categoryInfo = getCategoryIcon(focusKey);
+  const IconComponent =
+    LUCIDE_MAP[resolvedLucide] ||
+    LUCIDE_MAP[categoryInfo.icon] ||
+    Flame;
   const levelLabel = LEVEL_LABELS[workout.level] || workout.level;
+  // Subtle category color for badge (warm tint instead of all-gray)
+  const badgeColor = categoryInfo.color;
+  const badgeBg = categoryInfo.bgColor;
+
+  const muscleText = useMemo(() => {
+    const parts = new Set<string>();
+    workout.exercises.forEach(({ exerciseId }) => {
+      const ex = getExerciseById(exerciseId);
+      if (ex) parts.add(ex.bodyPart);
+    });
+    const labels = Array.from(parts)
+      .slice(0, 3)
+      .map((p) => BODY_PART_LABELS_FR[p] || p);
+    return labels.join(', ');
+  }, [workout.exercises]);
+
+  const exoCount = workout.exerciseCount || workout.exercises.length;
 
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.card,
-        pressed && styles.cardPressed,
-      ]}
+    <PressableScale
+      style={styles.card}
       onPress={onPress}
     >
-      <KineticOrb color={color} icon={IconComponent} />
-
-      <View style={styles.textContent}>
-        <Text style={styles.name} numberOfLines={1}>
-          {workout.nameFr}
-        </Text>
-        <Text style={styles.subtitle} numberOfLines={1}>
-          {levelLabel} · {workout.exerciseCount} exercices
-        </Text>
+      {/* Focus badge — subtle category tint */}
+      <View style={[styles.iconBadge, { backgroundColor: badgeBg }]}>
+        <IconComponent
+          size={14}
+          color={badgeColor}
+          strokeWidth={2}
+        />
       </View>
 
-      <View style={styles.metaColumn}>
-        <View style={styles.durationBadge}>
-          <Clock size={10} color="rgba(180, 180, 190, 1)" strokeWidth={2.5} />
-          <Text style={styles.durationText}>{workout.durationMinutes}m</Text>
+      {/* Content */}
+      <View style={styles.content}>
+        <View style={styles.titleRow}>
+          <Text style={styles.title} numberOfLines={1}>
+            {workout.nameFr}
+          </Text>
+          <Text style={styles.duration}>~{workout.durationMinutes}m</Text>
         </View>
+        <Text style={styles.meta} numberOfLines={1}>
+          {levelLabel}
+          {muscleText ? ` · ${muscleText}` : ''}
+          {` · ${exoCount} exos`}
+        </Text>
       </View>
-    </Pressable>
+
+      <ChevronRight size={14} color="rgba(100,100,110,1)" />
+    </PressableScale>
   );
 }
 
@@ -173,52 +131,50 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'stretch',
-    gap: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingRight: 12,
+    gap: 12,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 20,
-    padding: 16,
-    overflow: 'hidden',
+    borderColor: 'rgba(255,255,255,0.06)',
   },
-  cardPressed: {
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+  iconBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  textContent: {
+  content: {
     flex: 1,
     gap: 3,
   },
-  name: {
-    color: 'rgba(230, 230, 240, 1)',
-    fontSize: 15,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    letterSpacing: -0.2,
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  subtitle: {
-    color: 'rgba(120, 120, 130, 1)',
+  title: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    flex: 1,
+  },
+  duration: {
+    color: 'rgba(255,255,255,0.25)',
     fontSize: 12,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
+    marginLeft: 8,
   },
-  metaColumn: {
-    alignItems: 'flex-end',
-  },
-  durationBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  durationText: {
-    color: 'rgba(180, 180, 190, 1)',
-    fontSize: 11,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
+  meta: {
+    color: 'rgba(255,255,255,0.3)',
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
   },
 });

@@ -213,6 +213,9 @@ export default function ProgramDayScreen() {
       case 'restTime':
         newValue = Math.max(15, pex.restTime + delta * 15);
         break;
+      case 'setTime':
+        newValue = Math.max(10, (pex.setTime || 35) + delta * 5);
+        break;
       default:
         return;
     }
@@ -249,8 +252,8 @@ export default function ProgramDayScreen() {
           }}
         >
           {/* Exercise number */}
-          <View style={[styles.exNumber, compound && styles.exNumberCompound]}>
-            <Text style={[styles.exNumberText, compound && styles.exNumberTextCompound]}>
+          <View style={styles.exNumber}>
+            <Text style={styles.exNumberText}>
               {String(globalIdx + 1).padStart(2, '0')}
             </Text>
           </View>
@@ -371,6 +374,19 @@ export default function ProgramDayScreen() {
                 </Pressable>
                 <Text style={styles.stepperValue}>{pex.restTime}</Text>
                 <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'restTime', 1)}>
+                  <Plus size={14} color="#fff" />
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.editorRow}>
+              <Text style={styles.editorFieldLabel}>Tempo (s/set)</Text>
+              <View style={styles.stepperRow}>
+                <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'setTime', -1)}>
+                  <Minus size={14} color="#fff" />
+                </Pressable>
+                <Text style={styles.stepperValue}>{pex.setTime || 35}</Text>
+                <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'setTime', 1)}>
                   <Plus size={14} color="#fff" />
                 </Pressable>
               </View>

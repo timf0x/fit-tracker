@@ -51,8 +51,11 @@ export interface WorkoutExercise {
   reps: number;
   weight?: number;
   restTime: number;
+  setTime?: number; // seconds per set execution (default 35)
   notes?: string;
 }
+
+export const DEFAULT_SET_TIME = 35;
 
 export interface Workout {
   id: string;

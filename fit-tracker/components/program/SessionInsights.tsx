@@ -84,7 +84,7 @@ export function SessionInsights({ data }: Props) {
       {/* Header */}
       <Pressable style={styles.header} onPress={toggleExpanded}>
         <BarChart3 size={14} color="rgba(160,150,140,1)" />
-        <Text style={styles.headerText}>IMPACT DE LA SÉANCE</Text>
+        <Text style={styles.headerText}>VOLUME HEBDO</Text>
         <View style={{ flex: 1 }} />
         {expanded ? (
           <ChevronUp size={16} color="rgba(160,150,140,0.6)" />
