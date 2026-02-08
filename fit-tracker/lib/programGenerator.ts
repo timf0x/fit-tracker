@@ -280,7 +280,6 @@ export function generateProgram(profile: UserProfile): TrainingProgram {
           ex.maxReps = catConfig.maxReps;
           ex.reps = catConfig.maxReps; // backward compat
           ex.restTime = catConfig.restTime;
-          ex.setTime = catConfig.setTime;
           ex.targetRir = targetRir;
 
           const exData = exerciseMap.get(ex.exerciseId);
@@ -449,8 +448,8 @@ export function getOverloadSuggestions(
 export function estimateDuration(day: ProgramDay): number {
   let totalSeconds = 0;
   for (const ex of day.exercises) {
-    const time = ex.setTime ?? (isCompound(ex.exerciseId) ? 50 : 35);
-    totalSeconds += ex.sets * (time + ex.restTime);
+    const setTime = isCompound(ex.exerciseId) ? 50 : 35; // compounds take longer
+    totalSeconds += ex.sets * (setTime + ex.restTime);
   }
   return Math.round(totalSeconds / 60);
 }

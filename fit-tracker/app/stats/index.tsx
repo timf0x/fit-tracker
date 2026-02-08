@@ -26,6 +26,7 @@ import {
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Fonts } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { RP_VOLUME_LANDMARKS } from '@/constants/volumeLandmarks';
 import { getExerciseById } from '@/data/exercises';
@@ -41,17 +42,17 @@ import { mockWeeklyVolume } from '@/lib/mock-data';
 
 const WEEKS_AVAILABLE = 12;
 
-/** Radar chart muscle groups (abbreviated French labels) */
+/** Radar chart muscle groups (abbreviated labels) */
 const RADAR_GROUPS: { label: string; muscles: string[] }[] = [
-  { label: 'Jamb', muscles: ['quads', 'hamstrings', 'glutes'] },
-  { label: 'Dos', muscles: ['lats', 'upper back', 'lower back'] },
-  { label: 'Abdo', muscles: ['abs', 'obliques'] },
-  { label: 'Avan', muscles: ['forearms'] },
-  { label: 'Bice', muscles: ['biceps'] },
-  { label: 'Tric', muscles: ['triceps'] },
-  { label: 'Moll', muscles: ['calves'] },
-  { label: 'Épau', muscles: ['shoulders'] },
-  { label: 'Poit', muscles: ['chest'] },
+  { label: i18n.t('stats.radarGroups.legs'), muscles: ['quads', 'hamstrings', 'glutes'] },
+  { label: i18n.t('stats.radarGroups.back'), muscles: ['lats', 'upper back', 'lower back'] },
+  { label: i18n.t('stats.radarGroups.abs'), muscles: ['abs', 'obliques'] },
+  { label: i18n.t('stats.radarGroups.forearms'), muscles: ['forearms'] },
+  { label: i18n.t('stats.radarGroups.biceps'), muscles: ['biceps'] },
+  { label: i18n.t('stats.radarGroups.triceps'), muscles: ['triceps'] },
+  { label: i18n.t('stats.radarGroups.calves'), muscles: ['calves'] },
+  { label: i18n.t('stats.radarGroups.shoulders'), muscles: ['shoulders'] },
+  { label: i18n.t('stats.radarGroups.chest'), muscles: ['chest'] },
 ];
 
 const RADAR_SIZE = 280;
@@ -61,20 +62,20 @@ const RADAR_R = 95;
 const RADAR_RINGS = [0.25, 0.5, 0.75, 1.0];
 
 const MUSCLE_ABBR: Record<string, string> = {
-  chest: 'Pec',
-  shoulders: 'Épa',
-  lats: 'Dor',
-  'upper back': 'Hdo',
-  biceps: 'Bic',
-  triceps: 'Tri',
-  quads: 'Quad',
-  hamstrings: 'Isch',
-  glutes: 'Fess',
-  calves: 'Moll',
-  abs: 'Abdo',
-  forearms: 'Avan',
-  'lower back': 'Bdo',
-  obliques: 'Obl',
+  chest: i18n.t('stats.muscleAbbr.chest'),
+  shoulders: i18n.t('stats.muscleAbbr.shoulders'),
+  lats: i18n.t('stats.muscleAbbr.lats'),
+  'upper back': i18n.t('stats.muscleAbbr.upperBack'),
+  biceps: i18n.t('stats.muscleAbbr.biceps'),
+  triceps: i18n.t('stats.muscleAbbr.triceps'),
+  quads: i18n.t('stats.muscleAbbr.quads'),
+  hamstrings: i18n.t('stats.muscleAbbr.hamstrings'),
+  glutes: i18n.t('stats.muscleAbbr.glutes'),
+  calves: i18n.t('stats.muscleAbbr.calves'),
+  abs: i18n.t('stats.muscleAbbr.abs'),
+  forearms: i18n.t('stats.muscleAbbr.forearms'),
+  'lower back': i18n.t('stats.muscleAbbr.lowerBack'),
+  obliques: i18n.t('stats.muscleAbbr.obliques'),
 };
 
 function formatDuration(minutes: number): string {
@@ -288,7 +289,7 @@ export default function StatsScreen() {
           >
             <ArrowLeft size={22} color="#fff" strokeWidth={2} />
           </Pressable>
-          <Text style={styles.headerTitle}>Statistiques</Text>
+          <Text style={styles.headerTitle}>{i18n.t('stats.title')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -327,9 +328,9 @@ export default function StatsScreen() {
                   strokeWidth={1.5}
                 />
               </View>
-              <Text style={styles.emptyTitle}>Aucune donnée</Text>
+              <Text style={styles.emptyTitle}>{i18n.t('stats.noData')}</Text>
               <Text style={styles.emptySubtitle}>
-                Complète ta première séance pour voir tes statistiques ici.
+                {i18n.t('stats.noDataDesc')}
               </Text>
               <Pressable
                 style={styles.emptyCta}
@@ -343,7 +344,7 @@ export default function StatsScreen() {
               >
                 <Dumbbell size={18} color="#fff" strokeWidth={2.2} />
                 <Text style={styles.emptyCtaText}>
-                  Voir les workouts
+                  {i18n.t('stats.viewWorkouts')}
                 </Text>
               </Pressable>
             </View>
@@ -355,21 +356,21 @@ export default function StatsScreen() {
                   <Text style={styles.metricValue}>
                     {weekSummary.sessions}
                   </Text>
-                  <Text style={styles.metricLabel}>séances</Text>
+                  <Text style={styles.metricLabel}>{i18n.t('stats.sessions')}</Text>
                 </View>
                 <View style={styles.metricDivider} />
                 <View style={styles.metricItem}>
                   <Text style={styles.metricValue}>
                     {formatDuration(weekSummary.totalMinutes)}
                   </Text>
-                  <Text style={styles.metricLabel}>durée</Text>
+                  <Text style={styles.metricLabel}>{i18n.t('stats.duration')}</Text>
                 </View>
                 <View style={styles.metricDivider} />
                 <View style={styles.metricItem}>
                   <Text style={styles.metricValue}>
                     {formatVolume(weekSummary.totalVolumeKg)}
                   </Text>
-                  <Text style={styles.metricLabel}>volume</Text>
+                  <Text style={styles.metricLabel}>{i18n.t('stats.volume')}</Text>
                 </View>
               </View>
 
@@ -404,7 +405,7 @@ export default function StatsScreen() {
               <View style={styles.sectionHeader}>
                 <View style={styles.sectionHeaderLeft}>
                   <Text style={styles.sectionLabel}>
-                    RECORDS PERSONNELS
+                    {i18n.t('stats.personalRecords')}
                   </Text>
                   {weekPRs.total > 0 && (
                     <View style={styles.prCountBadge}>
@@ -420,7 +421,7 @@ export default function StatsScreen() {
                   )}
                 </View>
                 <Pressable onPress={() => router.push('/exercise')}>
-                  <Text style={styles.seeAllLink}>Voir tous</Text>
+                  <Text style={styles.seeAllLink}>{i18n.t('stats.viewAll')}</Text>
                 </Pressable>
               </View>
 
@@ -429,7 +430,7 @@ export default function StatsScreen() {
                   {weekPRs.prs.slice(0, 10).map((pr) => {
                     const exercise = getExerciseById(pr.exerciseId);
                     const typeLabelFr =
-                      pr.type === 'weight' ? 'Poids' : 'Volume';
+                      pr.type === 'weight' ? i18n.t('stats.prWeight') : i18n.t('stats.prVolume');
                     const oldVal =
                       pr.type === 'weight'
                         ? `${pr.previousValue}kg`
@@ -504,10 +505,10 @@ export default function StatsScreen() {
               ) : (
                 <View style={styles.prEmptyCard}>
                   <Text style={styles.prEmptyText}>
-                    Aucun record cette période
+                    {i18n.t('stats.noPrThisPeriod')}
                   </Text>
                   <Text style={styles.prEmptySubtext}>
-                    Continuez à pousser !
+                    {i18n.t('stats.keepPushing')}
                   </Text>
                 </View>
               )}
@@ -516,7 +517,7 @@ export default function StatsScreen() {
               {hasRadarData && (
                 <View style={styles.radarCard}>
                   <View style={styles.radarHeader}>
-                    <Text style={styles.sectionTitle}>Équilibre</Text>
+                    <Text style={styles.sectionTitle}>{i18n.t('stats.balance')}</Text>
                     <View
                       style={[
                         styles.balanceBadge,
@@ -530,8 +531,8 @@ export default function StatsScreen() {
                         ]}
                       >
                         {isBalanced
-                          ? 'Bon équilibre'
-                          : 'Déséquilibré'}
+                          ? i18n.t('stats.wellBalanced')
+                          : i18n.t('stats.imbalanced')}
                       </Text>
                     </View>
                   </View>
@@ -639,11 +640,11 @@ export default function StatsScreen() {
                 </View>
                 <View style={styles.volumeShortcutInfo}>
                   <Text style={styles.volumeShortcutTitle}>
-                    Volume Hebdo
+                    {i18n.t('stats.weeklyVolume')}
                   </Text>
                   <Text style={styles.volumeShortcutSub}>
-                    {volumeShortcut.totalSets} séries ·{' '}
-                    {volumeShortcut.muscleCount} muscles
+                    {volumeShortcut.totalSets} {i18n.t('volume.totalSets')} ·{' '}
+                    {volumeShortcut.muscleCount} {i18n.t('volume.activeMuscles')}
                   </Text>
                 </View>
                 <ChevronRight
@@ -657,7 +658,7 @@ export default function StatsScreen() {
               {recentSessions.length > 0 && (
                 <View style={styles.recentSection}>
                   <Text style={styles.sectionTitle}>
-                    Dernières séances
+                    {i18n.t('stats.recentSessions')}
                   </Text>
                   {recentSessions.map((session) => {
                     const isExpanded =
@@ -739,7 +740,7 @@ export default function StatsScreen() {
                                           >
                                             {set.weight
                                               ? `${set.weight}kg`
-                                              : 'PDC'}{' '}
+                                              : i18n.t('stats.bodyweight')}{' '}
                                             × {set.reps}
                                           </Text>
                                         )

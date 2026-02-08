@@ -11,6 +11,7 @@ import {
   ChevronRight,
 } from 'lucide-react-native';
 import { Fonts } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 
 type LucideIcon = React.ComponentType<{ size: number; color: string; strokeWidth?: number }>;
 
@@ -41,7 +42,7 @@ function SectionHeader({ title }: { title: string }) {
 export default function PrefsScreen() {
   const router = useRouter();
 
-  const comingSoon = () => Alert.alert('Bientôt', 'Cette fonctionnalité arrive bientôt.');
+  const comingSoon = () => Alert.alert(i18n.t('common.comingSoon'), i18n.t('common.comingSoonDesc'));
 
   return (
     <View style={styles.screen}>
@@ -52,30 +53,30 @@ export default function PrefsScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerLabel}>RÉGLAGES</Text>
-            <Text style={styles.headerTitle}>Préférences</Text>
+            <Text style={styles.headerLabel}>{i18n.t('prefs.header')}</Text>
+            <Text style={styles.headerTitle}>{i18n.t('prefs.title')}</Text>
           </View>
 
           {/* Section: Mon profil */}
-          <SectionHeader title="Mon profil" />
+          <SectionHeader title={i18n.t('prefs.myProfile')} />
           <View style={styles.sectionCard}>
             <PrefsRow
               icon={Trophy}
               iconColor="#eab308"
               iconBg="rgba(234,179,8,0.15)"
-              label="Mes Trophées"
+              label={i18n.t('prefs.myTrophies')}
               onPress={() => router.push('/trophies')}
             />
           </View>
 
           {/* Section: Préférences */}
-          <SectionHeader title="Préférences" />
+          <SectionHeader title={i18n.t('prefs.preferences')} />
           <View style={styles.sectionCard}>
             <PrefsRow
               icon={Globe}
               iconColor="#A855F7"
               iconBg="rgba(168,85,247,0.15)"
-              label="Langue"
+              label={i18n.t('prefs.language')}
               onPress={comingSoon}
             />
             <View style={styles.rowDivider} />
@@ -83,7 +84,7 @@ export default function PrefsScreen() {
               icon={Bell}
               iconColor="#f97316"
               iconBg="rgba(249,115,22,0.15)"
-              label="Notifications"
+              label={i18n.t('prefs.notifications')}
               onPress={comingSoon}
             />
             <View style={styles.rowDivider} />
@@ -91,19 +92,19 @@ export default function PrefsScreen() {
               icon={Ruler}
               iconColor="#4ADE80"
               iconBg="rgba(74,222,128,0.15)"
-              label="Unités (kg/lbs)"
+              label={i18n.t('prefs.units')}
               onPress={comingSoon}
             />
           </View>
 
           {/* Section: À propos */}
-          <SectionHeader title="À propos" />
+          <SectionHeader title={i18n.t('prefs.aboutSection')} />
           <View style={styles.sectionCard}>
             <PrefsRow
               icon={Info}
               iconColor="rgba(160,160,170,1)"
               iconBg="rgba(160,160,170,0.12)"
-              label="À propos"
+              label={i18n.t('prefs.about')}
               onPress={comingSoon}
             />
             <View style={styles.rowDivider} />
@@ -111,13 +112,13 @@ export default function PrefsScreen() {
               icon={MessageCircle}
               iconColor="#22D3EE"
               iconBg="rgba(34,211,238,0.15)"
-              label="Nous contacter"
+              label={i18n.t('prefs.contact')}
               onPress={comingSoon}
             />
           </View>
 
           {/* Footer */}
-          <Text style={styles.versionText}>Version 1.0.0</Text>
+          <Text style={styles.versionText}>{i18n.t('prefs.version')}</Text>
 
           <View style={{ height: 120 }} />
         </ScrollView>

@@ -17,6 +17,7 @@ import Svg, {
 } from 'react-native-svg';
 import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react-native';
 import { Fonts } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 import { getExerciseById } from '@/data/exercises';
 import { ExerciseIcon } from '@/components/ExerciseIcon';
 import { useWorkoutStore } from '@/stores/workoutStore';
@@ -30,21 +31,21 @@ import {
 // ─── Constants ───
 
 const PERIODS: { key: TimePeriod; label: string }[] = [
-  { key: '3m', label: '3 mois' },
-  { key: '6m', label: '6 mois' },
-  { key: '1y', label: '1 an' },
+  { key: '3m', label: i18n.t('exercise.periods.3m') },
+  { key: '6m', label: i18n.t('exercise.periods.6m') },
+  { key: '1y', label: i18n.t('exercise.periods.1y') },
 ];
 
 const BODY_PART_FR: Record<string, string> = {
-  back: 'Dos',
-  shoulders: 'Épaules',
-  chest: 'Pecs',
-  'upper arms': 'Bras',
-  'lower arms': 'Avant-bras',
-  'upper legs': 'Jambes',
-  'lower legs': 'Mollets',
-  waist: 'Abdos',
-  cardio: 'Cardio',
+  back: i18n.t('bodyParts.back'),
+  shoulders: i18n.t('bodyParts.shoulders'),
+  chest: i18n.t('bodyParts.chest'),
+  'upper arms': i18n.t('bodyParts.upperArms'),
+  'lower arms': i18n.t('bodyParts.forearms'),
+  'upper legs': i18n.t('bodyParts.upperLegs'),
+  'lower legs': i18n.t('bodyParts.lowerLegs'),
+  waist: i18n.t('bodyParts.waist'),
+  cardio: i18n.t('bodyParts.cardio'),
 };
 
 const CHART_W = 320;
@@ -91,7 +92,7 @@ function LineChart({
   if (data.length === 0) {
     return (
       <View style={styles.chartEmpty}>
-        <Text style={styles.chartEmptyText}>Aucune donnée</Text>
+        <Text style={styles.chartEmptyText}>{i18n.t('exercise.noData')}</Text>
       </View>
     );
   }
@@ -236,7 +237,7 @@ export default function ExerciseDetailScreen() {
             <Pressable style={styles.backButton} onPress={() => router.back()}>
               <ArrowLeft size={22} color="#fff" strokeWidth={2} />
             </Pressable>
-            <Text style={styles.headerTitle}>Exercice introuvable</Text>
+            <Text style={styles.headerTitle}>{i18n.t('exercise.notFound')}</Text>
             <View style={{ width: 40 }} />
           </View>
         </SafeAreaView>
@@ -307,16 +308,16 @@ export default function ExerciseDetailScreen() {
 
           {!hasData && allTimeStats.totalSessions === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyTitle}>Aucune donnée</Text>
+              <Text style={styles.emptyTitle}>{i18n.t('exercise.noData')}</Text>
               <Text style={styles.emptySubtitle}>
-                Ajoute cet exercice à ton prochain workout !
+                {i18n.t('exercise.addToNext')}
               </Text>
             </View>
           ) : (
             <>
               {/* Weight Chart */}
               <View style={styles.chartCard}>
-                <Text style={styles.chartTitle}>Évolution du poids</Text>
+                <Text style={styles.chartTitle}>{i18n.t('exercise.weightChart')}</Text>
                 <View style={styles.chartContainer}>
                   <LineChart
                     data={sessionHistory}
@@ -329,7 +330,7 @@ export default function ExerciseDetailScreen() {
 
               {/* Volume Chart */}
               <View style={styles.chartCard}>
-                <Text style={styles.chartTitle}>Évolution du volume</Text>
+                <Text style={styles.chartTitle}>{i18n.t('exercise.volumeChart')}</Text>
                 <View style={styles.chartContainer}>
                   <LineChart
                     data={sessionHistory}
@@ -342,7 +343,7 @@ export default function ExerciseDetailScreen() {
 
               {/* Stats Summary */}
               <View style={styles.summaryCard}>
-                <Text style={styles.summaryTitle}>Résumé</Text>
+                <Text style={styles.summaryTitle}>{i18n.t('exercise.summary')}</Text>
                 <View style={styles.summaryGrid}>
                   <View style={styles.summaryItem}>
                     <Text style={styles.summaryValue}>
@@ -350,7 +351,7 @@ export default function ExerciseDetailScreen() {
                         ? `${allTimeStats.bestWeight}kg`
                         : '—'}
                     </Text>
-                    <Text style={styles.summaryLabel}>Meilleur poids</Text>
+                    <Text style={styles.summaryLabel}>{i18n.t('exercise.bestWeight')}</Text>
                     {allTimeStats.bestWeightDate && (
                       <Text style={styles.summaryDate}>
                         {formatDate(allTimeStats.bestWeightDate)}
@@ -363,7 +364,7 @@ export default function ExerciseDetailScreen() {
                         ? formatVolume(allTimeStats.bestSessionVolume)
                         : '—'}
                     </Text>
-                    <Text style={styles.summaryLabel}>Meilleur volume</Text>
+                    <Text style={styles.summaryLabel}>{i18n.t('exercise.bestVolume')}</Text>
                     {allTimeStats.bestSessionVolumeDate && (
                       <Text style={styles.summaryDate}>
                         {formatDate(allTimeStats.bestSessionVolumeDate)}
@@ -374,7 +375,7 @@ export default function ExerciseDetailScreen() {
                     <Text style={styles.summaryValue}>
                       {allTimeStats.totalSessions}
                     </Text>
-                    <Text style={styles.summaryLabel}>Séances totales</Text>
+                    <Text style={styles.summaryLabel}>{i18n.t('exercise.totalSessions')}</Text>
                   </View>
                   <View style={styles.summaryItem}>
                     <Text style={styles.summaryValue}>
@@ -382,7 +383,7 @@ export default function ExerciseDetailScreen() {
                         ? formatDate(allTimeStats.lastPerformedDate)
                         : '—'}
                     </Text>
-                    <Text style={styles.summaryLabel}>Dernière séance</Text>
+                    <Text style={styles.summaryLabel}>{i18n.t('exercise.lastSession')}</Text>
                   </View>
                 </View>
               </View>
@@ -390,7 +391,7 @@ export default function ExerciseDetailScreen() {
               {/* Session History */}
               {sessionHistory.length > 0 && (
                 <View style={styles.historySection}>
-                  <Text style={styles.sectionLabel}>HISTORIQUE</Text>
+                  <Text style={styles.sectionLabel}>{i18n.t('exercise.history')}</Text>
                   {[...sessionHistory].reverse().map((session) => {
                     const isExpanded = expandedSessionId === session.sessionId;
                     return (
@@ -414,7 +415,7 @@ export default function ExerciseDetailScreen() {
                               {session.workoutName} ·{' '}
                               {session.bestWeight > 0
                                 ? `${session.bestWeight}kg`
-                                : 'PDC'}{' '}
+                                : i18n.t('exercise.bodyweight')}{' '}
                               · {formatVolume(session.totalVolume)}
                             </Text>
                           </View>
@@ -437,12 +438,12 @@ export default function ExerciseDetailScreen() {
                             {session.sets.map((set, si) => (
                               <View key={si} style={styles.historySetRow}>
                                 <Text style={styles.historySetLabel}>
-                                  Série {si + 1}
+                                  {i18n.t('exercise.set')} {si + 1}
                                 </Text>
                                 <Text style={styles.historySetValue}>
                                   {set.weight > 0
                                     ? `${set.weight}kg`
-                                    : 'PDC'}{' '}
+                                    : i18n.t('exercise.bodyweight')}{' '}
                                   × {set.reps}
                                 </Text>
                               </View>

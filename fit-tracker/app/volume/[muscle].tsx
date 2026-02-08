@@ -9,6 +9,7 @@ import {
   TrendingDown,
 } from 'lucide-react-native';
 import { Fonts } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { MUSCLE_LABELS_FR } from '@/lib/muscleMapping';
 import {
@@ -29,11 +30,11 @@ import { ExerciseSparkline } from '@/components/ExerciseSparkline';
 const WEEKS = 12;
 
 const ZONE_LABELS: Record<VolumeLandmarkZone, string> = {
-  below_mv: 'Sous MV',
-  mv_mev: 'Maintien',
-  mev_mav: 'Croissance',
-  mav_mrv: 'Surcharge',
-  above_mrv: 'Danger',
+  below_mv: i18n.t('zones.belowMv'),
+  mv_mev: i18n.t('zones.maintenance'),
+  mev_mav: i18n.t('zones.growth'),
+  mav_mrv: i18n.t('zones.overload'),
+  above_mrv: i18n.t('zones.danger'),
 };
 
 export default function MuscleDetailScreen() {
@@ -125,7 +126,7 @@ export default function MuscleDetailScreen() {
                     ]}
                   >
                     {delta > 0 ? '+' : ''}
-                    {delta} vs sem.
+                    {delta} {i18n.t('volume.vsWeek')}
                   </Text>
                 </View>
               )}
@@ -147,7 +148,7 @@ export default function MuscleDetailScreen() {
           </View>
 
           {/* Volume Chart Section */}
-          <Text style={styles.sectionTitle}>VOLUME / SEMAINE</Text>
+          <Text style={styles.sectionTitle}>{i18n.t('volume.volumePerWeek')}</Text>
           <View style={styles.chartCard}>
             {/* Threshold lines */}
             {landmarks && (
@@ -203,7 +204,7 @@ export default function MuscleDetailScreen() {
                           ]}
                         >
                           {isCurrentWeek
-                            ? 'Actu.'
+                            ? i18n.t('volume.currentWeek')
                             : `S${point.weekOffset}`}
                         </Text>
                       </View>
@@ -215,7 +216,7 @@ export default function MuscleDetailScreen() {
           </View>
 
           {/* Exercise Breakdown */}
-          <Text style={styles.sectionTitle}>EXERCICES CETTE SEMAINE</Text>
+          <Text style={styles.sectionTitle}>{i18n.t('volume.exercisesThisWeek')}</Text>
           {exerciseBreakdown.length > 0 ? (
             exerciseBreakdown.map((item) => (
               <Pressable
@@ -254,7 +255,7 @@ export default function MuscleDetailScreen() {
           ) : (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyText}>
-                Aucun exercice cette semaine
+                {i18n.t('volume.noExerciseThisWeek')}
               </Text>
             </View>
           )}
@@ -262,7 +263,7 @@ export default function MuscleDetailScreen() {
           {/* Landmarks Reference */}
           {landmarks && (
             <>
-              <Text style={styles.sectionTitle}>REPÈRES</Text>
+              <Text style={styles.sectionTitle}>{i18n.t('volume.landmarksSectionTitle')}</Text>
               <View style={styles.landmarksCard}>
                 {[
                   { label: 'MV', value: landmarks.mv, color: '#6B7280' },

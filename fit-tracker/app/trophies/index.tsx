@@ -81,7 +81,15 @@ import {
 import { Fonts } from '@/constants/theme';
 import { ALL_BADGES, BADGE_CATEGORIES, TIER_CONFIG, USER_LEVELS } from '@/data/badges';
 import { MOCK_UNLOCKED_BADGE_IDS } from '@/lib/mock-data';
+import i18n, { getLocale } from '@/lib/i18n';
 import type { BadgeProgress, BadgeTier } from '@/types';
+
+/** Pick the locale-aware field from data objects that have both `name`/`nameFr` etc. */
+function loc<T extends Record<string, unknown>>(obj: T, field: string): string {
+  const isFr = getLocale() === 'fr';
+  const frKey = `${field}Fr`;
+  return String(isFr ? (obj[frKey] ?? obj[field]) : (obj[field] ?? obj[frKey]));
+}
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -227,7 +235,7 @@ function BadgeCard({ progress, onPress }: { progress: BadgeProgress; onPress: ()
         style={[styles.badgeName, !isUnlocked && { color: 'rgba(100,100,110,1)' }]}
         numberOfLines={2}
       >
-        {badge.nameFr}
+        {loc(badge, 'name')}
       </Text>
       <View style={styles.progressBarBg}>
         {isUnlocked ? (
@@ -266,7 +274,7 @@ function CategoryHeader({
       <View style={[styles.catIconCircle, { backgroundColor: `${category.color}15` }]}>
         <CatIcon size={16} color={category.color} strokeWidth={2.2} />
       </View>
-      <Text style={styles.catTitle}>{category.labelFr}</Text>
+      <Text style={styles.catTitle}>{loc(category, 'label')}</Text>
       <Text style={styles.catCount}>
         {unlockedCount}/{totalCount}
       </Text>
@@ -287,12 +295,12 @@ function BadgeDetailModal({
   if (!progress) return null;
   const { badge, isUnlocked, progressPercent } = progress;
   const tierColor = TIER_CONFIG[badge.tier].color;
-  const tierLabel = TIER_CONFIG[badge.tier].labelFr;
+  const tierLabel = loc(TIER_CONFIG[badge.tier], 'label');
   const IconComp = getIcon(badge.icon);
   const catMeta = BADGE_CATEGORIES.find((c) => c.id === badge.category);
 
   const unlockDate = isUnlocked && progress.unlockedAt
-    ? new Date(progress.unlockedAt).toLocaleDateString('fr-FR', {
+    ? new Date(progress.unlockedAt).toLocaleDateString(getLocale() === 'fr' ? 'fr-FR' : 'en-US', {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
@@ -326,17 +334,17 @@ function BadgeDetailModal({
               {catMeta && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                   {React.createElement(getIcon(catMeta.icon), { size: 12, color: 'rgba(200,200,200,1)', strokeWidth: 2 })}
-                  <Text style={[styles.modalPillText, { color: 'rgba(200,200,200,1)' }]}>{catMeta.labelFr}</Text>
+                  <Text style={[styles.modalPillText, { color: 'rgba(200,200,200,1)' }]}>{loc(catMeta, 'label')}</Text>
                 </View>
               )}
             </View>
           </View>
-          <Text style={styles.modalBadgeName}>{badge.nameFr}</Text>
-          <Text style={styles.modalDescription}>{badge.descriptionFr}</Text>
+          <Text style={styles.modalBadgeName}>{loc(badge, 'name')}</Text>
+          <Text style={styles.modalDescription}>{loc(badge, 'description')}</Text>
           {isUnlocked && unlockDate ? (
             <View style={styles.modalUnlockedPill}>
               <CheckCircle size={16} color="#4ADE80" strokeWidth={2.5} />
-              <Text style={styles.modalUnlockedText}>Débloqué le {unlockDate}</Text>
+              <Text style={styles.modalUnlockedText}>{i18n.t('trophies.unlockedOn', { date: unlockDate })}</Text>
             </View>
           ) : (
             <View style={styles.modalProgressSection}>
@@ -350,7 +358,7 @@ function BadgeDetailModal({
           )}
           <View style={styles.modalPointsRow}>
             <Sparkles size={16} color="#f97316" strokeWidth={2.5} />
-            <Text style={styles.modalPointsText}>{badge.points} points</Text>
+            <Text style={styles.modalPointsText}>{badge.points} {i18n.t('trophies.points')}</Text>
           </View>
         </View>
       </Pressable>
@@ -396,7 +404,7 @@ export default function TrophiesScreen() {
               <ArrowLeft size={22} color="#fff" strokeWidth={2} />
             </Pressable>
             <Trophy size={22} color="#f97316" strokeWidth={2.5} />
-            <Text style={styles.headerTitle}>Trophées</Text>
+            <Text style={styles.headerTitle}>{i18n.t('trophies.title')}</Text>
             <View style={{ width: 40 }} />
           </View>
 
@@ -407,12 +415,12 @@ export default function TrophiesScreen() {
                 <LevelIcon size={28} color="#f97316" strokeWidth={2.2} />
               </View>
               <View style={styles.levelInfo}>
-                <Text style={styles.levelLabel}>NIVEAU</Text>
-                <Text style={styles.levelName}>{summary.level.nameFr}</Text>
+                <Text style={styles.levelLabel}>{i18n.t('trophies.level')}</Text>
+                <Text style={styles.levelName}>{loc(summary.level, 'name')}</Text>
               </View>
               <View style={styles.levelPtsBlock}>
                 <Text style={styles.levelPtsBig}>{summary.totalPoints}</Text>
-                <Text style={styles.levelPtsLabel}>pts</Text>
+                <Text style={styles.levelPtsLabel}>{i18n.t('trophies.pts')}</Text>
               </View>
             </View>
             <View style={styles.levelProgressRow}>
@@ -429,7 +437,7 @@ export default function TrophiesScreen() {
               <Text style={styles.levelPctText}>{Math.round(progressToNext)}%</Text>
               {summary.nextLevel && (
                 <Text style={styles.levelNextText}>
-                  {summary.nextLevel.minPoints - summary.totalPoints} pts → {summary.nextLevel.nameFr}
+                  {summary.nextLevel.minPoints - summary.totalPoints} {i18n.t('trophies.ptsTo')} {loc(summary.nextLevel, 'name')}
                 </Text>
               )}
             </View>
@@ -437,7 +445,7 @@ export default function TrophiesScreen() {
             <View style={styles.levelStatsRow}>
               <View style={styles.levelStatItem}>
                 <Text style={styles.levelStatNumber}>{summary.totalBadges}</Text>
-                <Text style={styles.levelStatLabel}>DÉBLOQUÉS</Text>
+                <Text style={styles.levelStatLabel}>{i18n.t('trophies.unlocked')}</Text>
               </View>
               <View style={styles.levelStatSep} />
               {(['bronze', 'silver', 'gold', 'platinum'] as BadgeTier[]).map((tier) => (

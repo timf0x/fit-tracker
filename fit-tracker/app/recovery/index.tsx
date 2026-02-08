@@ -22,6 +22,7 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, RotateCcw, ChevronRight, Zap, BedDouble, Dumbbell, X, Info } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Fonts, Spacing } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 import {
   RECOVERY_COLORS,
   RECOVERY_LABELS,
@@ -131,9 +132,9 @@ export default function RecoveryScreen() {
   };
 
   const getStatusMessage = () => {
-    if (overview.overallScore >= 70) return 'Excellent';
-    if (overview.overallScore >= 40) return 'Partiel';
-    return 'Repos conseillé';
+    if (overview.overallScore >= 70) return i18n.t('recovery.excellent');
+    if (overview.overallScore >= 40) return i18n.t('recovery.partial');
+    return i18n.t('recovery.restNeeded');
   };
 
   const getRecommendationIcon = () => {
@@ -174,7 +175,7 @@ export default function RecoveryScreen() {
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <ArrowLeft size={22} color="#fff" strokeWidth={2} />
           </Pressable>
-          <Text style={styles.headerTitle}>Récupération</Text>
+          <Text style={styles.headerTitle}>{i18n.t('recovery.title')}</Text>
           <View style={styles.headerSpacer} />
         </View>
       </SafeAreaView>
@@ -226,7 +227,7 @@ export default function RecoveryScreen() {
           <Pressable style={styles.floatingFlip} onPress={flipBody}>
             <RotateCcw size={16} color="#D1D5DB" />
             <Text style={styles.floatingFlipText}>
-              {bodyView === 'front' ? 'Dos' : 'Face'}
+              {bodyView === 'front' ? i18n.t('recovery.back') : i18n.t('recovery.front')}
             </Text>
           </Pressable>
 
@@ -236,17 +237,17 @@ export default function RecoveryScreen() {
         <View style={styles.metricStrip}>
           <View style={styles.metricItem}>
             <Text style={[styles.metricValue, { color: '#22C55E' }]}>{overview.freshCount}</Text>
-            <Text style={styles.metricLabel}>frais</Text>
+            <Text style={styles.metricLabel}>{i18n.t('recovery.fresh')}</Text>
           </View>
           <View style={styles.metricDivider} />
           <View style={styles.metricItem}>
             <Text style={[styles.metricValue, { color: '#EF4444' }]}>{overview.fatiguedCount}</Text>
-            <Text style={styles.metricLabel}>fatigués</Text>
+            <Text style={styles.metricLabel}>{i18n.t('recovery.fatigued')}</Text>
           </View>
           <View style={styles.metricDivider} />
           <View style={styles.metricItem}>
             <Text style={[styles.metricValue, { color: '#6B7280' }]}>{overview.undertrainedCount}</Text>
-            <Text style={styles.metricLabel}>sous-entraînés</Text>
+            <Text style={styles.metricLabel}>{i18n.t('recovery.undertrained')}</Text>
           </View>
         </View>
 
@@ -260,7 +261,7 @@ export default function RecoveryScreen() {
 
         {/* ─── Muscle Readiness ─── */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>ÉTAT DES MUSCLES</Text>
+          <Text style={styles.sectionTitle}>{i18n.t('recovery.muscleStatus')}</Text>
         </View>
 
         {sortedMuscles.map((muscle) => {
@@ -320,22 +321,22 @@ export default function RecoveryScreen() {
         <Pressable style={styles.modalOverlay} onPress={() => setShowScoreInfo(false)}>
           <Pressable style={styles.infoModal} onPress={(e) => e.stopPropagation()}>
             <View style={styles.infoModalHeader}>
-              <Text style={styles.infoModalTitle}>Score de Récupération</Text>
+              <Text style={styles.infoModalTitle}>{i18n.t('recovery.scoreTitle')}</Text>
               <Pressable style={styles.infoModalClose} onPress={() => setShowScoreInfo(false)}>
                 <X size={18} color="#9CA3AF" />
               </Pressable>
             </View>
             <Text style={styles.infoModalText}>
-              Ce score indique l'état de récupération global de vos muscles, basé sur vos dernières séances.
+              {i18n.t('recovery.scoreExplanation')}
             </Text>
             <View style={styles.scoreRanges}>
               <View style={styles.scoreRange}>
                 <View style={[styles.scoreRangeDot, { backgroundColor: '#22C55E' }]} />
                 <View style={styles.scoreRangeContent}>
                   <Text style={styles.scoreRangeValue}>70-100</Text>
-                  <Text style={styles.scoreRangeLabel}>Excellent</Text>
+                  <Text style={styles.scoreRangeLabel}>{i18n.t('recovery.excellent')}</Text>
                   <Text style={styles.scoreRangeDesc}>
-                    Vos muscles sont bien récupérés. Idéal pour un entraînement intensif.
+                    {i18n.t('recovery.scoreExcellent')}
                   </Text>
                 </View>
               </View>
@@ -343,9 +344,9 @@ export default function RecoveryScreen() {
                 <View style={[styles.scoreRangeDot, { backgroundColor: '#FBBF24' }]} />
                 <View style={styles.scoreRangeContent}>
                   <Text style={styles.scoreRangeValue}>40-69</Text>
-                  <Text style={styles.scoreRangeLabel}>Partiel</Text>
+                  <Text style={styles.scoreRangeLabel}>{i18n.t('recovery.partial')}</Text>
                   <Text style={styles.scoreRangeDesc}>
-                    Récupération en cours. Entraînez les muscles frais uniquement.
+                    {i18n.t('recovery.scorePartial')}
                   </Text>
                 </View>
               </View>
@@ -353,15 +354,15 @@ export default function RecoveryScreen() {
                 <View style={[styles.scoreRangeDot, { backgroundColor: '#EF4444' }]} />
                 <View style={styles.scoreRangeContent}>
                   <Text style={styles.scoreRangeValue}>0-39</Text>
-                  <Text style={styles.scoreRangeLabel}>Repos conseillé</Text>
+                  <Text style={styles.scoreRangeLabel}>{i18n.t('recovery.restNeeded')}</Text>
                   <Text style={styles.scoreRangeDesc}>
-                    La plupart des muscles sont fatigués. Privilégiez le repos ou une séance légère.
+                    {i18n.t('recovery.scoreRest')}
                   </Text>
                 </View>
               </View>
             </View>
             <View style={styles.currentScoreBox}>
-              <Text style={styles.currentScoreLabel}>Votre score actuel</Text>
+              <Text style={styles.currentScoreLabel}>{i18n.t('recovery.yourScore')}</Text>
               <Text style={[
                 styles.currentScoreValue,
                 { color: overview.overallScore >= 70 ? '#22C55E' :
@@ -412,7 +413,7 @@ export default function RecoveryScreen() {
                 {/* Recovery progress bar (for fatigued muscles) */}
                 {selectedMuscle.status === 'fatigued' && muscleDetail.hoursSince !== null && (
                   <View style={styles.recoverySection}>
-                    <Text style={styles.recoveryLabel}>Progression de récupération</Text>
+                    <Text style={styles.recoveryLabel}>{i18n.t('recovery.recoveryProgress')}</Text>
                     <View style={styles.recoveryBarBg}>
                       <View style={[
                         styles.recoveryBarFill,
@@ -436,7 +437,7 @@ export default function RecoveryScreen() {
                 {/* Last session info */}
                 {muscleDetail.exerciseNames.length > 0 && (
                   <View style={styles.lastSessionSection}>
-                    <Text style={styles.lastSessionTitle}>Dernière séance</Text>
+                    <Text style={styles.lastSessionTitle}>{i18n.t('recovery.lastSession')}</Text>
                     <View style={styles.lastSessionRow}>
                       <Text style={styles.lastSessionSets}>{muscleDetail.totalSets} séries</Text>
                       <Text style={styles.lastSessionDot}> · </Text>
@@ -457,7 +458,7 @@ export default function RecoveryScreen() {
                     }, 300);
                   }}
                 >
-                  <Text style={styles.detailLinkText}>Voir volume & historique</Text>
+                  <Text style={styles.detailLinkText}>{i18n.t('recovery.viewVolumeHistory')}</Text>
                   <ChevronRight size={16} color="#FF6B35" />
                 </Pressable>
 

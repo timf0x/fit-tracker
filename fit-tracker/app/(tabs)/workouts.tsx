@@ -46,8 +46,8 @@ export default function WorkoutsScreen() {
       <View style={[styles.headerArea, { paddingTop: insets.top + 16 }]}>
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.headerLabel}>MES WORKOUTS</Text>
-            <Text style={styles.headerTitle}>Entraînements</Text>
+            <Text style={styles.headerLabel}>{i18n.t('workouts.header')}</Text>
+            <Text style={styles.headerTitle}>{i18n.t('workouts.title')}</Text>
           </View>
           <Pressable style={styles.addButton} onPress={handleAdd}>
             <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
@@ -76,7 +76,7 @@ export default function WorkoutsScreen() {
         {customWorkouts.length > 0 ? (
           <View style={styles.section}>
             <View style={styles.groupHeader}>
-              <Text style={styles.groupTitle}>Mes workouts</Text>
+              <Text style={styles.groupTitle}>{i18n.t('workouts.myWorkouts')}</Text>
               <Text style={styles.groupCount}>{customWorkouts.length}</Text>
             </View>
             <View style={styles.groupList}>
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
   addButton: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: 22,
     backgroundColor: 'rgba(255, 107, 53, 0.1)',
     borderWidth: 1,
     borderColor: 'rgba(255, 107, 53, 0.15)',

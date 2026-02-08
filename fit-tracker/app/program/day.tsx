@@ -17,9 +17,12 @@ import {
   Clock,
   Calendar,
   TrendingUp,
+  TrendingDown,
+  AlertTriangle,
   Info,
 } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 import { useProgramStore } from '@/stores/programStore';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { getExerciseById } from '@/data/exercises';
@@ -33,8 +36,10 @@ import { AnimatedStartButton } from '@/components/ui/AnimatedStartButton';
 import { MUSCLE_LABELS_FR } from '@/lib/muscleMapping';
 import { estimateDuration, isCompound, getOverloadSuggestions } from '@/lib/programGenerator';
 import { buildProgramExercisesParam } from '@/lib/programSession';
+import { getProgressiveWeight, getEstimatedWeight } from '@/lib/weightEstimation';
 import { computeSessionInsights } from '@/lib/sessionInsights';
 import { SessionInsights } from '@/components/program/SessionInsights';
+import { checkDeloadStatus } from '@/lib/deloadDetection';
 import type { ProgramExercise } from '@/types/program';
 
 // Focus color mapping
@@ -160,6 +165,44 @@ export default function ProgramDayScreen() {
     [day, history],
   );
 
+  // Deload detection
+  const deloadStatus = useMemo(
+    () => checkDeloadStatus(history),
+    [history],
+  );
+
+  // Progressive overload — recalculate weights from history
+  const progressiveWeights = useMemo(() => {
+    const map: Record<string, { weight: number; action: 'bump' | 'hold' | 'drop' | 'none' }> = {};
+    for (const pex of day.exercises) {
+      const ex = getExerciseById(pex.exerciseId);
+      if (!ex) continue;
+      const prog = getProgressiveWeight(
+        pex.exerciseId,
+        ex.equipment,
+        pex.minReps || pex.reps,
+        history,
+      );
+      if (prog.action !== 'none') {
+        map[pex.exerciseId] = prog;
+      } else if ((pex.suggestedWeight || 0) === 0 && program.userProfile) {
+        // No history + no weight → estimate from BW
+        const estimated = getEstimatedWeight(
+          pex.exerciseId,
+          ex.equipment,
+          ex.target,
+          program.userProfile.weight,
+          program.userProfile.sex,
+          program.userProfile.experience || 'intermediate',
+        );
+        if (estimated > 0) {
+          map[pex.exerciseId] = { weight: estimated, action: 'none' };
+        }
+      }
+    }
+    return map;
+  }, [day.exercises, history, program.userProfile]);
+
   const handleStart = useCallback(() => {
     if (isLastCompletionToday && !isDone) {
       setShowPacingWarning(true);
@@ -185,10 +228,10 @@ export default function ProgramDayScreen() {
         workoutId,
         sessionId,
         workoutName: day.labelFr,
-        exercises: buildProgramExercisesParam(day),
+        exercises: buildProgramExercisesParam(day, progressiveWeights),
       },
     });
-  }, [program, weekNum, dayIdx, day]);
+  }, [program, weekNum, dayIdx, day, progressiveWeights]);
 
   const handleEditField = (exerciseIdx: number, field: keyof ProgramExercise, delta: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -236,6 +279,11 @@ export default function ProgramDayScreen() {
     const isEditing = editingIndex === globalIdx;
     const suggestion = suggestions[pex.exerciseId];
     const lastPerf = lastPerformance[pex.exerciseId];
+    const progWeight = progressiveWeights[pex.exerciseId];
+    const displayWeight = progWeight && progWeight.action !== 'none'
+      ? progWeight.weight
+      : (pex.suggestedWeight || 0);
+    const overloadAction = progWeight?.action || 'none';
 
     return (
       <View key={`${pex.exerciseId}-${globalIdx}`}>
@@ -273,7 +321,7 @@ export default function ProgramDayScreen() {
 
             {lastPerf && (
               <Text style={styles.lastPerfText}>
-                Derniere fois : {lastPerf.weight > 0 ? `${lastPerf.weight}kg x ` : ''}{lastPerf.reps} reps
+                {i18n.t('programDay.lastTime')} : {lastPerf.weight > 0 ? `${lastPerf.weight}kg x ` : ''}{lastPerf.reps} reps
               </Text>
             )}
 
@@ -286,12 +334,22 @@ export default function ProgramDayScreen() {
                     : pex.maxReps || pex.reps}
                 </Text>
               </View>
-              {pex.suggestedWeight != null && pex.suggestedWeight > 0 && (
+              {displayWeight > 0 && (
                 <View style={[styles.exMetaPill, styles.exWeightPill]}>
                   <Weight size={10} color={Colors.primary} />
                   <Text style={[styles.exMetaText, styles.exWeightText]}>
-                    {pex.suggestedWeight}kg
+                    {displayWeight}kg
                   </Text>
+                </View>
+              )}
+              {overloadAction === 'bump' && (
+                <View style={[styles.exMetaPill, { backgroundColor: 'rgba(74,222,128,0.10)' }]}>
+                  <Text style={[styles.exMetaText, { color: '#4ADE80' }]}>↑</Text>
+                </View>
+              )}
+              {overloadAction === 'drop' && (
+                <View style={[styles.exMetaPill, { backgroundColor: 'rgba(251,191,36,0.10)' }]}>
+                  <Text style={[styles.exMetaText, { color: '#FBBF24' }]}>↓</Text>
                 </View>
               )}
             </View>
@@ -310,18 +368,38 @@ export default function ProgramDayScreen() {
         {/* Inline editor */}
         {isEditing && (
           <View style={styles.editorPanel}>
-            {/* Overload suggestion in editor */}
-            {suggestion && (
-              <View style={styles.overloadRow}>
-                <TrendingUp size={12} color={Colors.primary} />
-                <Text style={styles.overloadText}>Suggestion : essaie {suggestion}</Text>
+            {/* Overload context in editor */}
+            {overloadAction === 'bump' && (
+              <View style={[styles.overloadRow, { backgroundColor: 'rgba(74,222,128,0.08)', borderColor: 'rgba(74,222,128,0.15)' }]}>
+                <TrendingUp size={12} color="#4ADE80" />
+                <Text style={[styles.overloadText, { color: '#4ADE80' }]}>{i18n.t('programDay.overloadBump', { weight: displayWeight })}</Text>
               </View>
             )}
+            {overloadAction === 'drop' && (
+              <View style={[styles.overloadRow, { backgroundColor: 'rgba(251,191,36,0.08)', borderColor: 'rgba(251,191,36,0.15)' }]}>
+                <TrendingDown size={12} color="#FBBF24" />
+                <Text style={[styles.overloadText, { color: '#FBBF24' }]}>{i18n.t('programDay.overloadDrop')}</Text>
+              </View>
+            )}
+            {overloadAction === 'hold' && (
+              <View style={styles.overloadRow}>
+                <TrendingUp size={12} color={Colors.primary} />
+                <Text style={styles.overloadText}>{i18n.t('programDay.overloadHold')}</Text>
+              </View>
+            )}
+            {!overloadAction || overloadAction === 'none' ? (
+              suggestion ? (
+                <View style={styles.overloadRow}>
+                  <TrendingUp size={12} color={Colors.primary} />
+                  <Text style={styles.overloadText}>{i18n.t('programDay.suggestion', { suggestion })}</Text>
+                </View>
+              ) : null
+            ) : null}
 
-            <Text style={styles.editorLabel}>Valeurs suggerees — ajuste selon ton ressenti</Text>
+            <Text style={styles.editorLabel}>{i18n.t('programDay.adjustTip')}</Text>
 
             <View style={styles.editorRow}>
-              <Text style={styles.editorFieldLabel}>Series</Text>
+              <Text style={styles.editorFieldLabel}>{i18n.t('programDay.sets')}</Text>
               <View style={styles.stepperRow}>
                 <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'sets', -1)}>
                   <Minus size={14} color="#fff" />
@@ -335,9 +413,9 @@ export default function ProgramDayScreen() {
 
             <View style={styles.editorRow}>
               <View>
-                <Text style={styles.editorFieldLabel}>Reps max</Text>
+                <Text style={styles.editorFieldLabel}>{i18n.t('programDay.repsMax')}</Text>
                 {pex.minReps > 0 && pex.minReps !== (pex.maxReps || pex.reps) && (
-                  <Text style={styles.editorFieldHint}>min: {pex.minReps}</Text>
+                  <Text style={styles.editorFieldHint}>{i18n.t('programDay.minReps', { min: pex.minReps })}</Text>
                 )}
               </View>
               <View style={styles.stepperRow}>
@@ -353,7 +431,7 @@ export default function ProgramDayScreen() {
 
             {(pex.suggestedWeight || 0) >= 0 && (
               <View style={styles.editorRow}>
-                <Text style={styles.editorFieldLabel}>Charge (kg)</Text>
+                <Text style={styles.editorFieldLabel}>{i18n.t('programDay.weight')}</Text>
                 <View style={styles.stepperRow}>
                   <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'suggestedWeight', -1)}>
                     <Minus size={14} color="#fff" />
@@ -367,7 +445,7 @@ export default function ProgramDayScreen() {
             )}
 
             <View style={styles.editorRow}>
-              <Text style={styles.editorFieldLabel}>Repos (s)</Text>
+              <Text style={styles.editorFieldLabel}>{i18n.t('programDay.rest')}</Text>
               <View style={styles.stepperRow}>
                 <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'restTime', -1)}>
                   <Minus size={14} color="#fff" />
@@ -380,7 +458,7 @@ export default function ProgramDayScreen() {
             </View>
 
             <View style={styles.editorRow}>
-              <Text style={styles.editorFieldLabel}>Tempo (s/set)</Text>
+              <Text style={styles.editorFieldLabel}>{i18n.t('programDay.timePerSet')}</Text>
               <View style={styles.stepperRow}>
                 <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'setTime', -1)}>
                   <Minus size={14} color="#fff" />
@@ -400,7 +478,7 @@ export default function ProgramDayScreen() {
               }}
             >
               <RotateCcw size={12} color="rgba(255,255,255,0.4)" />
-              <Text style={styles.resetText}>Reinitialiser</Text>
+              <Text style={styles.resetText}>{i18n.t('programDay.reset')}</Text>
             </Pressable>
           </View>
         )}
@@ -424,23 +502,23 @@ export default function ProgramDayScreen() {
           </Pressable>
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>{day.labelFr}</Text>
-            <Text style={styles.headerSub}>Semaine {weekNum}</Text>
+            <Text style={styles.headerSub}>{i18n.t('programDay.weekLabel', { week: weekNum })}</Text>
           </View>
           {isDone && (
             <View style={styles.doneBadge}>
               <Check size={14} color={Colors.success} strokeWidth={3} />
-              <Text style={styles.doneBadgeText}>Fait</Text>
+              <Text style={styles.doneBadgeText}>{i18n.t('programDay.done')}</Text>
             </View>
           )}
           {isToday && !isDone && (
             <View style={styles.todayBadge}>
-              <Text style={styles.todayBadgeText}>Aujourd'hui</Text>
+              <Text style={styles.todayBadgeText}>{i18n.t('programDay.today')}</Text>
             </View>
           )}
           {isFutureDay && (
             <View style={styles.futureBadge}>
               <Calendar size={12} color="rgba(255,255,255,0.4)" />
-              <Text style={styles.futureBadgeText}>Planifie</Text>
+              <Text style={styles.futureBadgeText}>{i18n.t('programDay.planned')}</Text>
             </View>
           )}
         </View>
@@ -449,17 +527,17 @@ export default function ProgramDayScreen() {
         <View style={styles.metricsStrip}>
           <View style={styles.metricItem}>
             <Text style={styles.metricValue}>{day.exercises.length}</Text>
-            <Text style={styles.metricLabel}>exercices</Text>
+            <Text style={styles.metricLabel}>{i18n.t('programDay.exercisesCount')}</Text>
           </View>
           <View style={styles.metricDivider} />
           <View style={styles.metricItem}>
             <Text style={styles.metricValue}>{totalSets}</Text>
-            <Text style={styles.metricLabel}>series</Text>
+            <Text style={styles.metricLabel}>{i18n.t('programDay.setsCount')}</Text>
           </View>
           <View style={styles.metricDivider} />
           <View style={styles.metricItem}>
             <Text style={styles.metricValue}>~{duration}</Text>
-            <Text style={styles.metricLabel}>minutes</Text>
+            <Text style={styles.metricLabel}>{i18n.t('programDay.minutes')}</Text>
           </View>
         </View>
 
@@ -495,6 +573,25 @@ export default function ProgramDayScreen() {
           {/* Session insights panel */}
           {!isDone && <SessionInsights data={insightsData} />}
 
+          {/* Deload warning banner */}
+          {deloadStatus.needsDeload && (
+            <View style={[
+              styles.deloadBanner,
+              deloadStatus.severity === 'urgent' && styles.deloadBannerUrgent,
+            ]}>
+              <AlertTriangle
+                size={14}
+                color={deloadStatus.severity === 'urgent' ? '#EF4444' : '#FBBF24'}
+              />
+              <Text style={[
+                styles.deloadBannerText,
+                deloadStatus.severity === 'urgent' && styles.deloadBannerTextUrgent,
+              ]}>
+                {deloadStatus.messageFr}
+              </Text>
+            </View>
+          )}
+
           {/* Compound exercises */}
           {compounds.length > 0 && (
             <>
@@ -502,7 +599,7 @@ export default function ProgramDayScreen() {
                 <View style={styles.sectionIconWrap}>
                   <Zap size={12} color={Colors.primary} />
                 </View>
-                <Text style={styles.sectionLabel}>COMPOSES</Text>
+                <Text style={styles.sectionLabel}>{i18n.t('programDay.compounds')}</Text>
                 {weekRir != null && (
                   <View style={styles.sectionRirBadge}>
                     <Text style={styles.sectionRirText}>RIR {weekRir}</Text>
@@ -524,7 +621,7 @@ export default function ProgramDayScreen() {
                 <View style={[styles.sectionIconWrap, { backgroundColor: 'rgba(168,85,247,0.1)' }]}>
                   <Target size={12} color="#A855F7" />
                 </View>
-                <Text style={styles.sectionLabel}>ISOLATION</Text>
+                <Text style={styles.sectionLabel}>{i18n.t('programDay.isolation')}</Text>
                 {weekRir != null && compounds.length === 0 && (
                   <View style={styles.sectionRirBadge}>
                     <Text style={styles.sectionRirText}>RIR {weekRir}</Text>
@@ -542,7 +639,7 @@ export default function ProgramDayScreen() {
           {weekData?.isDeload && (
             <View style={styles.deloadNote}>
               <Text style={styles.deloadNoteText}>
-                Semaine de deload : volume reduit pour favoriser la recuperation et la supercompensation.
+                {i18n.t('programDay.deloadBanner')}
               </Text>
             </View>
           )}
@@ -551,7 +648,7 @@ export default function ProgramDayScreen() {
             <View style={styles.weightNote}>
               <Weight size={13} color="rgba(255,107,53,0.6)" />
               <Text style={styles.weightNoteText}>
-                Les charges sont estimees a partir de ton poids de corps. Ajuste selon ton ressenti.
+                {i18n.t('programDay.estimatedWeightTip')}
               </Text>
             </View>
           )}
@@ -562,7 +659,7 @@ export default function ProgramDayScreen() {
           <View style={styles.bottomCta}>
             <View style={styles.doneBar}>
               <Check size={16} color={Colors.success} strokeWidth={2.5} />
-              <Text style={styles.doneBarText}>Seance terminee</Text>
+              <Text style={styles.doneBarText}>{i18n.t('programDay.sessionDone')}</Text>
             </View>
           </View>
         )}
@@ -570,27 +667,27 @@ export default function ProgramDayScreen() {
           <View style={styles.bottomCta}>
             <AnimatedStartButton
               onPress={handleStart}
-              label="Commencer"
+              label={i18n.t('programDay.startSession')}
               style={styles.startButton}
             />
-            <Text style={styles.ctaMicro}>~{duration} min · {totalSets} series</Text>
+            <Text style={styles.ctaMicro}>{i18n.t('programDay.sessionFormat', { duration, sets: totalSets })}</Text>
           </View>
         )}
         {isPastIncomplete && (
           <View style={styles.bottomCta}>
             <AnimatedStartButton
               onPress={handleStart}
-              label="Rattraper cette seance"
+              label={i18n.t('programDay.catchUp')}
               style={styles.catchUpButton}
             />
-            <Text style={styles.ctaMicroSubtle}>Seance planifiee precedemment</Text>
+            <Text style={styles.ctaMicroSubtle}>{i18n.t('programDay.catchUpDesc')}</Text>
           </View>
         )}
         {isFutureDay && !isDone && (
           <View style={styles.bottomCta}>
             <View style={styles.plannedBar}>
               <Calendar size={14} color="rgba(255,255,255,0.4)" />
-              <Text style={styles.plannedText}>Planifie</Text>
+              <Text style={styles.plannedText}>{i18n.t('programDay.planned')}</Text>
             </View>
           </View>
         )}
@@ -602,10 +699,10 @@ export default function ProgramDayScreen() {
         onClose={() => setShowPacingWarning(false)}
         icon={<Clock size={28} color="#FBBF24" />}
         iconBgColor="rgba(251,191,36,0.12)"
-        title="Deja une seance aujourd'hui"
-        description="Tu as deja termine une seance aujourd'hui. La recuperation est essentielle pour la progression."
-        cancelText="Reporter"
-        confirmText="Continuer"
+        title={i18n.t('workoutDetail.alreadyTrainedTitle')}
+        description={i18n.t('workoutDetail.alreadyTrainedMessage')}
+        cancelText={i18n.t('common.postpone')}
+        confirmText={i18n.t('common.continue')}
         confirmColor={Colors.primary}
         onConfirm={() => {
           setShowPacingWarning(false);
@@ -1063,6 +1160,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
+  },
+
+  // Deload warning banner (from deload detection engine)
+  deloadBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(251,191,36,0.08)',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.15)',
+    marginBottom: 16,
+  },
+  deloadBannerUrgent: {
+    backgroundColor: 'rgba(239,68,68,0.08)',
+    borderColor: 'rgba(239,68,68,0.15)',
+  },
+  deloadBannerText: {
+    flex: 1,
+    color: '#FBBF24',
+    fontSize: 12,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    lineHeight: 17,
+  },
+  deloadBannerTextUrgent: {
+    color: '#EF4444',
   },
 
   // Deload note

@@ -25,6 +25,7 @@ import {
   Check,
 } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 import { OnboardingStep } from '@/components/program/OnboardingStep';
 import { MUSCLE_LABELS_FR } from '@/lib/muscleMapping';
 import { getSplitForDays, SPLIT_TEMPLATES } from '@/constants/programTemplates';
@@ -140,28 +141,28 @@ export default function OnboardingScreen() {
 
   const renderGoal = () => (
     <OnboardingStep
-      title="Ton objectif"
-      subtitle="Choisis ce qui te motive le plus"
+      title={i18n.t('programOnboarding.goal.title')}
+      subtitle={i18n.t('programOnboarding.goal.subtitle')}
     >
       <View style={styles.cardsCol}>
         <SelectionCard
           icon={<TrendingUp size={22} color={goal === 'hypertrophy' ? '#0C0C0C' : '#FF6B35'} />}
-          title="Hypertrophie"
-          subtitle="Prendre du muscle, augmenter le volume"
+          title={i18n.t('programOnboarding.goal.hypertrophy')}
+          subtitle={i18n.t('programOnboarding.goal.hypertrophyDesc')}
           selected={goal === 'hypertrophy'}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setGoal('hypertrophy'); }}
         />
         <SelectionCard
           icon={<Zap size={22} color={goal === 'strength' ? '#0C0C0C' : '#FF6B35'} />}
-          title="Force"
-          subtitle="Devenir plus fort, soulever plus lourd"
+          title={i18n.t('programOnboarding.goal.strength')}
+          subtitle={i18n.t('programOnboarding.goal.strengthDesc')}
           selected={goal === 'strength'}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setGoal('strength'); }}
         />
         <SelectionCard
           icon={<Repeat size={22} color={goal === 'recomposition' ? '#0C0C0C' : '#FF6B35'} />}
-          title="Recomposition"
-          subtitle="Perdre du gras, maintenir le muscle"
+          title={i18n.t('programOnboarding.goal.recomposition')}
+          subtitle={i18n.t('programOnboarding.goal.recompositionDesc')}
           selected={goal === 'recomposition'}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setGoal('recomposition'); }}
         />
@@ -171,25 +172,25 @@ export default function OnboardingScreen() {
 
   const renderExperience = () => (
     <OnboardingStep
-      title="Ton experience"
-      subtitle="Cela influence le volume et la complexite du programme"
+      title={i18n.t('programOnboarding.experience.title')}
+      subtitle={i18n.t('programOnboarding.experience.subtitle')}
     >
       <View style={styles.cardsCol}>
         <SelectionCard
-          title="Debutant"
-          subtitle="Moins de 1 an d'entrainement regulier"
+          title={i18n.t('programOnboarding.experience.beginner')}
+          subtitle={i18n.t('programOnboarding.experience.beginnerDesc')}
           selected={experience === 'beginner'}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setExperience('beginner'); }}
         />
         <SelectionCard
-          title="Intermediaire"
-          subtitle="1 a 3 ans d'entrainement structure"
+          title={i18n.t('programOnboarding.experience.intermediate')}
+          subtitle={i18n.t('programOnboarding.experience.intermediateDesc')}
           selected={experience === 'intermediate'}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setExperience('intermediate'); }}
         />
         <SelectionCard
-          title="Avance"
-          subtitle="Plus de 3 ans, maitrise des mouvements"
+          title={i18n.t('programOnboarding.experience.advanced')}
+          subtitle={i18n.t('programOnboarding.experience.advancedDesc')}
           selected={experience === 'advanced'}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setExperience('advanced'); }}
         />
@@ -203,8 +204,8 @@ export default function OnboardingScreen() {
 
     return (
       <OnboardingStep
-        title="Frequence"
-        subtitle="Combien de jours par semaine peux-tu t'entrainer ?"
+        title={i18n.t('programOnboarding.frequency.title')}
+        subtitle={i18n.t('programOnboarding.frequency.subtitle')}
       >
         <View style={styles.pillRow}>
           {([3, 4, 5, 6] as const).map((d) => (
@@ -214,7 +215,7 @@ export default function OnboardingScreen() {
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setDaysPerWeek(d); }}
             >
               <Text style={[styles.pillText, daysPerWeek === d && styles.pillTextSelected]}>
-                {d} jours
+                {i18n.t('programOnboarding.frequency.days', { count: d })}
               </Text>
             </Pressable>
           ))}
@@ -247,28 +248,28 @@ export default function OnboardingScreen() {
 
   const renderEquipment = () => (
     <OnboardingStep
-      title="Ton equipement"
-      subtitle="On adapte les exercices a ton setup"
+      title={i18n.t('programOnboarding.equipment.title')}
+      subtitle={i18n.t('programOnboarding.equipment.subtitle')}
     >
       <View style={styles.cardsCol}>
         <SelectionCard
           icon={<Dumbbell size={22} color={equipment === 'full_gym' ? '#0C0C0C' : '#FF6B35'} />}
-          title="Salle complete"
-          subtitle="Barres, halteres, cables, machines"
+          title={i18n.t('programOnboarding.equipment.fullGym')}
+          subtitle={i18n.t('programOnboarding.equipment.fullGymDesc')}
           selected={equipment === 'full_gym'}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setEquipment('full_gym'); }}
         />
         <SelectionCard
           icon={<Home size={22} color={equipment === 'home_dumbbell' ? '#0C0C0C' : '#FF6B35'} />}
-          title="Home gym"
-          subtitle="Halteres, elastiques, kettlebell"
+          title={i18n.t('programOnboarding.equipment.homeDumbbell')}
+          subtitle={i18n.t('programOnboarding.equipment.homeDumbbellDesc')}
           selected={equipment === 'home_dumbbell'}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setEquipment('home_dumbbell'); }}
         />
         <SelectionCard
           icon={<User size={22} color={equipment === 'bodyweight' ? '#0C0C0C' : '#FF6B35'} />}
-          title="Poids du corps"
-          subtitle="Aucun materiel, exercices au poids du corps"
+          title={i18n.t('programOnboarding.equipment.bodyweight')}
+          subtitle={i18n.t('programOnboarding.equipment.bodyweightDesc')}
           selected={equipment === 'bodyweight'}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setEquipment('bodyweight'); }}
         />
@@ -278,8 +279,8 @@ export default function OnboardingScreen() {
 
   const renderMeasurements = () => (
     <OnboardingStep
-      title="Ton profil"
-      subtitle="Indispensable pour estimer tes charges de depart"
+      title={i18n.t('programOnboarding.measurements.title')}
+      subtitle={i18n.t('programOnboarding.measurements.subtitle')}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -287,14 +288,14 @@ export default function OnboardingScreen() {
       >
         <View style={styles.inputsGrid}>
           <View style={styles.inputRow}>
-            <Text style={styles.inputLabel}>Sexe *</Text>
+            <Text style={styles.inputLabel}>{i18n.t('programOnboarding.measurements.sex')}</Text>
             <View style={styles.sexToggle}>
               <Pressable
                 style={[styles.sexPill, sex === 'male' && styles.sexPillSelected]}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSex('male'); }}
               >
                 <Text style={[styles.sexPillText, sex === 'male' && styles.sexPillTextSelected]}>
-                  Homme
+                  {i18n.t('programOnboarding.measurements.male')}
                 </Text>
               </Pressable>
               <Pressable
@@ -302,13 +303,13 @@ export default function OnboardingScreen() {
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSex('female'); }}
               >
                 <Text style={[styles.sexPillText, sex === 'female' && styles.sexPillTextSelected]}>
-                  Femme
+                  {i18n.t('programOnboarding.measurements.female')}
                 </Text>
               </Pressable>
             </View>
           </View>
           <View style={styles.inputRow}>
-            <Text style={styles.inputLabel}>Poids (kg) *</Text>
+            <Text style={styles.inputLabel}>{i18n.t('programOnboarding.measurements.weight')}</Text>
             <TextInput
               style={styles.input}
               value={weight}
@@ -319,7 +320,7 @@ export default function OnboardingScreen() {
             />
           </View>
           <View style={styles.inputRow}>
-            <Text style={styles.inputLabel}>Taille (cm)</Text>
+            <Text style={styles.inputLabel}>{i18n.t('programOnboarding.measurements.height')}</Text>
             <TextInput
               style={styles.input}
               value={height}
@@ -330,7 +331,7 @@ export default function OnboardingScreen() {
             />
           </View>
           <View style={styles.inputRow}>
-            <Text style={styles.inputLabel}>Age</Text>
+            <Text style={styles.inputLabel}>{i18n.t('programOnboarding.measurements.age')}</Text>
             <TextInput
               style={styles.input}
               value={age}
@@ -341,7 +342,7 @@ export default function OnboardingScreen() {
             />
           </View>
         </View>
-        <Text style={styles.requiredNote}>* Champs obligatoires</Text>
+        <Text style={styles.requiredNote}>{i18n.t('programOnboarding.measurements.required')}</Text>
       </KeyboardAvoidingView>
     </OnboardingStep>
   );
@@ -350,8 +351,8 @@ export default function OnboardingScreen() {
 
   const renderPriorityMuscles = () => (
     <OnboardingStep
-      title="Muscles prioritaires"
-      subtitle="Choisis 0 a 2 muscles a developper en priorite"
+      title={i18n.t('programOnboarding.priority.title')}
+      subtitle={i18n.t('programOnboarding.priority.subtitle')}
       isOptional
       onSkip={next}
     >
@@ -375,37 +376,37 @@ export default function OnboardingScreen() {
   );
 
   const goalLabels: Record<TrainingGoal, string> = {
-    hypertrophy: 'Hypertrophie',
-    strength: 'Force',
-    recomposition: 'Recomposition',
+    hypertrophy: i18n.t('programOnboarding.goal.hypertrophy'),
+    strength: i18n.t('programOnboarding.goal.strength'),
+    recomposition: i18n.t('programOnboarding.goal.recomposition'),
   };
   const expLabels: Record<ExperienceLevel, string> = {
-    beginner: 'Debutant',
-    intermediate: 'Intermediaire',
-    advanced: 'Avance',
+    beginner: i18n.t('programOnboarding.experience.beginner'),
+    intermediate: i18n.t('programOnboarding.experience.intermediate'),
+    advanced: i18n.t('programOnboarding.experience.advanced'),
   };
   const equipLabels: Record<EquipmentSetup, string> = {
-    full_gym: 'Salle complete',
-    home_dumbbell: 'Home gym',
-    bodyweight: 'Poids du corps',
+    full_gym: i18n.t('programOnboarding.equipment.fullGym'),
+    home_dumbbell: i18n.t('programOnboarding.equipment.homeDumbbell'),
+    bodyweight: i18n.t('programOnboarding.equipment.bodyweight'),
   };
 
   const confirmItems = [
-    { label: 'Objectif', value: goal ? goalLabels[goal] : '—' },
-    { label: 'Experience', value: experience ? expLabels[experience] : '—' },
-    { label: 'Frequence', value: daysPerWeek ? `${daysPerWeek} jours/sem` : '—' },
-    { label: 'Equipement', value: equipment ? equipLabels[equipment] : '—' },
-    { label: 'Sexe', value: sex === 'male' ? 'Homme' : sex === 'female' ? 'Femme' : '—' },
-    { label: 'Poids', value: weight ? `${weight} kg` : '—' },
+    { label: i18n.t('programOnboarding.confirmation.objective'), value: goal ? goalLabels[goal] : '—' },
+    { label: i18n.t('programOnboarding.confirmation.experience'), value: experience ? expLabels[experience] : '—' },
+    { label: i18n.t('programOnboarding.confirmation.frequency'), value: daysPerWeek ? i18n.t('programOnboarding.confirmation.daysPerWeek', { count: daysPerWeek }) : '—' },
+    { label: i18n.t('programOnboarding.confirmation.equipment'), value: equipment ? equipLabels[equipment] : '—' },
+    { label: i18n.t('programOnboarding.confirmation.sex'), value: sex === 'male' ? i18n.t('programOnboarding.measurements.male') : sex === 'female' ? i18n.t('programOnboarding.measurements.female') : '—' },
+    { label: i18n.t('programOnboarding.confirmation.weight'), value: weight ? `${weight} kg` : '—' },
     ...(priorityMuscles.length > 0
-      ? [{ label: 'Priorites', value: priorityMuscles.map((m) => MUSCLE_LABELS_FR[m]).join(', ') }]
+      ? [{ label: i18n.t('programOnboarding.confirmation.priorities'), value: priorityMuscles.map((m) => MUSCLE_LABELS_FR[m]).join(', ') }]
       : []),
   ];
 
   const renderConfirmation = () => (
     <OnboardingStep
-      title="Ton programme"
-      subtitle="Verifie tes parametres avant de generer"
+      title={i18n.t('programOnboarding.confirmation.title')}
+      subtitle={i18n.t('programOnboarding.confirmation.subtitle')}
     >
       {/* Vertical timeline */}
       <View style={styles.timelineWrap}>
@@ -429,7 +430,7 @@ export default function OnboardingScreen() {
 
       <Pressable style={styles.generateButton} onPress={handleGenerate}>
         <Sparkles size={20} color="#0C0C0C" />
-        <Text style={styles.generateText}>Generer mon programme</Text>
+        <Text style={styles.generateText}>{i18n.t('programOnboarding.confirmation.generate')}</Text>
       </Pressable>
     </OnboardingStep>
   );
@@ -477,7 +478,7 @@ export default function OnboardingScreen() {
               disabled={!canAdvance()}
             >
               <Text style={[styles.nextText, !canAdvance() && styles.nextTextDisabled]}>
-                Continuer
+                {i18n.t('common.next')}
               </Text>
               <ChevronRight size={18} color={canAdvance() ? '#0C0C0C' : 'rgba(255,255,255,0.3)'} />
             </Pressable>

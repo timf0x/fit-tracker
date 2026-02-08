@@ -23,6 +23,7 @@ import DraggableFlatList, {
   RenderItemParams,
 } from 'react-native-draggable-flatlist';
 import { Fonts } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { MUSCLE_LABELS_FR } from '@/lib/muscleMapping';
 import {
@@ -39,11 +40,11 @@ import { mockWeeklyVolume } from '@/lib/mock-data';
 const WEEKS_AVAILABLE = 12;
 
 const ZONE_LABELS: Record<VolumeLandmarkZone, string> = {
-  below_mv: 'Sous MV',
-  mv_mev: 'Maintien',
-  mev_mav: 'Croissance',
-  mav_mrv: 'Surcharge',
-  above_mrv: 'Danger',
+  below_mv: i18n.t('zones.belowMv'),
+  mv_mev: i18n.t('zones.maintenance'),
+  mev_mav: i18n.t('zones.growth'),
+  mav_mrv: i18n.t('zones.overload'),
+  above_mrv: i18n.t('zones.danger'),
 };
 
 interface MuscleRowItem {
@@ -334,7 +335,7 @@ export default function VolumeScreen() {
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <ArrowLeft size={22} color="#fff" strokeWidth={2} />
           </Pressable>
-          <Text style={styles.headerTitle}>Volume Hebdo</Text>
+          <Text style={styles.headerTitle}>{i18n.t('volume.title')}</Text>
           <Pressable
             style={styles.infoBtn}
             onPress={() => setShowInfo(true)}
@@ -368,10 +369,10 @@ export default function VolumeScreen() {
           <Text style={styles.weekLabel}>{weekLabel}</Text>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryValue}>{totalSets}</Text>
-            <Text style={styles.summaryUnit}> séries</Text>
+            <Text style={styles.summaryUnit}> {i18n.t('volume.totalSets')}</Text>
             <Text style={styles.summaryDot}> · </Text>
             <Text style={styles.summaryValue}>{activeMuscles}</Text>
-            <Text style={styles.summaryUnit}> muscles</Text>
+            <Text style={styles.summaryUnit}> {i18n.t('volume.activeMuscles')}</Text>
           </View>
         </View>
 
@@ -401,21 +402,20 @@ export default function VolumeScreen() {
         <Pressable style={styles.modalOverlay} onPress={() => setShowInfo(false)}>
           <Pressable style={styles.infoModal} onPress={(e) => e.stopPropagation()}>
             <View style={styles.infoModalHeader}>
-              <Text style={styles.infoModalTitle}>Repères de Volume</Text>
+              <Text style={styles.infoModalTitle}>{i18n.t('volume.landmarks.title')}</Text>
               <Pressable style={styles.modalClose} onPress={() => setShowInfo(false)}>
                 <X size={18} color="#9CA3AF" />
               </Pressable>
             </View>
             <Text style={styles.infoModalText}>
-              Le volume (séries par semaine) détermine vos gains musculaires.
-              Ces repères vous aident à optimiser votre entraînement.
+              {i18n.t('volume.landmarks.description')}
             </Text>
             <View style={styles.landmarkList}>
               {[
-                { abbr: 'MV', name: 'Volume de Maintien', desc: 'Minimum pour conserver vos gains sans progresser.', color: '#6B7280' },
-                { abbr: 'MEV', name: 'Volume Minimum Efficace', desc: 'Seuil à partir duquel vous commencez à progresser.', color: '#3B82F6' },
-                { abbr: 'MAV', name: 'Volume Adaptatif Max', desc: 'Zone optimale pour la croissance musculaire. Visez cette plage !', color: '#4ADE80' },
-                { abbr: 'MRV', name: 'Volume Max Récupérable', desc: "Au-delà, vous risquez le surentraînement et la régression.", color: '#EF4444' },
+                { abbr: 'MV', name: i18n.t('volume.landmarks.mv'), desc: i18n.t('volume.landmarks.mvDesc'), color: '#6B7280' },
+                { abbr: 'MEV', name: i18n.t('volume.landmarks.mev'), desc: i18n.t('volume.landmarks.mevDesc'), color: '#3B82F6' },
+                { abbr: 'MAV', name: i18n.t('volume.landmarks.mav'), desc: i18n.t('volume.landmarks.mavDesc'), color: '#4ADE80' },
+                { abbr: 'MRV', name: i18n.t('volume.landmarks.mrv'), desc: i18n.t('volume.landmarks.mrvDesc'), color: '#EF4444' },
               ].map((item) => (
                 <View key={item.abbr} style={styles.landmarkItem}>
                   <View style={styles.landmarkItemHeader}>
@@ -429,28 +429,28 @@ export default function VolumeScreen() {
             </View>
             {/* Trend arrows explanation */}
             <View style={styles.trendExplainBox}>
-              <Text style={styles.trendExplainTitle}>TENDANCES</Text>
+              <Text style={styles.trendExplainTitle}>{i18n.t('volume.trends.title')}</Text>
               <Text style={styles.trendExplainDesc}>
-                Les flèches comparent la semaine sélectionnée à la précédente.
+                {i18n.t('volume.trends.description')}
               </Text>
               <View style={styles.trendExplainRow}>
                 <View style={[styles.trendExplainBadge, { backgroundColor: 'rgba(74,222,128,0.12)' }]}>
                   <TrendingUp size={10} color="#4ADE80" strokeWidth={2.5} />
                   <Text style={{ color: '#4ADE80', fontSize: 10, fontFamily: Fonts?.bold, fontWeight: '700' }}>+3</Text>
                 </View>
-                <Text style={styles.trendExplainLabel}>Volume en hausse</Text>
+                <Text style={styles.trendExplainLabel}>{i18n.t('volume.trends.volumeUp')}</Text>
               </View>
               <View style={styles.trendExplainRow}>
                 <View style={[styles.trendExplainBadge, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
                   <TrendingDown size={10} color="#EF4444" strokeWidth={2.5} />
                   <Text style={{ color: '#EF4444', fontSize: 10, fontFamily: Fonts?.bold, fontWeight: '700' }}>-2</Text>
                 </View>
-                <Text style={styles.trendExplainLabel}>Volume en baisse</Text>
+                <Text style={styles.trendExplainLabel}>{i18n.t('volume.trends.volumeDown')}</Text>
               </View>
             </View>
 
             <View style={styles.progressionBox}>
-              <Text style={styles.progressionLabel}>PROGRESSION IDÉALE</Text>
+              <Text style={styles.progressionLabel}>{i18n.t('volume.progression.title')}</Text>
               <View style={styles.progressionBar}>
                 <View style={[styles.progressionZone, { flex: 1, backgroundColor: '#6B7280' }]} />
                 <View style={[styles.progressionZone, { flex: 1, backgroundColor: '#3B82F6' }]} />
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
   infoBtn: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.06)',
     justifyContent: 'center',
     alignItems: 'center',

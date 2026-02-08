@@ -29,8 +29,12 @@ import {
   Repeat,
   Weight,
   Clock,
+  TrendingUp,
+  TrendingDown,
+  ArrowRight,
 } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 import { ExerciseIcon } from '@/components/ExerciseIcon';
 import { ExerciseInfoSheet } from '@/components/ExerciseInfoSheet';
 import { ReadinessCheck } from '@/components/program/ReadinessCheck';
@@ -39,6 +43,8 @@ import { SessionInsights } from '@/components/program/SessionInsights';
 import { computeWorkoutInsights } from '@/lib/sessionInsights';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { exercises as allExercises, getExerciseById } from '@/data/exercises';
+import { getProgressiveWeight, getEstimatedWeight } from '@/lib/weightEstimation';
+import { useProgramStore } from '@/stores/programStore';
 import type { WorkoutExercise, Exercise, BodyPart, Equipment } from '@/types';
 import { DEFAULT_SET_TIME } from '@/types';
 import type { ReadinessCheck as ReadinessCheckType } from '@/types/program';
@@ -57,28 +63,28 @@ const FOCUS_COLORS: Record<string, string> = {
 };
 
 const FOCUS_OPTIONS: { value: BodyPart | 'all'; label: string }[] = [
-  { value: 'all', label: 'Tous' },
-  { value: 'chest', label: 'Pectoraux' },
-  { value: 'back', label: 'Dos' },
-  { value: 'shoulders', label: 'Épaules' },
-  { value: 'upper legs', label: 'Jambes' },
-  { value: 'upper arms', label: 'Bras' },
-  { value: 'waist', label: 'Abdos' },
-  { value: 'cardio', label: 'Cardio' },
+  { value: 'all', label: i18n.t('workoutCreate.focus.all') },
+  { value: 'chest', label: i18n.t('workoutCreate.focus.chest') },
+  { value: 'back', label: i18n.t('workoutCreate.focus.back') },
+  { value: 'shoulders', label: i18n.t('workoutCreate.focus.shoulders') },
+  { value: 'upper legs', label: i18n.t('workoutCreate.focus.legs') },
+  { value: 'upper arms', label: i18n.t('workoutCreate.focus.arms') },
+  { value: 'waist', label: i18n.t('workoutCreate.focus.waist') },
+  { value: 'cardio', label: i18n.t('workoutCreate.focus.cardio') },
 ];
 
 const EQUIPMENT_OPTIONS: { value: Equipment | 'all'; label: string }[] = [
-  { value: 'all', label: 'Tous' },
-  { value: 'dumbbell', label: 'Haltères' },
-  { value: 'barbell', label: 'Barre' },
-  { value: 'cable', label: 'Câble' },
-  { value: 'machine', label: 'Machine' },
-  { value: 'body weight', label: 'Poids du corps' },
-  { value: 'kettlebell', label: 'Kettlebell' },
-  { value: 'resistance band', label: 'Bande élastique' },
-  { value: 'ez bar', label: 'Barre EZ' },
-  { value: 'smith machine', label: 'Smith machine' },
-  { value: 'trap bar', label: 'Trap bar' },
+  { value: 'all', label: i18n.t('common.all') },
+  { value: 'dumbbell', label: i18n.t('equipment.dumbbells') },
+  { value: 'barbell', label: i18n.t('equipment.barbell') },
+  { value: 'cable', label: i18n.t('equipment.cable') },
+  { value: 'machine', label: i18n.t('equipment.machine') },
+  { value: 'body weight', label: i18n.t('equipment.bodyweight') },
+  { value: 'kettlebell', label: i18n.t('equipment.kettlebell') },
+  { value: 'resistance band', label: i18n.t('equipment.bands') },
+  { value: 'ez bar', label: i18n.t('equipment.ezBar') },
+  { value: 'smith machine', label: i18n.t('equipment.smithMachine') },
+  { value: 'trap bar', label: i18n.t('equipment.trapBar') },
 ];
 
 // ─── Types ───
@@ -86,9 +92,16 @@ const EQUIPMENT_OPTIONS: { value: Equipment | 'all'; label: string }[] = [
 interface SelectedExercise extends WorkoutExercise {
   exercise: Exercise;
   uid: string;
+  overloadAction?: 'bump' | 'hold' | 'drop' | 'none';
 }
 
 type EditableField = 'sets' | 'reps' | 'weight' | 'restTime' | 'setTime';
+
+const OVERLOAD_CONFIG = {
+  bump: { icon: TrendingUp, label: '↑', color: '#4ADE80', bg: 'rgba(74,222,128,0.10)' },
+  hold: { icon: ArrowRight, label: '→', color: 'rgba(255,255,255,0.4)', bg: 'rgba(255,255,255,0.04)' },
+  drop: { icon: TrendingDown, label: '↓', color: '#FBBF24', bg: 'rgba(251,191,36,0.10)' },
+} as const;
 
 // ─── Dropdown Modal Component ───
 
@@ -188,14 +201,51 @@ export default function WorkoutDetailScreen() {
     [selectedExercises, history],
   );
 
-  // ─── Load workout exercises into local state ───
+  // User profile for weight estimation fallback
+  const userProfile = useProgramStore((s) => s.userProfile);
+
+  // ─── Load workout exercises into local state (with progressive overload) ───
   useEffect(() => {
     if (workout && !loaded) {
       const exercises: SelectedExercise[] = workout.exercises
         .map((we, i) => {
           const exercise = getExerciseById(we.exerciseId);
           if (!exercise) return null;
-          return { ...we, exercise, uid: `${we.exerciseId}_load_${i}` };
+
+          // Compute progressive weight from history
+          const prog = getProgressiveWeight(
+            we.exerciseId,
+            exercise.equipment,
+            we.reps,
+            history,
+          );
+
+          let weight = we.weight || 0;
+          let overloadAction: SelectedExercise['overloadAction'] = 'none';
+
+          if (prog.action !== 'none') {
+            // History exists — use progressive weight
+            weight = prog.weight;
+            overloadAction = prog.action;
+          } else if (weight === 0 && userProfile) {
+            // No history + no saved weight — estimate from BW
+            weight = getEstimatedWeight(
+              we.exerciseId,
+              exercise.equipment,
+              exercise.target,
+              userProfile.weight,
+              userProfile.sex,
+              userProfile.experience || 'intermediate',
+            );
+          }
+
+          return {
+            ...we,
+            weight,
+            exercise,
+            uid: `${we.exerciseId}_load_${i}`,
+            overloadAction,
+          };
         })
         .filter(Boolean) as SelectedExercise[];
 
@@ -379,6 +429,7 @@ export default function WorkoutDetailScreen() {
             exerciseNameEn: ex.exercise.name,
             bodyPart: ex.exercise.bodyPart,
             isUnilateral: ex.exercise.isUnilateral,
+            overloadAction: ex.overloadAction || 'none',
           }))
         ),
       },
@@ -393,7 +444,7 @@ export default function WorkoutDetailScreen() {
           <ArrowLeft size={22} color={Colors.text} strokeWidth={2} />
         </Pressable>
         <View style={s.notFound}>
-          <Text style={s.notFoundText}>Workout introuvable</Text>
+          <Text style={s.notFoundText}>{i18n.t('workoutDetail.notFound')}</Text>
         </View>
       </View>
     );
@@ -407,12 +458,12 @@ export default function WorkoutDetailScreen() {
   if (showExercisePicker) {
     const focusLabel =
       selectedFocus === 'all'
-        ? 'Focus'
-        : FOCUS_OPTIONS.find((o) => o.value === selectedFocus)?.label || 'Focus';
+        ? i18n.t('workouts.filters.focus')
+        : FOCUS_OPTIONS.find((o) => o.value === selectedFocus)?.label || i18n.t('workouts.filters.focus');
     const equipLabel =
       selectedEquipment === 'all'
-        ? 'Équipement'
-        : EQUIPMENT_OPTIONS.find((o) => o.value === selectedEquipment)?.label || 'Équipement';
+        ? i18n.t('workouts.filters.equipment')
+        : EQUIPMENT_OPTIONS.find((o) => o.value === selectedEquipment)?.label || i18n.t('workouts.filters.equipment');
 
     return (
       <View style={[s.screen, { paddingTop: insets.top }]}>
@@ -420,7 +471,7 @@ export default function WorkoutDetailScreen() {
           <Pressable style={s.iconButton} onPress={closePicker}>
             <X size={20} color={Colors.text} strokeWidth={2} />
           </Pressable>
-          <Text style={s.pickerTitle}>Ajouter des exercices</Text>
+          <Text style={s.pickerTitle}>{i18n.t('workoutDetail.addExercisesModal')}</Text>
           <View style={{ width: 44 }} />
         </View>
 
@@ -428,7 +479,7 @@ export default function WorkoutDetailScreen() {
           <Search size={16} color="rgba(120,120,130,1)" strokeWidth={2} />
           <TextInput
             style={s.searchInput}
-            placeholder="Rechercher..."
+            placeholder={i18n.t('workoutDetail.searchPlaceholder')}
             placeholderTextColor="rgba(100,100,110,1)"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -486,7 +537,7 @@ export default function WorkoutDetailScreen() {
           contentContainerStyle={{ paddingBottom: 140 }}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={s.resultCount}>{filteredExercises.length} exercices</Text>
+          <Text style={s.resultCount}>{i18n.t('workoutCreate.exerciseCount', { count: filteredExercises.length })}</Text>
           {filteredExercises.map((exercise) => {
             const isSelected = tempSelected.some((e) => e.id === exercise.id);
             return (
@@ -525,18 +576,17 @@ export default function WorkoutDetailScreen() {
         {tempSelected.length > 0 && (
           <View style={[s.selectionBar, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
             <Text style={s.selectionText}>
-              {tempSelected.length} exercice{tempSelected.length > 1 ? 's' : ''} sélectionné
-              {tempSelected.length > 1 ? 's' : ''}
+              {tempSelected.length > 1 ? i18n.t('workoutCreate.selectedCountPlural', { count: tempSelected.length }) : i18n.t('workoutCreate.selectedCount', { count: tempSelected.length })}
             </Text>
             <Pressable style={s.addToWorkoutBtn} onPress={handleAddToWorkout}>
-              <Text style={s.addToWorkoutText}>Ajouter au workout</Text>
+              <Text style={s.addToWorkoutText}>{i18n.t('workoutDetail.addToWorkout')}</Text>
             </Pressable>
           </View>
         )}
 
         <DropdownModal
           visible={showFocusDropdown}
-          title="Focus"
+          title={i18n.t('workouts.filters.focus')}
           options={FOCUS_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
           selected={selectedFocus}
           onSelect={(v) => {
@@ -547,7 +597,7 @@ export default function WorkoutDetailScreen() {
         />
         <DropdownModal
           visible={showEquipmentDropdown}
-          title="Équipement"
+          title={i18n.t('workouts.filters.equipment')}
           options={EQUIPMENT_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
           selected={selectedEquipment}
           onSelect={(v) => {
@@ -611,6 +661,13 @@ export default function WorkoutDetailScreen() {
                     <Text style={[s.exMetaText, s.exWeightText]}>{ex.weight}kg</Text>
                   </View>
                 )}
+                {ex.overloadAction && ex.overloadAction !== 'none' && OVERLOAD_CONFIG[ex.overloadAction] && (
+                  <View style={[s.exMetaPill, { backgroundColor: OVERLOAD_CONFIG[ex.overloadAction].bg }]}>
+                    <Text style={[s.exMetaText, { color: OVERLOAD_CONFIG[ex.overloadAction].color }]}>
+                      {OVERLOAD_CONFIG[ex.overloadAction].label}
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
 
@@ -622,10 +679,23 @@ export default function WorkoutDetailScreen() {
           {/* Inline editor panel */}
           {isEditing && (
             <View style={s.editorPanel}>
-              <Text style={s.editorLabel}>Ajuste selon ton ressenti</Text>
+              {/* Overload suggestion */}
+              {ex.overloadAction === 'bump' && (
+                <View style={s.overloadRow}>
+                  <TrendingUp size={12} color="#4ADE80" />
+                  <Text style={s.overloadText}>{i18n.t('workoutDetail.overloadBump')}</Text>
+                </View>
+              )}
+              {ex.overloadAction === 'drop' && (
+                <View style={[s.overloadRow, { backgroundColor: 'rgba(251,191,36,0.08)', borderColor: 'rgba(251,191,36,0.15)' }]}>
+                  <TrendingDown size={12} color="#FBBF24" />
+                  <Text style={[s.overloadText, { color: '#FBBF24' }]}>{i18n.t('workoutDetail.overloadDrop')}</Text>
+                </View>
+              )}
+              <Text style={s.editorLabel}>{i18n.t('workoutDetail.overloadHold')}</Text>
 
               <View style={s.editorRow}>
-                <Text style={s.editorFieldLabel}>Séries</Text>
+                <Text style={s.editorFieldLabel}>{i18n.t('workoutDetail.sets')}</Text>
                 <View style={s.stepperRow}>
                   <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'sets', -1)}>
                     <Minus size={14} color="#fff" />
@@ -638,7 +708,7 @@ export default function WorkoutDetailScreen() {
               </View>
 
               <View style={s.editorRow}>
-                <Text style={s.editorFieldLabel}>Reps</Text>
+                <Text style={s.editorFieldLabel}>{i18n.t('workoutDetail.reps')}</Text>
                 <View style={s.stepperRow}>
                   <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'reps', -1)}>
                     <Minus size={14} color="#fff" />
@@ -651,7 +721,7 @@ export default function WorkoutDetailScreen() {
               </View>
 
               <View style={s.editorRow}>
-                <Text style={s.editorFieldLabel}>Charge (kg)</Text>
+                <Text style={s.editorFieldLabel}>{i18n.t('workoutDetail.weight')}</Text>
                 <View style={s.stepperRow}>
                   <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'weight', -1)}>
                     <Minus size={14} color="#fff" />
@@ -664,7 +734,7 @@ export default function WorkoutDetailScreen() {
               </View>
 
               <View style={s.editorRow}>
-                <Text style={s.editorFieldLabel}>Repos (s)</Text>
+                <Text style={s.editorFieldLabel}>{i18n.t('workoutDetail.rest')}</Text>
                 <View style={s.stepperRow}>
                   <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'restTime', -1)}>
                     <Minus size={14} color="#fff" />
@@ -677,7 +747,7 @@ export default function WorkoutDetailScreen() {
               </View>
 
               <View style={s.editorRow}>
-                <Text style={s.editorFieldLabel}>Tempo (s/set)</Text>
+                <Text style={s.editorFieldLabel}>{i18n.t('workoutDetail.timePerSet')}</Text>
                 <View style={s.stepperRow}>
                   <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'setTime', -1)}>
                     <Minus size={14} color="#fff" />
@@ -691,7 +761,7 @@ export default function WorkoutDetailScreen() {
 
               <Pressable style={s.removeRow} onPress={() => handleRemoveExercise(index)}>
                 <Trash2 size={12} color="#FF4B4B" />
-                <Text style={s.removeText}>Retirer cet exercice</Text>
+                <Text style={s.removeText}>{i18n.t('workoutDetail.removeExercise')}</Text>
               </Pressable>
             </View>
           )}
@@ -741,11 +811,11 @@ export default function WorkoutDetailScreen() {
             <View style={{ marginTop: 4 }}>
               <Pressable style={s.addExerciseBtn} onPress={() => setShowExercisePicker(true)}>
                 <Plus size={20} color="rgba(120,120,130,1)" strokeWidth={2} />
-                <Text style={s.addExerciseText}>AJOUTER UN EXERCICE</Text>
+                <Text style={s.addExerciseText}>{i18n.t('workoutDetail.addExercise')}</Text>
               </Pressable>
               <Pressable style={s.deleteWorkoutBtn} onPress={handleDelete}>
                 <Trash2 size={16} color="#FF4B4B" strokeWidth={2} />
-                <Text style={s.deleteWorkoutText}>Supprimer ce workout</Text>
+                <Text style={s.deleteWorkoutText}>{i18n.t('workoutDetail.deleteWorkout')}</Text>
               </Pressable>
             </View>
           }
@@ -795,6 +865,13 @@ export default function WorkoutDetailScreen() {
                           <Text style={[s.exMetaText, s.exWeightText]}>{ex.weight}kg</Text>
                         </View>
                       )}
+                      {ex.overloadAction && ex.overloadAction !== 'none' && OVERLOAD_CONFIG[ex.overloadAction] && (
+                        <View style={[s.exMetaPill, { backgroundColor: OVERLOAD_CONFIG[ex.overloadAction].bg }]}>
+                          <Text style={[s.exMetaText, { color: OVERLOAD_CONFIG[ex.overloadAction].color }]}>
+                            {OVERLOAD_CONFIG[ex.overloadAction].label}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   </View>
 
@@ -806,10 +883,22 @@ export default function WorkoutDetailScreen() {
                 {/* Inline editor panel */}
                 {isEditing && (
                   <View style={s.editorPanel}>
-                    <Text style={s.editorLabel}>Ajuste selon ton ressenti</Text>
+                    {ex.overloadAction === 'bump' && (
+                      <View style={s.overloadRow}>
+                        <TrendingUp size={12} color="#4ADE80" />
+                        <Text style={s.overloadText}>{i18n.t('workoutDetail.overloadBump')}</Text>
+                      </View>
+                    )}
+                    {ex.overloadAction === 'drop' && (
+                      <View style={[s.overloadRow, { backgroundColor: 'rgba(251,191,36,0.08)', borderColor: 'rgba(251,191,36,0.15)' }]}>
+                        <TrendingDown size={12} color="#FBBF24" />
+                        <Text style={[s.overloadText, { color: '#FBBF24' }]}>{i18n.t('workoutDetail.overloadDrop')}</Text>
+                      </View>
+                    )}
+                    <Text style={s.editorLabel}>{i18n.t('workoutDetail.overloadHold')}</Text>
 
                     <View style={s.editorRow}>
-                      <Text style={s.editorFieldLabel}>Séries</Text>
+                      <Text style={s.editorFieldLabel}>{i18n.t('workoutDetail.sets')}</Text>
                       <View style={s.stepperRow}>
                         <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'sets', -1)}>
                           <Minus size={14} color="#fff" />
@@ -822,7 +911,7 @@ export default function WorkoutDetailScreen() {
                     </View>
 
                     <View style={s.editorRow}>
-                      <Text style={s.editorFieldLabel}>Reps</Text>
+                      <Text style={s.editorFieldLabel}>{i18n.t('workoutDetail.reps')}</Text>
                       <View style={s.stepperRow}>
                         <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'reps', -1)}>
                           <Minus size={14} color="#fff" />
@@ -835,7 +924,7 @@ export default function WorkoutDetailScreen() {
                     </View>
 
                     <View style={s.editorRow}>
-                      <Text style={s.editorFieldLabel}>Charge (kg)</Text>
+                      <Text style={s.editorFieldLabel}>{i18n.t('workoutDetail.weight')}</Text>
                       <View style={s.stepperRow}>
                         <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'weight', -1)}>
                           <Minus size={14} color="#fff" />
@@ -848,7 +937,7 @@ export default function WorkoutDetailScreen() {
                     </View>
 
                     <View style={s.editorRow}>
-                      <Text style={s.editorFieldLabel}>Repos (s)</Text>
+                      <Text style={s.editorFieldLabel}>{i18n.t('workoutDetail.rest')}</Text>
                       <View style={s.stepperRow}>
                         <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'restTime', -1)}>
                           <Minus size={14} color="#fff" />
@@ -861,7 +950,7 @@ export default function WorkoutDetailScreen() {
                     </View>
 
                     <View style={s.editorRow}>
-                      <Text style={s.editorFieldLabel}>Tempo (s/set)</Text>
+                      <Text style={s.editorFieldLabel}>{i18n.t('workoutDetail.timePerSet')}</Text>
                       <View style={s.stepperRow}>
                         <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'setTime', -1)}>
                           <Minus size={14} color="#fff" />
@@ -896,7 +985,7 @@ export default function WorkoutDetailScreen() {
           }}
         >
           <Play size={20} color="#fff" fill="#fff" strokeWidth={0} />
-          <Text style={s.startButtonText}>Commencer</Text>
+          <Text style={s.startButtonText}>{i18n.t('common.start')}</Text>
         </Pressable>
       </View>
 
@@ -906,12 +995,12 @@ export default function WorkoutDetailScreen() {
           <View style={s.menuModal}>
             <Pressable style={s.menuOption} onPress={handleRename}>
               <Pencil size={18} color={Colors.text} strokeWidth={2} />
-              <Text style={s.menuOptionText}>Renommer</Text>
+              <Text style={s.menuOptionText}>{i18n.t('workoutDetail.rename')}</Text>
             </Pressable>
             <View style={s.menuDivider} />
             <Pressable style={s.menuOption} onPress={handleDelete}>
               <Trash2 size={18} color="#FF4B4B" strokeWidth={2} />
-              <Text style={[s.menuOptionText, { color: '#FF4B4B' }]}>Supprimer</Text>
+              <Text style={[s.menuOptionText, { color: '#FF4B4B' }]}>{i18n.t('workoutDetail.delete')}</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -921,13 +1010,13 @@ export default function WorkoutDetailScreen() {
       <Modal visible={showRenameModal} transparent animationType="fade" onRequestClose={() => setShowRenameModal(false)}>
         <View style={s.modalOverlay}>
           <View style={s.renameModal}>
-            <Text style={s.renameTitle}>Renommer le workout</Text>
+            <Text style={s.renameTitle}>{i18n.t('workoutDetail.renameTitle')}</Text>
             <View style={s.renameInputContainer}>
               <TextInput
                 style={s.renameInput}
                 value={renameValue}
                 onChangeText={setRenameValue}
-                placeholder="Nom du workout"
+                placeholder={i18n.t('workoutDetail.renameLabel')}
                 placeholderTextColor="rgba(100,100,110,1)"
                 autoFocus
                 selectTextOnFocus
@@ -935,10 +1024,10 @@ export default function WorkoutDetailScreen() {
             </View>
             <View style={s.renameActions}>
               <Pressable style={s.renameCancelBtn} onPress={() => setShowRenameModal(false)}>
-                <Text style={s.renameCancelText}>Annuler</Text>
+                <Text style={s.renameCancelText}>{i18n.t('common.cancel')}</Text>
               </Pressable>
               <Pressable style={s.renameSaveBtn} onPress={handleSaveRename}>
-                <Text style={s.renameSaveText}>Valider</Text>
+                <Text style={s.renameSaveText}>{i18n.t('common.confirm')}</Text>
               </Pressable>
             </View>
           </View>
@@ -952,14 +1041,14 @@ export default function WorkoutDetailScreen() {
             <View style={s.deleteModalIcon}>
               <Trash2 size={24} color="#FF4B4B" strokeWidth={2} />
             </View>
-            <Text style={s.deleteModalTitle}>Supprimer ce workout ?</Text>
-            <Text style={s.deleteModalDesc}>Cette action est irréversible.</Text>
+            <Text style={s.deleteModalTitle}>{i18n.t('workoutDetail.deleteConfirmTitle')}</Text>
+            <Text style={s.deleteModalDesc}>{i18n.t('workoutDetail.deleteConfirmMessage')}</Text>
             <View style={s.deleteModalActions}>
               <Pressable style={s.deleteModalCancelBtn} onPress={() => setShowDeleteConfirm(false)}>
-                <Text style={s.deleteModalCancelText}>Annuler</Text>
+                <Text style={s.deleteModalCancelText}>{i18n.t('common.cancel')}</Text>
               </Pressable>
               <Pressable style={s.deleteModalConfirmBtn} onPress={confirmDelete}>
-                <Text style={s.deleteModalConfirmText}>Supprimer</Text>
+                <Text style={s.deleteModalConfirmText}>{i18n.t('common.delete')}</Text>
               </Pressable>
             </View>
           </View>
@@ -974,10 +1063,10 @@ export default function WorkoutDetailScreen() {
         onClose={() => setShowPacingWarning(false)}
         icon={<Clock size={28} color="#FBBF24" />}
         iconBgColor="rgba(251,191,36,0.12)"
-        title="Déjà une séance aujourd'hui"
-        description="Tu as déjà terminé une séance aujourd'hui. La récupération est essentielle pour la progression."
-        cancelText="Reporter"
-        confirmText="Continuer"
+        title={i18n.t('workoutDetail.alreadyTrainedTitle')}
+        description={i18n.t('workoutDetail.alreadyTrainedMessage')}
+        cancelText={i18n.t('common.postpone')}
+        confirmText={i18n.t('common.continue')}
         confirmColor={Colors.primary}
         onConfirm={() => {
           setShowPacingWarning(false);
@@ -1053,7 +1142,7 @@ const s = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
@@ -1071,7 +1160,7 @@ const s = StyleSheet.create({
   menuButton: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
@@ -1167,6 +1256,23 @@ const s = StyleSheet.create({
     padding: 14,
     marginHorizontal: -10,
     gap: 10,
+  },
+  overloadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(74,222,128,0.08)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(74,222,128,0.15)',
+  },
+  overloadText: {
+    color: '#4ADE80',
+    fontSize: 12,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
   },
   editorLabel: {
     color: 'rgba(255,255,255,0.35)',

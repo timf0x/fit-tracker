@@ -81,6 +81,7 @@ interface SessionExercise {
   weight: number;
   restTime: number;
   isUnilateral: boolean;
+  overloadAction?: 'bump' | 'hold' | 'drop' | 'none';
 }
 
 // ─── Constants ───
@@ -94,33 +95,33 @@ const BREAK_DURATION = 180;
 const EXERCISE_SET_DURATION = 30;
 
 const PHASE_CONFIG: Record<Phase, { color: string; label: string; icon: typeof Zap }> = {
-  prepare: { color: Colors.phases.prepare, label: 'PREPARE', icon: Zap },
-  exercise: { color: Colors.phases.exercise, label: 'EXERCISE', icon: Flame },
-  rest: { color: Colors.phases.rest, label: 'REST', icon: Droplet },
-  break: { color: Colors.phases.break, label: 'BREAK', icon: Coffee },
-  finished: { color: Colors.phases.finished, label: 'TERMINÉ', icon: Trophy },
+  prepare: { color: Colors.phases.prepare, label: i18n.t('workoutSession.phases.prepare'), icon: Zap },
+  exercise: { color: Colors.phases.exercise, label: i18n.t('workoutSession.phases.exercise'), icon: Flame },
+  rest: { color: Colors.phases.rest, label: i18n.t('workoutSession.phases.rest'), icon: Droplet },
+  break: { color: Colors.phases.break, label: i18n.t('workoutSession.phases.break'), icon: Coffee },
+  finished: { color: Colors.phases.finished, label: i18n.t('workoutSession.phases.finished'), icon: Trophy },
 };
 
 const BODY_PART_LABELS: Record<string, string> = {
-  back: 'Dos',
-  shoulders: 'Épaules',
-  chest: 'Pectoraux',
-  'upper arms': 'Bras',
-  'lower arms': 'Avant-bras',
-  'upper legs': 'Jambes',
-  'lower legs': 'Mollets',
-  waist: 'Abdos',
-  cardio: 'Cardio',
+  back: i18n.t('bodyParts.back'),
+  shoulders: i18n.t('bodyParts.shoulders'),
+  chest: i18n.t('bodyParts.chest'),
+  'upper arms': i18n.t('bodyParts.upperArms'),
+  'lower arms': i18n.t('bodyParts.forearms'),
+  'upper legs': i18n.t('bodyParts.upperLegs'),
+  'lower legs': i18n.t('bodyParts.lowerLegs'),
+  waist: i18n.t('bodyParts.waist'),
+  cardio: i18n.t('bodyParts.cardio'),
 };
 
 const EQUIPMENT_LABELS: Record<string, string> = {
-  dumbbell: 'Haltères',
-  barbell: 'Barre',
-  cable: 'Câble',
-  machine: 'Machine',
-  'body weight': 'Poids du corps',
-  kettlebell: 'Kettlebell',
-  other: 'Autre',
+  dumbbell: i18n.t('equipment.dumbbells'),
+  barbell: i18n.t('equipment.barbell'),
+  cable: i18n.t('equipment.cable'),
+  machine: i18n.t('equipment.machine'),
+  'body weight': i18n.t('equipment.bodyweight'),
+  kettlebell: i18n.t('equipment.kettlebell'),
+  other: i18n.t('equipment.other'),
 };
 
 // ─── Helpers ───
@@ -844,13 +845,13 @@ export default function WorkoutSessionScreen() {
                   style={[s.infoTab, infoTab === 'about' && s.infoTabActive]}
                   onPress={() => setInfoTab('about')}
                 >
-                  <Text style={[s.infoTabText, infoTab === 'about' && s.infoTabTextActive]}>À propos</Text>
+                  <Text style={[s.infoTabText, infoTab === 'about' && s.infoTabTextActive]}>{i18n.t('workoutSession.about')}</Text>
                 </Pressable>
                 <Pressable
                   style={[s.infoTab, infoTab === 'guide' && s.infoTabActive]}
                   onPress={() => setInfoTab('guide')}
                 >
-                  <Text style={[s.infoTabText, infoTab === 'guide' && s.infoTabTextActive]}>Guide</Text>
+                  <Text style={[s.infoTabText, infoTab === 'guide' && s.infoTabTextActive]}>{i18n.t('workoutSession.guide')}</Text>
                 </Pressable>
               </View>
 
@@ -864,36 +865,36 @@ export default function WorkoutSessionScreen() {
                 {infoTab === 'about' ? (
                   <>
                     <View style={s.infoRow}>
-                      <Text style={s.infoRowLabel}>Muscle cible</Text>
+                      <Text style={s.infoRowLabel}>{i18n.t('workoutSession.targetMuscle')}</Text>
                       <Text style={s.infoRowValue}>{infoExercise.target}</Text>
                     </View>
                     <View style={s.infoRowDivider} />
                     <View style={s.infoRow}>
-                      <Text style={s.infoRowLabel}>Groupe musculaire</Text>
+                      <Text style={s.infoRowLabel}>{i18n.t('workoutSession.muscleGroup')}</Text>
                       <Text style={s.infoRowValue}>{BODY_PART_LABELS[infoExercise.bodyPart] || infoExercise.bodyPart}</Text>
                     </View>
                     <View style={s.infoRowDivider} />
                     <View style={s.infoRow}>
-                      <Text style={s.infoRowLabel}>Équipement</Text>
+                      <Text style={s.infoRowLabel}>{i18n.t('workoutSession.equipmentLabel')}</Text>
                       <Text style={s.infoRowValue}>{EQUIPMENT_LABELS[infoExercise.equipment] || infoExercise.equipment}</Text>
                     </View>
                     <View style={s.infoRowDivider} />
                     <View style={s.infoRow}>
-                      <Text style={s.infoRowLabel}>Type</Text>
-                      <Text style={s.infoRowValue}>{infoExercise.isUnilateral ? 'Unilatéral' : 'Bilatéral'}</Text>
+                      <Text style={s.infoRowLabel}>{i18n.t('workoutSession.type')}</Text>
+                      <Text style={s.infoRowValue}>{infoExercise.isUnilateral ? i18n.t('workoutSession.unilateral') : i18n.t('workoutSession.bilateral')}</Text>
                     </View>
                     {infoExercise.secondaryMuscles && infoExercise.secondaryMuscles.length > 0 && (
                       <>
                         <View style={s.infoRowDivider} />
                         <View style={s.infoRow}>
-                          <Text style={s.infoRowLabel}>Muscles secondaires</Text>
+                          <Text style={s.infoRowLabel}>{i18n.t('workoutSession.secondaryMuscles')}</Text>
                           <Text style={s.infoRowValue}>{infoExercise.secondaryMuscles.join(', ')}</Text>
                         </View>
                       </>
                     )}
                     {infoExercise.description ? (
                       <View style={s.infoTipCard}>
-                        <Text style={s.infoTipLabel}>CONSEILS DE FORME</Text>
+                        <Text style={s.infoTipLabel}>{i18n.t('workoutSession.formTips')}</Text>
                         <Text style={s.infoTipText}>{infoExercise.description}</Text>
                       </View>
                     ) : null}
@@ -941,30 +942,30 @@ export default function WorkoutSessionScreen() {
           <View style={s.finishedHeader}>
             <View style={s.finishedBadge}>
               <Trophy size={14} color={Colors.phases.finished} strokeWidth={2.5} />
-              <Text style={s.finishedBadgeText}>TERMINÉ</Text>
+              <Text style={s.finishedBadgeText}>{i18n.t('workoutSession.finishedBadge')}</Text>
             </View>
-            <Text style={s.finishedTitle}>Entraînement terminé !</Text>
+            <Text style={s.finishedTitle}>{i18n.t('workoutSession.finishedTitle')}</Text>
           </View>
 
           {/* ─── Summary Card ─── */}
           <View style={s.summaryCard}>
             <View style={s.summaryRow}>
-              <Text style={s.summaryLabel}>Durée</Text>
+              <Text style={s.summaryLabel}>{i18n.t('workoutSession.duration')}</Text>
               <Text style={s.summaryValue}>{formatTimer(elapsedSeconds)}</Text>
             </View>
             <View style={s.summaryDivider} />
             <View style={s.summaryRow}>
-              <Text style={s.summaryLabel}>Séries complétées</Text>
+              <Text style={s.summaryLabel}>{i18n.t('workoutSession.completedSets')}</Text>
               <Text style={s.summaryValue}>{totalCompletedSetsCount}</Text>
             </View>
             <View style={s.summaryDivider} />
             <View style={s.summaryRow}>
-              <Text style={s.summaryLabel}>Volume total</Text>
+              <Text style={s.summaryLabel}>{i18n.t('workoutSession.totalVolume')}</Text>
               <Text style={s.summaryValue}>{totalVolume.toLocaleString()} kg</Text>
             </View>
             <View style={s.summaryDivider} />
             <View style={s.summaryRow}>
-              <Text style={s.summaryLabel}>Exercices</Text>
+              <Text style={s.summaryLabel}>{i18n.t('workoutSession.exercisesLabel')}</Text>
               <Text style={s.summaryValue}>{completedExerciseCount}/{totalExercises}</Text>
             </View>
           </View>
@@ -976,11 +977,11 @@ export default function WorkoutSessionScreen() {
                 <View style={s.prIconCircle}>
                   <Zap size={14} color="#FBBF24" strokeWidth={2.5} />
                 </View>
-                <Text style={s.prTitle}>RECORDS PERSONNELS</Text>
+                <Text style={s.prTitle}>{i18n.t('workoutSession.personalRecords')}</Text>
               </View>
               {sessionPRs.map((pr, idx) => {
                 const exName = prExerciseNames[pr.exerciseId] || pr.exerciseId;
-                const typeLabel = pr.type === 'weight' ? 'Poids' : 'Volume';
+                const typeLabel = pr.type === 'weight' ? i18n.t('workoutSession.prWeight') : i18n.t('workoutSession.prVolume');
                 const isNew = pr.previousValue === 0;
                 return (
                   <View key={`${pr.exerciseId}-${pr.type}-${idx}`} style={s.prCard}>
@@ -994,12 +995,12 @@ export default function WorkoutSessionScreen() {
                       <Text style={s.prValue}>{pr.label}</Text>
                       {!isNew && pr.previousValue > 0 && (
                         <Text style={s.prPrevious}>
-                          avant: {pr.type === 'weight' ? `${pr.previousValue} kg` : `${pr.previousValue} kg`}
+                          {i18n.t('workoutSession.prBefore')}: {pr.type === 'weight' ? `${pr.previousValue} kg` : `${pr.previousValue} kg`}
                         </Text>
                       )}
                       {isNew && (
                         <View style={s.prNewBadge}>
-                          <Text style={s.prNewText}>NOUVEAU</Text>
+                          <Text style={s.prNewText}>{i18n.t('workoutSession.prNew')}</Text>
                         </View>
                       )}
                     </View>
@@ -1010,7 +1011,7 @@ export default function WorkoutSessionScreen() {
           )}
 
           {/* ─── Exercise Review ─── */}
-          <Text style={s.reviewSectionTitle}>DÉTAILS DES EXERCICES</Text>
+          <Text style={s.reviewSectionTitle}>{i18n.t('workoutSession.exerciseReview')}</Text>
 
           {sessionExercises.map((ex, idx) => {
             const loggedSets = completedSets[idx] || [];
@@ -1138,7 +1139,7 @@ export default function WorkoutSessionScreen() {
         {/* ─── Pinned Bottom Button ─── */}
         <View style={[s.finishedBottomBar, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
           <Pressable style={s.finishButton} onPress={handleFinish}>
-            <Text style={s.finishButtonText}>Terminer</Text>
+            <Text style={s.finishButtonText}>{i18n.t('workoutSession.finish')}</Text>
           </Pressable>
         </View>
       </View>
@@ -1187,7 +1188,7 @@ export default function WorkoutSessionScreen() {
             <View style={[s.phaseBadge, { backgroundColor: `${phaseColor}15`, marginTop: 8 }]}>
               <PhaseIcon size={12} color={phaseColor} strokeWidth={2.5} />
               <Text style={[s.phaseBadgeText, { color: phaseColor }]}>
-                {isPaused ? 'EN PAUSE' : PHASE_CONFIG[phase].label}
+                {isPaused ? i18n.t('workoutSession.paused') : PHASE_CONFIG[phase].label}
               </Text>
             </View>
           </View>
@@ -1198,16 +1199,22 @@ export default function WorkoutSessionScreen() {
           <View style={s.exerciseInfo}>
             <Text style={s.exerciseInfoName} numberOfLines={1}>{currentExercise.exerciseName}</Text>
             <Text style={s.exerciseInfoDetail}>
-              SET {setIndex + 1} OF {currentExercise.sets}
+              {i18n.t('workoutSession.setOf', { current: setIndex + 1, total: currentExercise.sets })}
               {currentSide ? (currentSide === 'right'
-                ? (i18n.locale === 'fr' ? ' · DROITE ›' : ' · RIGHT ›')
-                : (i18n.locale === 'fr' ? ' · ‹ GAUCHE' : ' · ‹ LEFT')) : ''}
+                ? (' · ' + i18n.t('workoutSession.rightSide'))
+                : (' · ' + i18n.t('workoutSession.leftSide'))) : ''}
               {' · '}{currentExercise.minReps && currentExercise.minReps !== (currentExercise.maxReps || currentExercise.reps)
                 ? `${currentExercise.minReps}-${currentExercise.maxReps}`
                 : currentExercise.maxReps || currentExercise.reps} REPS
               {currentExercise.weight > 0 ? ` · ${currentExercise.weight} KG` : ''}
               {currentExercise.targetRir != null ? ` · RIR ${currentExercise.targetRir}` : ''}
             </Text>
+            {currentExercise.overloadAction === 'bump' && (
+              <Text style={s.overloadTip}>{i18n.t('workoutSession.overloadBump')}</Text>
+            )}
+            {currentExercise.overloadAction === 'drop' && (
+              <Text style={[s.overloadTip, { color: '#FBBF24' }]}>{i18n.t('workoutSession.overloadDrop')}</Text>
+            )}
             {/* Dot progress — 1 dot per exercise */}
             <View style={s.dotRow}>
               {sessionExercises.map((exItem, idx) => {
@@ -1288,12 +1295,12 @@ export default function WorkoutSessionScreen() {
         <View {...sheetPanResponder.panHandlers} style={[s.sheetHandle, sheetOpen ? { paddingTop: insets.top + 12 } : { paddingBottom: insets.bottom + 16 }]}>
           <View style={s.sheetDragBar} />
           <View style={s.sheetHandleRow}>
-            <Text style={s.viewExercisesText}>VOIR LES EXERCICES</Text>
+            <Text style={s.viewExercisesText}>{i18n.t('workoutSession.viewExercises')}</Text>
             <ChevronUp size={14} color="rgba(255,255,255,0.35)" strokeWidth={2.5} />
           </View>
           {sheetOpen && (
             <Text style={s.listSubtitle}>
-              {completedExerciseCount} / {totalExercises} terminés
+              {i18n.t('workoutSession.completedOf', { done: completedExerciseCount, total: totalExercises })}
             </Text>
           )}
         </View>
@@ -1357,7 +1364,7 @@ export default function WorkoutSessionScreen() {
                     </View>
                     {isCurrent && (
                       <View style={s.listEnCoursBadge}>
-                        <Text style={s.listEnCoursText}>EN COURS</Text>
+                        <Text style={s.listEnCoursText}>{i18n.t('workoutSession.inProgress')}</Text>
                       </View>
                     )}
                     <View style={[s.expandChevron, isExpanded && s.expandChevronOpen]}>
@@ -1487,17 +1494,17 @@ export default function WorkoutSessionScreen() {
             <View style={s.stopModalIcon}>
               <Square size={22} color="#FF4B4B" fill="#FF4B4B" strokeWidth={0} />
             </View>
-            <Text style={s.stopModalTitle}>Arrêter l'entraînement ?</Text>
-            <Text style={s.stopModalDesc}>Que souhaitez-vous faire de cette séance ?</Text>
+            <Text style={s.stopModalTitle}>{i18n.t('workoutSession.stopTitle')}</Text>
+            <Text style={s.stopModalDesc}>{i18n.t('workoutSession.stopMessage')}</Text>
             <View style={s.stopModalActions}>
               <Pressable style={s.stopModalSaveBtn} onPress={confirmStop}>
-                <Text style={s.stopModalSaveText}>Sauvegarder & Quitter</Text>
+                <Text style={s.stopModalSaveText}>{i18n.t('workoutSession.stopSave')}</Text>
               </Pressable>
               <Pressable style={s.stopModalDiscardBtn} onPress={discardStop}>
-                <Text style={s.stopModalDiscardText}>Quitter sans sauvegarder</Text>
+                <Text style={s.stopModalDiscardText}>{i18n.t('workoutSession.stopDiscard')}</Text>
               </Pressable>
               <Pressable style={s.stopModalCancelBtn} onPress={cancelStop}>
-                <Text style={s.stopModalCancelText}>Continuer</Text>
+                <Text style={s.stopModalCancelText}>{i18n.t('common.continue')}</Text>
               </Pressable>
             </View>
           </View>
@@ -1510,7 +1517,7 @@ export default function WorkoutSessionScreen() {
           <Pressable style={s.soundModal} onPress={() => {}}>
             {/* Header */}
             <View style={s.soundModalHeader}>
-              <Text style={s.soundModalTitle}>Son & Voix</Text>
+              <Text style={s.soundModalTitle}>{i18n.t('workoutSession.soundTitle')}</Text>
               <Pressable style={s.soundModalClose} onPress={() => setShowSoundSettings(false)}>
                 <X size={18} color="rgba(160,160,170,1)" strokeWidth={2} />
               </Pressable>
@@ -1527,8 +1534,8 @@ export default function WorkoutSessionScreen() {
                   )}
                 </View>
                 <View>
-                  <Text style={s.soundModalRowTitle}>Effets sonores</Text>
-                  <Text style={s.soundModalRowDesc}>Bips, ticks, alertes</Text>
+                  <Text style={s.soundModalRowTitle}>{i18n.t('workoutSession.soundEffects')}</Text>
+                  <Text style={s.soundModalRowDesc}>{i18n.t('workoutSession.soundEffectsDesc')}</Text>
                 </View>
               </View>
               <Switch
@@ -1550,8 +1557,8 @@ export default function WorkoutSessionScreen() {
                   )}
                 </View>
                 <View>
-                  <Text style={s.soundModalRowTitle}>Annonces vocales</Text>
-                  <Text style={s.soundModalRowDesc}>Phases, exercices, décompte</Text>
+                  <Text style={s.soundModalRowTitle}>{i18n.t('workoutSession.voiceAnnouncements')}</Text>
+                  <Text style={s.soundModalRowDesc}>{i18n.t('workoutSession.voiceAnnouncementsDesc')}</Text>
                 </View>
               </View>
               <Switch
@@ -1567,7 +1574,7 @@ export default function WorkoutSessionScreen() {
 
             {/* Volume Label */}
             <View style={s.soundModalVolumeHeader}>
-              <Text style={s.soundModalVolumeLabel}>VOLUME</Text>
+              <Text style={s.soundModalVolumeLabel}>{i18n.t('workoutSession.volumeLabel')}</Text>
               <Text style={s.soundModalVolumeValue}>{Math.round(volume * 100)}%</Text>
             </View>
 
@@ -1710,7 +1717,15 @@ const s = StyleSheet.create({
     fontWeight: '600',
     color: 'rgba(255,255,255,0.4)',
     letterSpacing: 1.2,
-    marginBottom: 14,
+    marginBottom: 6,
+  },
+  overloadTip: {
+    fontSize: 11,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    color: '#4ADE80',
+    letterSpacing: 0.5,
+    marginBottom: 10,
   },
   dotRow: {
     flexDirection: 'row',

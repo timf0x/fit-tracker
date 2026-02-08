@@ -27,6 +27,7 @@ import {
   Timer,
 } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 import { ExerciseIcon, CategoryIcon } from '@/components/ExerciseIcon';
 import { ExerciseInfoSheet } from '@/components/ExerciseInfoSheet';
 import { useWorkoutStore } from '@/stores/workoutStore';
@@ -36,39 +37,39 @@ import type { WorkoutExercise, Exercise, BodyPart, Equipment } from '@/types';
 // ─── Config ───────────────────────────────────────
 
 const WORKOUT_ICONS = [
-  { id: 'push', label: 'Push' },
-  { id: 'pull', label: 'Pull' },
-  { id: 'legs', label: 'Jambes' },
-  { id: 'core', label: 'Abdos' },
-  { id: 'cardio', label: 'Cardio' },
-  { id: 'full_body', label: 'Full Body' },
-  { id: 'upper', label: 'Haut' },
-  { id: 'lower', label: 'Bas' },
+  { id: 'push', label: i18n.t('workoutCreate.icons.push') },
+  { id: 'pull', label: i18n.t('workoutCreate.icons.pull') },
+  { id: 'legs', label: i18n.t('workoutCreate.icons.legs') },
+  { id: 'core', label: i18n.t('workoutCreate.icons.core') },
+  { id: 'cardio', label: i18n.t('workoutCreate.icons.cardio') },
+  { id: 'full_body', label: i18n.t('workoutCreate.icons.fullBody') },
+  { id: 'upper', label: i18n.t('workoutCreate.icons.upper') },
+  { id: 'lower', label: i18n.t('workoutCreate.icons.lower') },
 ];
 
 const FOCUS_OPTIONS: { value: BodyPart | 'all'; label: string }[] = [
-  { value: 'all', label: 'Tous' },
-  { value: 'chest', label: 'Pectoraux' },
-  { value: 'back', label: 'Dos' },
-  { value: 'shoulders', label: 'Épaules' },
-  { value: 'upper legs', label: 'Jambes' },
-  { value: 'upper arms', label: 'Bras' },
-  { value: 'waist', label: 'Abdos' },
-  { value: 'cardio', label: 'Cardio' },
+  { value: 'all', label: i18n.t('workoutCreate.focus.all') },
+  { value: 'chest', label: i18n.t('workoutCreate.focus.chest') },
+  { value: 'back', label: i18n.t('workoutCreate.focus.back') },
+  { value: 'shoulders', label: i18n.t('workoutCreate.focus.shoulders') },
+  { value: 'upper legs', label: i18n.t('workoutCreate.focus.legs') },
+  { value: 'upper arms', label: i18n.t('workoutCreate.focus.arms') },
+  { value: 'waist', label: i18n.t('workoutCreate.focus.waist') },
+  { value: 'cardio', label: i18n.t('workoutCreate.focus.cardio') },
 ];
 
 const EQUIPMENT_OPTIONS: { value: Equipment | 'all'; label: string }[] = [
-  { value: 'all', label: 'Tous' },
-  { value: 'dumbbell', label: 'Haltères' },
-  { value: 'barbell', label: 'Barre' },
-  { value: 'cable', label: 'Câble' },
-  { value: 'machine', label: 'Machine' },
-  { value: 'body weight', label: 'Poids du corps' },
-  { value: 'kettlebell', label: 'Kettlebell' },
-  { value: 'resistance band', label: 'Bande élastique' },
-  { value: 'ez bar', label: 'Barre EZ' },
-  { value: 'smith machine', label: 'Smith machine' },
-  { value: 'trap bar', label: 'Trap bar' },
+  { value: 'all', label: i18n.t('common.all') },
+  { value: 'dumbbell', label: i18n.t('equipment.dumbbells') },
+  { value: 'barbell', label: i18n.t('equipment.barbell') },
+  { value: 'cable', label: i18n.t('equipment.cable') },
+  { value: 'machine', label: i18n.t('equipment.machine') },
+  { value: 'body weight', label: i18n.t('equipment.bodyweight') },
+  { value: 'kettlebell', label: i18n.t('equipment.kettlebell') },
+  { value: 'resistance band', label: i18n.t('equipment.bands') },
+  { value: 'ez bar', label: i18n.t('equipment.ezBar') },
+  { value: 'smith machine', label: i18n.t('equipment.smithMachine') },
+  { value: 'trap bar', label: i18n.t('equipment.trapBar') },
 ];
 
 interface SelectedExercise extends WorkoutExercise {
@@ -174,6 +175,9 @@ export default function CreateWorkoutScreen() {
         case 'restTime':
           ex.restTime = Math.max(15, ex.restTime + delta * 15);
           break;
+        case 'setTime':
+          ex.setTime = Math.max(10, (ex.setTime || 35) + delta * 5);
+          break;
       }
       next[index] = ex;
       return next;
@@ -199,11 +203,11 @@ export default function CreateWorkoutScreen() {
 
   const handleSave = () => {
     if (!name.trim()) {
-      Alert.alert('Erreur', 'Entrez un nom pour le workout');
+      Alert.alert(i18n.t('common.error'), i18n.t('workoutCreate.errorNoName'));
       return;
     }
     if (selectedExercises.length === 0) {
-      Alert.alert('Erreur', 'Ajoutez au moins un exercice');
+      Alert.alert(i18n.t('common.error'), i18n.t('workoutCreate.errorNoExercise'));
       return;
     }
 
@@ -233,7 +237,7 @@ export default function CreateWorkoutScreen() {
 
       router.back();
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de créer le workout');
+      Alert.alert(i18n.t('common.error'), i18n.t('workoutCreate.errorCreate'));
     } finally {
       setIsSaving(false);
     }
@@ -244,8 +248,8 @@ export default function CreateWorkoutScreen() {
   // ═══════════════════════════════════════════════
 
   if (showExercisePicker) {
-    const focusLabel = selectedFocus === 'all' ? 'Focus' : FOCUS_OPTIONS.find((o) => o.value === selectedFocus)?.label || 'Focus';
-    const equipLabel = selectedEquipment === 'all' ? 'Équipement' : EQUIPMENT_OPTIONS.find((o) => o.value === selectedEquipment)?.label || 'Équipement';
+    const focusLabel = selectedFocus === 'all' ? i18n.t('workouts.filters.focus') : FOCUS_OPTIONS.find((o) => o.value === selectedFocus)?.label || i18n.t('workouts.filters.focus');
+    const equipLabel = selectedEquipment === 'all' ? i18n.t('workouts.filters.equipment') : EQUIPMENT_OPTIONS.find((o) => o.value === selectedEquipment)?.label || i18n.t('workouts.filters.equipment');
 
     return (
       <View style={[s.screen, { paddingTop: insets.top }]}>
@@ -254,7 +258,7 @@ export default function CreateWorkoutScreen() {
           <Pressable style={s.iconButton} onPress={closePicker}>
             <X size={20} color={Colors.text} strokeWidth={2} />
           </Pressable>
-          <Text style={s.pickerTitle}>Ajouter des exercices</Text>
+          <Text style={s.pickerTitle}>{i18n.t('workoutCreate.addExercisesModal')}</Text>
           <View style={{ width: 44 }} />
         </View>
 
@@ -263,7 +267,7 @@ export default function CreateWorkoutScreen() {
           <Search size={16} color="rgba(120,120,130,1)" strokeWidth={2} />
           <TextInput
             style={s.searchInput}
-            placeholder="Rechercher un exercice..."
+            placeholder={i18n.t('workoutCreate.searchPlaceholder')}
             placeholderTextColor="rgba(100,100,110,1)"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -303,7 +307,7 @@ export default function CreateWorkoutScreen() {
 
         {/* Exercise list */}
         <ScrollView style={s.exerciseList} contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
-          <Text style={s.resultCount}>{filteredExercises.length} exercices</Text>
+          <Text style={s.resultCount}>{i18n.t('workoutCreate.exerciseCount', { count: filteredExercises.length })}</Text>
           {filteredExercises.map((exercise) => {
             const isSelected = tempSelected.some((e) => e.id === exercise.id);
             return (
@@ -341,10 +345,10 @@ export default function CreateWorkoutScreen() {
         {tempSelected.length > 0 && (
           <View style={[s.selectionBar, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
             <Text style={s.selectionText}>
-              {tempSelected.length} exercice{tempSelected.length > 1 ? 's' : ''} sélectionné{tempSelected.length > 1 ? 's' : ''}
+              {tempSelected.length > 1 ? i18n.t('workoutCreate.selectedCountPlural', { count: tempSelected.length }) : i18n.t('workoutCreate.selectedCount', { count: tempSelected.length })}
             </Text>
             <Pressable style={s.addToWorkoutBtn} onPress={handleAddToWorkout}>
-              <Text style={s.addToWorkoutText}>Ajouter au workout</Text>
+              <Text style={s.addToWorkoutText}>{i18n.t('workoutCreate.addToWorkout')}</Text>
               <ArrowLeft size={16} color="#000" strokeWidth={2.5} style={{ transform: [{ rotate: '180deg' }] }} />
             </Pressable>
           </View>
@@ -353,7 +357,7 @@ export default function CreateWorkoutScreen() {
         {/* Focus dropdown */}
         <DropdownModal
           visible={showFocusDropdown}
-          title="Focus"
+          title={i18n.t('workouts.filters.focus')}
           options={FOCUS_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
           selected={selectedFocus}
           onSelect={(v) => { setSelectedFocus(v as any); setShowFocusDropdown(false); }}
@@ -363,7 +367,7 @@ export default function CreateWorkoutScreen() {
         {/* Equipment dropdown */}
         <DropdownModal
           visible={showEquipmentDropdown}
-          title="Équipement"
+          title={i18n.t('workouts.filters.equipment')}
           options={EQUIPMENT_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
           selected={selectedEquipment}
           onSelect={(v) => { setSelectedEquipment(v as any); setShowEquipmentDropdown(false); }}
@@ -389,13 +393,13 @@ export default function CreateWorkoutScreen() {
           <Pressable style={s.iconButton} onPress={() => router.back()}>
             <ArrowLeft size={20} color={Colors.text} strokeWidth={2} />
           </Pressable>
-          <Text style={s.headerTitle}>Nouveau Workout</Text>
+          <Text style={s.headerTitle}>{i18n.t('workoutCreate.title')}</Text>
           <Pressable
             style={[s.saveButton, isSaving && s.saveButtonDisabled]}
             onPress={handleSave}
             disabled={isSaving}
           >
-            <Text style={s.saveButtonText}>{isSaving ? '...' : 'Sauver'}</Text>
+            <Text style={s.saveButtonText}>{isSaving ? '...' : i18n.t('workoutCreate.save')}</Text>
           </Pressable>
         </View>
 
@@ -412,7 +416,7 @@ export default function CreateWorkoutScreen() {
               <View style={s.nameContainer}>
                 <TextInput
                   style={s.nameInput}
-                  placeholder="Nom du workout"
+                  placeholder={i18n.t('workoutCreate.namePlaceholder')}
                   placeholderTextColor="rgba(100,100,110,1)"
                   value={name}
                   onChangeText={setName}
@@ -421,7 +425,7 @@ export default function CreateWorkoutScreen() {
 
               {/* Icon picker */}
               <View style={s.section}>
-                <Text style={s.sectionLabel}>ICÔNE</Text>
+                <Text style={s.sectionLabel}>{i18n.t('workoutCreate.iconSection')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.iconPickerRow}>
                   {WORKOUT_ICONS.map((icon) => (
                     <Pressable
@@ -440,7 +444,7 @@ export default function CreateWorkoutScreen() {
 
               {/* Exercises section label */}
               <View style={s.sectionRow}>
-                <Text style={s.sectionLabel}>EXERCICES</Text>
+                <Text style={s.sectionLabel}>{i18n.t('workoutCreate.exercisesSection')}</Text>
                 {selectedExercises.length > 0 && (
                   <Text style={s.exerciseCountBadge}>{selectedExercises.length}</Text>
                 )}
@@ -517,7 +521,7 @@ export default function CreateWorkoutScreen() {
                   {isEditing && (
                     <View style={s.editorPanel}>
                       <View style={s.editorRow}>
-                        <Text style={s.editorFieldLabel}>Séries</Text>
+                        <Text style={s.editorFieldLabel}>{i18n.t('workoutCreate.sets')}</Text>
                         <View style={s.stepperRow}>
                           <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'sets', -1)}>
                             <Minus size={14} color="#fff" />
@@ -529,7 +533,7 @@ export default function CreateWorkoutScreen() {
                         </View>
                       </View>
                       <View style={s.editorRow}>
-                        <Text style={s.editorFieldLabel}>Répétitions</Text>
+                        <Text style={s.editorFieldLabel}>{i18n.t('workoutCreate.reps')}</Text>
                         <View style={s.stepperRow}>
                           <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'reps', -1)}>
                             <Minus size={14} color="#fff" />
@@ -541,7 +545,7 @@ export default function CreateWorkoutScreen() {
                         </View>
                       </View>
                       <View style={s.editorRow}>
-                        <Text style={s.editorFieldLabel}>Poids (kg)</Text>
+                        <Text style={s.editorFieldLabel}>{i18n.t('workoutCreate.weight')}</Text>
                         <View style={s.stepperRow}>
                           <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'weight', -1)}>
                             <Minus size={14} color="#fff" />
@@ -553,13 +557,25 @@ export default function CreateWorkoutScreen() {
                         </View>
                       </View>
                       <View style={s.editorRow}>
-                        <Text style={s.editorFieldLabel}>Repos (sec)</Text>
+                        <Text style={s.editorFieldLabel}>{i18n.t('workoutCreate.rest')}</Text>
                         <View style={s.stepperRow}>
                           <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'restTime', -1)}>
                             <Minus size={14} color="#fff" />
                           </Pressable>
                           <Text style={s.stepperValue}>{ex.restTime}</Text>
                           <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'restTime', 1)}>
+                            <Plus size={14} color="#fff" />
+                          </Pressable>
+                        </View>
+                      </View>
+                      <View style={s.editorRow}>
+                        <Text style={s.editorFieldLabel}>{i18n.t('workoutCreate.timePerSet')}</Text>
+                        <View style={s.stepperRow}>
+                          <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'setTime', -1)}>
+                            <Minus size={14} color="#fff" />
+                          </Pressable>
+                          <Text style={s.stepperValue}>{ex.setTime || 35}</Text>
+                          <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'setTime', 1)}>
                             <Plus size={14} color="#fff" />
                           </Pressable>
                         </View>
@@ -576,7 +592,7 @@ export default function CreateWorkoutScreen() {
             <View style={{ marginTop: 4 }}>
               <Pressable style={s.addExerciseBtn} onPress={() => setShowExercisePicker(true)}>
                 <Plus size={20} color="rgba(120,120,130,1)" strokeWidth={2} />
-                <Text style={s.addExerciseText}>AJOUTER UN EXERCICE</Text>
+                <Text style={s.addExerciseText}>{i18n.t('workoutCreate.addExercise')}</Text>
               </Pressable>
             </View>
           }
@@ -674,7 +690,7 @@ const s = StyleSheet.create({
   iconButton: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',

@@ -21,6 +21,7 @@ import {
 import { PressableScale } from '@/components/ui/PressableScale';
 import { AnimatedStartButton } from '@/components/ui/AnimatedStartButton';
 import { Fonts, Colors } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 import { useProgramStore } from '@/stores/programStore';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { AmbientBackground } from '@/components/home/AmbientBackground';
@@ -137,8 +138,8 @@ export default function ProgramScreen() {
   };
 
   const sectionLabel = isCurrentWeek
-    ? 'CETTE SEMAINE'
-    : `SEMAINE ${selectedWeek}`;
+    ? i18n.t('programOverview.thisWeek')
+    : i18n.t('programOverview.weekLabel', { week: selectedWeek });
 
   return (
     <View style={styles.screen}>
@@ -155,7 +156,7 @@ export default function ProgramScreen() {
               {program.nameFr}
             </Text>
             <Text style={styles.headerSub}>
-              Semaine {activeState.currentWeek}/{program.totalWeeks}
+              {i18n.t('programOverview.weekProgress', { current: activeState.currentWeek, total: program.totalWeeks })}
             </Text>
           </View>
         </View>
@@ -173,9 +174,9 @@ export default function ProgramScreen() {
         {/* ─── Deload banner ─── */}
         {currentWeekData?.isDeload && (
           <View style={styles.deloadBanner}>
-            <Text style={styles.deloadTitle}>Semaine de deload</Text>
+            <Text style={styles.deloadTitle}>{i18n.t('programOverview.deloadWeek')}</Text>
             <Text style={styles.deloadText}>
-              Volume réduit pour la récupération et la supercompensation.
+              {i18n.t('programOverview.deloadDesc')}
             </Text>
           </View>
         )}
@@ -185,9 +186,9 @@ export default function ProgramScreen() {
           <View style={styles.completionCard}>
             <Trophy size={28} color="#FBBF24" />
             <View style={styles.completionTextWrap}>
-              <Text style={styles.completionTitle}>Programme terminé !</Text>
+              <Text style={styles.completionTitle}>{i18n.t('programOverview.completed')}</Text>
               <Text style={styles.completionSubtitle}>
-                {activeState.completedDays.length} séances complétées
+                {i18n.t('programOverview.completedSessions', { count: activeState.completedDays.length })}
               </Text>
             </View>
             <PressableScale
@@ -195,7 +196,7 @@ export default function ProgramScreen() {
               activeScale={0.97}
               onPress={() => router.push('/program/onboarding')}
             >
-              <Text style={styles.newProgramText}>Nouveau</Text>
+              <Text style={styles.newProgramText}>{i18n.t('programOverview.newProgram')}</Text>
               <ChevronRight size={14} color="#0C0C0C" />
             </PressableScale>
           </View>
@@ -212,7 +213,7 @@ export default function ProgramScreen() {
             <View style={styles.weekCardHeader}>
               <Text style={styles.weekCardLabel}>{sectionLabel}</Text>
               <Text style={styles.weekCardSummary}>
-                {weekSummary.done}/{weekSummary.total} séances · {weekSummary.sets} séries
+                {i18n.t('programOverview.weekSummary', { done: weekSummary.done, total: weekSummary.total, sets: weekSummary.sets })}
               </Text>
             </View>
 
@@ -256,7 +257,7 @@ export default function ProgramScreen() {
               }}
             >
               <RefreshCw size={16} color="rgba(255,255,255,0.4)" />
-              <Text style={styles.managementText}>Modifier le programme</Text>
+              <Text style={styles.managementText}>{i18n.t('programOverview.modifyProgram')}</Text>
               <ChevronRight size={16} color="rgba(100,100,110,1)" />
             </PressableScale>
 
@@ -273,7 +274,7 @@ export default function ProgramScreen() {
               <Text
                 style={[styles.managementText, { color: 'rgba(239,68,68,0.5)' }]}
               >
-                Quitter le programme
+                {i18n.t('programOverview.quitProgram')}
               </Text>
               <ChevronRight size={16} color="rgba(100,100,110,1)" />
             </PressableScale>
@@ -288,7 +289,7 @@ export default function ProgramScreen() {
             <View style={styles.bottomCta}>
               <AnimatedStartButton
                 onPress={handleStartToday}
-                label="Commencer la séance"
+                label={i18n.t('programOverview.startSession')}
                 style={styles.startButton}
               />
             </View>
@@ -300,9 +301,9 @@ export default function ProgramScreen() {
         visible={showQuitConfirm}
         onClose={() => setShowQuitConfirm(false)}
         icon={<AlertTriangle size={28} color="#EF4444" />}
-        title="Quitter le programme ?"
-        description="Ta progression sera perdue. Tu pourras toujours en créer un nouveau."
-        confirmText="Quitter"
+        title={i18n.t('programOverview.quitConfirmTitle')}
+        description={i18n.t('programOverview.quitConfirmMessage')}
+        confirmText={i18n.t('programOverview.quitConfirmButton')}
         onConfirm={() => {
           clearProgram();
           router.replace('/');
@@ -313,10 +314,10 @@ export default function ProgramScreen() {
         onClose={() => setShowModifyConfirm(false)}
         icon={<RefreshCw size={28} color={Colors.primary} />}
         iconBgColor="rgba(255,107,53,0.12)"
-        title="Modifier le programme ?"
-        description="Ton programme actuel sera remplacé. Ta progression sera perdue."
-        cancelText="Annuler"
-        confirmText="Modifier"
+        title={i18n.t('programOverview.modifyConfirmTitle')}
+        description={i18n.t('programOverview.modifyConfirmMessage')}
+        cancelText={i18n.t('common.cancel')}
+        confirmText={i18n.t('common.modify')}
         confirmColor={Colors.primary}
         onConfirm={() => {
           setShowModifyConfirm(false);
@@ -328,10 +329,10 @@ export default function ProgramScreen() {
         onClose={() => setShowPacingWarning(false)}
         icon={<Clock size={28} color="#FBBF24" />}
         iconBgColor="rgba(251,191,36,0.12)"
-        title="Déjà une séance aujourd'hui"
-        description="Tu as déjà terminé une séance aujourd'hui. La récupération est essentielle pour la progression."
-        cancelText="Reporter"
-        confirmText="Continuer"
+        title={i18n.t('programOverview.alreadyTrainedTitle')}
+        description={i18n.t('programOverview.alreadyTrainedMessage')}
+        cancelText={i18n.t('common.postpone')}
+        confirmText={i18n.t('common.continue')}
         confirmColor={Colors.primary}
         onConfirm={() => {
           setShowPacingWarning(false);

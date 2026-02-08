@@ -26,6 +26,7 @@ import Svg, {
   Text as SvgText,
 } from 'react-native-svg';
 import { Fonts } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 import { generateMockStepsHistory } from '@/lib/mock-data';
 
 type TimeFilter = 'week' | 'month' | 'year';
@@ -38,9 +39,9 @@ const CHART_WIDTH = SCREEN_WIDTH - 40 - CHART_PADDING_LEFT - CHART_PADDING_RIGHT
 const CHART_HEIGHT = 200;
 
 const TIME_FILTERS: { value: TimeFilter; label: string; days: number }[] = [
-  { value: 'week', label: 'Semaine', days: 7 },
-  { value: 'month', label: 'Mois', days: 30 },
-  { value: 'year', label: 'Année', days: 365 },
+  { value: 'week', label: i18n.t('steps.timeFilters.week'), days: 7 },
+  { value: 'month', label: i18n.t('steps.timeFilters.month'), days: 30 },
+  { value: 'year', label: i18n.t('steps.timeFilters.year'), days: 365 },
 ];
 
 export default function StepsScreen() {
@@ -107,7 +108,7 @@ export default function StepsScreen() {
   ): string => {
     const date = new Date(dateStr);
     if (timeFilter === 'week') {
-      const days = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+      const days = i18n.t('steps.dayAbbr') as unknown as string[];
       return days[date.getDay()];
     } else if (timeFilter === 'month') {
       if (index % 5 === 0 || index === total - 1)
@@ -156,7 +157,7 @@ export default function StepsScreen() {
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <ArrowLeft size={22} color="#fff" strokeWidth={2} />
           </Pressable>
-          <Text style={styles.headerTitle}>Pas</Text>
+          <Text style={styles.headerTitle}>{i18n.t('steps.title')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -170,7 +171,7 @@ export default function StepsScreen() {
               <Text style={styles.heroNumber}>
                 {stats.todaySteps.toLocaleString()}
               </Text>
-              <Text style={styles.heroUnit}>pas</Text>
+              <Text style={styles.heroUnit}>{i18n.t('steps.stepsUnit')}</Text>
             </View>
             <View style={styles.heroProgressRow}>
               <View style={styles.progressTrack}>
@@ -340,26 +341,26 @@ export default function StepsScreen() {
               <Text style={styles.metricValue}>
                 {stats.average.toLocaleString()}
               </Text>
-              <Text style={styles.metricLabel}>moyenne</Text>
+              <Text style={styles.metricLabel}>{i18n.t('steps.average')}</Text>
             </View>
             <View style={styles.metricDivider} />
             <View style={styles.metricItem}>
               <Text style={styles.metricValue}>
                 {stats.best.toLocaleString()}
               </Text>
-              <Text style={styles.metricLabel}>record</Text>
+              <Text style={styles.metricLabel}>{i18n.t('steps.record')}</Text>
             </View>
             <View style={styles.metricDivider} />
             <View style={styles.metricItem}>
               <Text style={[styles.metricValue, { color: '#4ADE80' }]}>
                 {stats.goalDays}
               </Text>
-              <Text style={styles.metricLabel}>objectifs</Text>
+              <Text style={styles.metricLabel}>{i18n.t('steps.goals')}</Text>
             </View>
             <View style={styles.metricDivider} />
             <View style={styles.metricItem}>
               <Text style={styles.metricValue}>{formatTotal(stats.total)}</Text>
-              <Text style={styles.metricLabel}>total</Text>
+              <Text style={styles.metricLabel}>{i18n.t('steps.total')}</Text>
             </View>
           </View>
 
@@ -372,7 +373,7 @@ export default function StepsScreen() {
                   : 0}
                 %
               </Text>
-              <Text style={styles.successLabel}>taux de réussite</Text>
+              <Text style={styles.successLabel}>{i18n.t('steps.successRate')}</Text>
             </View>
             <View style={styles.successBar}>
               {Array.from({ length: Math.min(filterDays, 30) }, (_, i) => {

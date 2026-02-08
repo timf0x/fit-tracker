@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
@@ -16,6 +16,7 @@ import {
   Check,
 } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { useProgramStore } from '@/stores/programStore';
 import { getExerciseById } from '@/data/exercises';
@@ -32,6 +33,7 @@ import {
   getAllMuscleData,
   estimateSessionSummary,
 } from '@/lib/smartWorkout';
+import { getProgressiveWeight, getEstimatedWeight } from '@/lib/weightEstimation';
 import type { GeneratedExercise } from '@/lib/smartWorkout';
 import { computeWorkoutInsights } from '@/lib/sessionInsights';
 import type { MuscleImpact } from '@/lib/sessionInsights';
@@ -43,19 +45,22 @@ import type { ReadinessCheck as ReadinessCheckType } from '@/types/program';
 type GeneratorStep = 'select' | 'review';
 
 const EQUIPMENT_OPTIONS: { key: EquipmentSetup; label: string }[] = [
-  { key: 'full_gym', label: 'Salle' },
-  { key: 'home_dumbbell', label: 'Haltères' },
-  { key: 'bodyweight', label: 'Poids du corps' },
+  { key: 'full_gym', label: i18n.t('workoutGenerate.equipment.fullGym') },
+  { key: 'home_dumbbell', label: i18n.t('workoutGenerate.equipment.dumbbells') },
+  { key: 'bodyweight', label: i18n.t('workoutGenerate.equipment.bodyweight') },
 ];
 
 const MUSCLE_GROUPS: { label: string; muscles: string[] }[] = [
-  { label: 'PUSH', muscles: ['chest', 'shoulders', 'triceps'] },
-  { label: 'PULL', muscles: ['upper back', 'lats', 'lower back', 'biceps', 'forearms'] },
-  { label: 'JAMBES', muscles: ['quads', 'hamstrings', 'glutes', 'calves'] },
-  { label: 'TRONC', muscles: ['abs', 'obliques'] },
+  { label: i18n.t('workoutGenerate.muscleGroups.push'), muscles: ['chest', 'shoulders', 'triceps'] },
+  { label: i18n.t('workoutGenerate.muscleGroups.pull'), muscles: ['upper back', 'lats', 'lower back', 'biceps', 'forearms'] },
+  { label: i18n.t('workoutGenerate.muscleGroups.legs'), muscles: ['quads', 'hamstrings', 'glutes', 'calves'] },
+  { label: i18n.t('workoutGenerate.muscleGroups.core'), muscles: ['abs', 'obliques'] },
 ];
 
+const DURATION_OPTIONS = [30, 45, 60, 75, 90] as const;
+
 export default function GenerateWorkoutScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{
     suggestedMuscles?: string;
@@ -83,6 +88,7 @@ export default function GenerateWorkoutScreen() {
   const [equipment, setEquipment] = useState<EquipmentSetup>(
     userProfile?.equipment || 'full_gym'
   );
+  const [targetDuration, setTargetDuration] = useState(60);
   const [generatedExercises, setGeneratedExercises] = useState<GeneratedExercise[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [showSwap, setShowSwap] = useState<{ index: number; exerciseId: string } | null>(null);
@@ -95,8 +101,8 @@ export default function GenerateWorkoutScreen() {
 
   // Live summary for selector step
   const summary = useMemo(
-    () => estimateSessionSummary(Array.from(selectedMuscles), equipment),
-    [selectedMuscles, equipment],
+    () => estimateSessionSummary(Array.from(selectedMuscles), equipment, targetDuration),
+    [selectedMuscles, equipment, targetDuration],
   );
 
   // Session label
@@ -183,6 +189,7 @@ export default function GenerateWorkoutScreen() {
     const result = generateSmartWorkout({
       selectedMuscles: Array.from(selectedMuscles),
       equipment,
+      targetDurationMin: targetDuration,
       history,
       userWeight: userProfile?.weight,
       userSex: userProfile?.sex,
@@ -217,6 +224,9 @@ export default function GenerateWorkoutScreen() {
         case 'rest':
           ex.restTime = Math.max(15, ex.restTime + delta * 15);
           break;
+        case 'setTime':
+          ex.setTime = Math.max(10, ex.setTime + delta * 5);
+          break;
       }
 
       next[index] = ex;
@@ -224,7 +234,7 @@ export default function GenerateWorkoutScreen() {
     });
   }, []);
 
-  // Swap exercise
+  // Swap exercise — estimate weight for new exercise
   const handleSwap = useCallback((newExerciseId: string) => {
     if (!showSwap) return;
     const { index } = showSwap;
@@ -235,15 +245,34 @@ export default function GenerateWorkoutScreen() {
       const newEx = getExerciseById(newExerciseId);
       if (!newEx) return prev;
 
+      // Estimate weight: progressive overload from history, else BW estimate
+      let weight = 0;
+      const completedHistory = history.filter(
+        (s) => s.endTime && s.completedExercises.length > 0,
+      );
+      const progressive = getProgressiveWeight(
+        newExerciseId, newEx.equipment, old.minReps, completedHistory,
+      );
+      if (progressive.action !== 'none') {
+        weight = progressive.weight;
+      } else {
+        weight = getEstimatedWeight(
+          newExerciseId, newEx.equipment, newEx.target,
+          userProfile?.weight || 80,
+          userProfile?.sex || 'male',
+          userProfile?.experience || 'intermediate',
+        );
+      }
+
       next[index] = {
         ...old,
         exerciseId: newExerciseId,
-        suggestedWeight: 0, // Reset weight for new exercise
+        suggestedWeight: weight,
       };
       return next;
     });
     setShowSwap(null);
-  }, [showSwap]);
+  }, [showSwap, history, userProfile]);
 
   // Save as custom workout
   const handleSave = useCallback(() => {
@@ -328,13 +357,13 @@ export default function GenerateWorkoutScreen() {
         <View style={styles.orbOrange} pointerEvents="none" />
         <View style={styles.orbBlue} pointerEvents="none" />
 
-        <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        <View style={{ flex: 1, paddingTop: insets.top }}>
           {/* Header */}
           <View style={styles.header}>
             <Pressable style={styles.backButton} onPress={() => router.back()}>
               <ArrowLeft size={22} color="#fff" strokeWidth={2} />
             </Pressable>
-            <Text style={styles.headerTitle}>Générer une séance</Text>
+            <Text style={styles.headerTitle}>{i18n.t('workoutGenerate.title')}</Text>
           </View>
 
           <ScrollView
@@ -342,17 +371,14 @@ export default function GenerateWorkoutScreen() {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* Equipment selector */}
+            {/* Equipment — plain text tabs */}
             <View style={styles.sectionBlock}>
-              <Text style={styles.sectionLabel}>ÉQUIPEMENT</Text>
+              <Text style={styles.sectionLabel}>{i18n.t('workoutGenerate.equipmentSection')}</Text>
               <View style={styles.equipmentRow}>
                 {EQUIPMENT_OPTIONS.map((opt) => (
                   <PressableScale
                     key={opt.key}
-                    style={[
-                      styles.equipmentPill,
-                      equipment === opt.key && styles.equipmentPillActive,
-                    ]}
+                    activeScale={0.97}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       setEquipment(opt.key);
@@ -371,28 +397,100 @@ export default function GenerateWorkoutScreen() {
               </View>
             </View>
 
-            {/* Muscle chips grid */}
+            {/* Duration — plain text tabs */}
             <View style={styles.sectionBlock}>
-              <Text style={styles.sectionLabel}>MUSCLES CIBLÉS</Text>
-              <View style={styles.muscleGrid}>
-                {allMuscleData.map((m) => (
-                  <MuscleChip
-                    key={m.muscle}
-                    muscle={m.muscle}
-                    labelFr={m.labelFr}
-                    recoveryStatus={m.recoveryStatus}
-                    zoneColor={m.zoneColor}
-                    zoneLabelShort={m.zoneLabelShort}
-                    selected={selectedMuscles.has(m.muscle)}
-                    onPress={() => toggleMuscle(m.muscle)}
-                  />
+              <Text style={styles.sectionLabel}>{i18n.t('workoutGenerate.durationSection')}</Text>
+              <View style={styles.durationRow}>
+                {DURATION_OPTIONS.map((min) => (
+                  <PressableScale
+                    key={min}
+                    activeScale={0.97}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setTargetDuration(min);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.durationText,
+                        targetDuration === min && styles.durationTextActive,
+                      ]}
+                    >
+                      {min} min
+                    </Text>
+                  </PressableScale>
                 ))}
               </View>
             </View>
+
+            {/* Muscle groups — clean tappable rows */}
+            {MUSCLE_GROUPS.map((group) => {
+              const groupSelected = group.muscles.filter((m) => selectedMuscles.has(m)).length;
+              const allGroupSelected = groupSelected === group.muscles.length;
+
+              return (
+                <View key={group.label} style={styles.muscleGroup}>
+                  {/* Group header — tappable to toggle all */}
+                  <Pressable
+                    style={styles.groupHeaderRow}
+                    onPress={() => toggleGroup(group.muscles)}
+                  >
+                    <Text style={[styles.groupLabel, allGroupSelected && styles.groupLabelActive]}>
+                      {group.label}
+                    </Text>
+                    {groupSelected > 0 && (
+                      <Text style={styles.groupCount}>
+                        {groupSelected}/{group.muscles.length}
+                      </Text>
+                    )}
+                  </Pressable>
+
+                  {/* Muscle rows */}
+                  {group.muscles.map((muscleKey) => {
+                    const data = muscleDataMap[muscleKey];
+                    if (!data) return null;
+                    const isSelected = selectedMuscles.has(muscleKey);
+
+                    return (
+                      <PressableScale
+                        key={muscleKey}
+                        activeScale={0.98}
+                        style={styles.muscleRow}
+                        onPress={() => toggleMuscle(muscleKey)}
+                      >
+                        <View
+                          style={[
+                            styles.recoveryDot,
+                            { backgroundColor: RECOVERY_COLORS[data.recoveryStatus] },
+                          ]}
+                        />
+                        <Text
+                          style={[
+                            styles.muscleName,
+                            isSelected && styles.muscleNameSelected,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {data.labelFr}
+                        </Text>
+                        {data.zoneLabelShort ? (
+                          <Text style={[styles.zoneLabel, { color: data.zoneColor }]}>
+                            {data.zoneLabelShort}
+                          </Text>
+                        ) : null}
+                        {isSelected && (
+                          <Check size={15} color={Colors.primary} strokeWidth={2.5} />
+                        )}
+                      </PressableScale>
+                    );
+                  })}
+                </View>
+              );
+            })}
           </ScrollView>
 
           {/* Bottom bar */}
-          <View style={styles.bottomBar}>
+          <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
             {selectedMuscles.size > 0 && (
               <Text style={styles.summaryText}>
                 {summary.muscleCount} muscle{summary.muscleCount > 1 ? 's' : ''} · ~{summary.totalSets} séries · ~{summary.estimatedMinutes} min
@@ -400,12 +498,12 @@ export default function GenerateWorkoutScreen() {
             )}
             <AnimatedStartButton
               onPress={handleGenerate}
-              label="Générer"
-              loadingLabel="Génération..."
+              label={i18n.t('workoutGenerate.generate')}
+              loadingLabel={i18n.t('workoutGenerate.generating')}
               disabled={selectedMuscles.size === 0}
             />
           </View>
-        </SafeAreaView>
+        </View>
       </View>
     );
   }
@@ -417,7 +515,7 @@ export default function GenerateWorkoutScreen() {
       <View style={styles.orbOrange} pointerEvents="none" />
       <View style={styles.orbBlue} pointerEvents="none" />
 
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <View style={{ flex: 1, paddingTop: insets.top }}>
         {/* Header — session name + stats */}
         <View style={styles.header}>
           <Pressable
@@ -550,7 +648,7 @@ export default function GenerateWorkoutScreen() {
                 {isEditing && (
                   <View style={styles.editorPanel}>
                     <View style={styles.editorRow}>
-                      <Text style={styles.editorFieldLabel}>Séries</Text>
+                      <Text style={styles.editorFieldLabel}>{i18n.t('workoutDetail.sets')}</Text>
                       <View style={styles.stepperRow}>
                         <Pressable style={styles.stepperBtn} onPress={() => handleEditField(idx, 'sets', -1)}>
                           <Minus size={14} color="#fff" />
@@ -563,7 +661,7 @@ export default function GenerateWorkoutScreen() {
                     </View>
 
                     <View style={styles.editorRow}>
-                      <Text style={styles.editorFieldLabel}>Reps</Text>
+                      <Text style={styles.editorFieldLabel}>{i18n.t('workoutDetail.reps')}</Text>
                       <View style={styles.stepperRow}>
                         <Pressable style={styles.stepperBtn} onPress={() => handleEditField(idx, 'reps', -1)}>
                           <Minus size={14} color="#fff" />
@@ -576,7 +674,7 @@ export default function GenerateWorkoutScreen() {
                     </View>
 
                     <View style={styles.editorRow}>
-                      <Text style={styles.editorFieldLabel}>Charge (kg)</Text>
+                      <Text style={styles.editorFieldLabel}>{i18n.t('workoutDetail.weight')}</Text>
                       <View style={styles.stepperRow}>
                         <Pressable style={styles.stepperBtn} onPress={() => handleEditField(idx, 'weight', -1)}>
                           <Minus size={14} color="#fff" />
@@ -589,13 +687,26 @@ export default function GenerateWorkoutScreen() {
                     </View>
 
                     <View style={styles.editorRow}>
-                      <Text style={styles.editorFieldLabel}>Repos (s)</Text>
+                      <Text style={styles.editorFieldLabel}>{i18n.t('workoutDetail.rest')}</Text>
                       <View style={styles.stepperRow}>
                         <Pressable style={styles.stepperBtn} onPress={() => handleEditField(idx, 'rest', -1)}>
                           <Minus size={14} color="#fff" />
                         </Pressable>
                         <Text style={styles.stepperValue}>{ge.restTime}</Text>
                         <Pressable style={styles.stepperBtn} onPress={() => handleEditField(idx, 'rest', 1)}>
+                          <Plus size={14} color="#fff" />
+                        </Pressable>
+                      </View>
+                    </View>
+
+                    <View style={styles.editorRow}>
+                      <Text style={styles.editorFieldLabel}>{i18n.t('workoutDetail.timePerSet')}</Text>
+                      <View style={styles.stepperRow}>
+                        <Pressable style={styles.stepperBtn} onPress={() => handleEditField(idx, 'setTime', -1)}>
+                          <Minus size={14} color="#fff" />
+                        </Pressable>
+                        <Text style={styles.stepperValue}>{ge.setTime}</Text>
+                        <Pressable style={styles.stepperBtn} onPress={() => handleEditField(idx, 'setTime', 1)}>
                           <Plus size={14} color="#fff" />
                         </Pressable>
                       </View>
@@ -610,14 +721,14 @@ export default function GenerateWorkoutScreen() {
         </ScrollView>
 
         {/* Bottom — single CTA */}
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
           <AnimatedStartButton
             onPress={() => setShowReadiness(true)}
-            label="Commencer"
-            loadingLabel="C'est parti !"
+            label={i18n.t('workoutGenerate.startSession')}
+            loadingLabel={i18n.t('workoutGenerate.letsGo')}
           />
         </View>
-      </SafeAreaView>
+      </View>
 
       {/* Modals */}
       <ExerciseInfoSheet
@@ -654,9 +765,9 @@ export default function GenerateWorkoutScreen() {
         onClose={() => setShowPacingWarning(false)}
         icon={<Timer size={24} color="#FBBF24" />}
         iconBgColor="rgba(251,191,36,0.12)"
-        title="Déjà une séance aujourd'hui"
-        description="Tu as déjà terminé une séance aujourd'hui. Veux-tu quand même en commencer une autre ?"
-        confirmText="Continuer"
+        title={i18n.t('workoutGenerate.alreadyTrainedTitle')}
+        description={i18n.t('workoutGenerate.alreadyTrainedMessage')}
+        confirmText={i18n.t('common.continue')}
         confirmColor={Colors.primary}
         onConfirm={() => {
           setShowPacingWarning(false);
@@ -675,13 +786,13 @@ function getLabel(muscles: string[]): string {
   const hasPull = set.has('lats') || set.has('upper back') || set.has('biceps');
   const hasLegs = set.has('quads') || set.has('hamstrings') || set.has('glutes');
 
-  if (hasPush && !hasPull && !hasLegs) return 'Push';
-  if (hasPull && !hasPush && !hasLegs) return 'Pull';
-  if (hasLegs && !hasPush && !hasPull) return 'Jambes';
-  if (hasPush && hasPull && !hasLegs) return 'Haut du corps';
-  if (hasLegs && !hasPush && !hasPull) return 'Bas du corps';
-  if (hasPush && hasPull && hasLegs) return 'Full Body';
-  return 'Entraînement';
+  if (hasPush && !hasPull && !hasLegs) return i18n.t('workoutGenerate.sessionLabels.push');
+  if (hasPull && !hasPush && !hasLegs) return i18n.t('workoutGenerate.sessionLabels.pull');
+  if (hasLegs && !hasPush && !hasPull) return i18n.t('workoutGenerate.sessionLabels.legs');
+  if (hasPush && hasPull && !hasLegs) return i18n.t('workoutGenerate.sessionLabels.upper');
+  if (hasLegs && !hasPush && !hasPull) return i18n.t('workoutGenerate.sessionLabels.lower');
+  if (hasPush && hasPull && hasLegs) return i18n.t('workoutGenerate.sessionLabels.fullBody');
+  return i18n.t('workoutGenerate.sessionLabels.default');
 }
 
 // ─── Styles ───
@@ -729,7 +840,7 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.06)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -769,23 +880,14 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
 
-  // Equipment
+  // Equipment — plain text tabs
   equipmentRow: {
     flexDirection: 'row',
-    gap: 10,
-  },
-  equipmentPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: 'transparent',
-  },
-  equipmentPillActive: {
-    backgroundColor: 'rgba(255,107,53,0.1)',
+    gap: 20,
   },
   equipmentText: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 13,
+    color: 'rgba(255,255,255,0.35)',
+    fontSize: 14,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
   },
@@ -795,11 +897,77 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Muscle grid
-  muscleGrid: {
+  // Duration — plain text tabs
+  durationRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    gap: 20,
+  },
+  durationText: {
+    color: 'rgba(255,255,255,0.35)',
+    fontSize: 14,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+  },
+  durationTextActive: {
+    color: '#FFFFFF',
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+  },
+
+  // Muscle groups
+  muscleGroup: {
+    gap: 2,
+  },
+  groupHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    marginBottom: 2,
+  },
+  groupLabel: {
+    color: 'rgba(255,255,255,0.25)',
+    fontSize: 11,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    letterSpacing: 1.5,
+  },
+  groupLabelActive: {
+    color: 'rgba(255,107,53,0.5)',
+  },
+  groupCount: {
+    color: 'rgba(255,255,255,0.2)',
+    fontSize: 11,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+  },
+  muscleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 11,
+    gap: 10,
+  },
+  recoveryDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  muscleName: {
+    flex: 1,
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 15,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+  },
+  muscleNameSelected: {
+    color: 'rgba(255,255,255,0.9)',
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+  },
+  zoneLabel: {
+    fontSize: 11,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
   },
 
   // Summary
@@ -816,7 +984,7 @@ const styles = StyleSheet.create({
   saveIconBtn: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.06)',
     alignItems: 'center',
     justifyContent: 'center',
