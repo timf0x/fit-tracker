@@ -38,7 +38,6 @@ import {
   getMuscleFrequency,
 } from '@/lib/statsHelpers';
 import { getSetsForWeek, getWeekBounds, getWeekLabel } from '@/lib/weeklyVolume';
-import { mockWeeklyVolume } from '@/lib/mock-data';
 
 const WEEKS_AVAILABLE = 12;
 
@@ -152,17 +151,12 @@ export default function StatsScreen() {
   );
 
   // Radar uses the selected week's data
-  const muscleData = useMemo(() => {
-    const hasData = Object.values(weekSetsData).some((v) => v > 0);
-    return hasData ? weekSetsData : mockWeeklyVolume;
-  }, [weekSetsData]);
+  const muscleData = useMemo(() => weekSetsData, [weekSetsData]);
 
   // Volume shortcut data
   const volumeShortcut = useMemo(() => {
-    const hasData = Object.values(weekSetsData).some((v) => v > 0);
-    const data = hasData ? weekSetsData : mockWeeklyVolume;
-    const totalSets = Object.values(data).reduce((a, b) => a + b, 0);
-    const muscleCount = Object.values(data).filter((v) => v > 0).length;
+    const totalSets = Object.values(weekSetsData).reduce((a, b) => a + b, 0);
+    const muscleCount = Object.values(weekSetsData).filter((v) => v > 0).length;
     return { totalSets, muscleCount };
   }, [weekSetsData]);
 

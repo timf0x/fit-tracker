@@ -35,7 +35,6 @@ import {
 } from '@/constants/volumeLandmarks';
 import { getWeekLabel, getSetsForWeek, getWeekBounds } from '@/lib/weeklyVolume';
 import { getMuscleTrends } from '@/lib/progressiveOverload';
-import { mockWeeklyVolume } from '@/lib/mock-data';
 
 const WEEKS_AVAILABLE = 12;
 
@@ -77,9 +76,7 @@ export default function VolumeScreen() {
   const weekLabel = useMemo(() => getWeekLabel(weekOffset), [weekOffset]);
 
   const weekData = useMemo(() => {
-    const fromHistory = getSetsForWeek(history, weekOffset);
-    const hasData = Object.values(fromHistory).some((v) => v > 0);
-    return hasData ? fromHistory : weekOffset === 0 ? mockWeeklyVolume : {};
+    return getSetsForWeek(history, weekOffset);
   }, [history, weekOffset]);
 
   // Trends: compare selected week vs previous week
