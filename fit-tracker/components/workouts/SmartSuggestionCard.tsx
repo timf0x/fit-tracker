@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { Plus, BookOpen } from 'lucide-react-native';
+import { Plus, BookOpen, Sparkles } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/theme';
 import { AnimatedStartButton } from '@/components/ui/AnimatedStartButton';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -43,6 +43,7 @@ export function SmartSuggestionCard({
             label={i18n.t('smartSuggestion.generateSession')}
             loadingLabel={i18n.t('smartSuggestion.letsGo')}
             iconSize={16}
+            icon={Sparkles}
           />
         </View>
 
@@ -134,6 +135,7 @@ export function SmartSuggestionCard({
           label={i18n.t('smartSuggestion.generateButton')}
           loadingLabel={i18n.t('common.generating')}
           iconSize={16}
+          icon={Sparkles}
         />
       </View>
     </View>
