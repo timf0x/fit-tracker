@@ -158,6 +158,8 @@ export default {
       equipment: 'Équipement',
       duration: 'Durée',
     },
+    deleteTitle: 'Supprimer ce workout ?',
+    deleteMessage: 'Cette action est irréversible.',
   },
 
   // ─── Workout Create ───
@@ -323,6 +325,33 @@ export default {
     bilateral: 'Bilatéral',
     secondaryMuscles: 'Muscles secondaires',
     formTips: 'CONSEILS DE FORME',
+    // Post-session feedback
+    feedbackTitle: 'TON RESSENTI',
+    feedbackPump: 'Congestion',
+    feedbackPumpLow: 'Faible',
+    feedbackPumpMed: 'Bonne',
+    feedbackPumpHigh: 'Énorme',
+    feedbackSoreness: 'Courbatures',
+    feedbackSorenessLow: 'Aucune',
+    feedbackSorenessMed: 'Modérées',
+    feedbackSorenessHigh: 'Fortes',
+    feedbackPerformance: 'Performance',
+    feedbackPerfLow: 'En baisse',
+    feedbackPerfMed: 'Stable',
+    feedbackPerfHigh: 'En hausse',
+    feedbackJointPain: 'Douleurs articulaires',
+    feedbackNudgeOverreached: 'Surmenage détecté — pense à décharger',
+    feedbackNudgeUnder: 'Tu peux pousser plus — ajoute du volume',
+    feedbackNudgeOptimal: 'Stimulus optimal — continue comme ça !',
+    feedbackNudgeJoint: 'Attention aux articulations — adapte tes mouvements',
+    // RIR (Reps In Reserve)
+    rirLabel: 'RIR',
+    rirTooltip: 'Reps en réserve — combien de reps de plus aurais-tu pu faire ?',
+    rir0: 'Échec',
+    rir1: 'Dur',
+    rir2: 'Optimal',
+    rir3: 'Modéré',
+    rir4: 'Facile',
   },
 
   // ─── Program Onboarding ───
@@ -580,6 +609,7 @@ export default {
     goals: 'objectifs',
     total: 'total',
     successRate: 'taux de réussite',
+    unavailable: 'Le podomètre n\'est pas disponible sur cet appareil. Les données de pas ne peuvent pas être récupérées.',
   },
 
   // ─── Trophies Screen ───

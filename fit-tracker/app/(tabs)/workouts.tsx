@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
-import { Plus, Dumbbell } from 'lucide-react-native';
+import { useMemo, useState, useCallback } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, Modal } from 'react-native';
+import { Plus, Dumbbell, Trash2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { WorkoutListCard } from '@/components/workouts/WorkoutListCard';
 import { SmartSuggestionCard } from '@/components/workouts/SmartSuggestionCard';
@@ -15,11 +16,27 @@ export default function WorkoutsScreen() {
   const router = useRouter();
   const history = useWorkoutStore((s) => s.history);
   const customWorkouts = useWorkoutStore((s) => s.customWorkouts);
+  const deleteCustomWorkout = useWorkoutStore((s) => s.deleteCustomWorkout);
+
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const suggestion = useMemo(
     () => computeSmartSuggestion(history),
     [history],
   );
+
+  const handleLongPress = useCallback((id: string, name: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    setDeleteTarget({ id, name });
+  }, []);
+
+  const confirmDelete = useCallback(() => {
+    if (deleteTarget) {
+      deleteCustomWorkout(deleteTarget.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+    setDeleteTarget(null);
+  }, [deleteTarget, deleteCustomWorkout]);
 
   const handleAdd = () => router.push('/workout/create');
 
@@ -85,6 +102,7 @@ export default function WorkoutsScreen() {
                   key={workout.id}
                   workout={workout}
                   onPress={() => router.push(`/workout/${workout.id}`)}
+                  onLongPress={() => handleLongPress(workout.id, workout.nameFr)}
                 />
               ))}
             </View>
@@ -109,6 +127,30 @@ export default function WorkoutsScreen() {
           </View>
         ) : null}
       </ScrollView>
+
+      {/* Delete Confirmation Modal */}
+      <Modal visible={!!deleteTarget} transparent animationType="fade" onRequestClose={() => setDeleteTarget(null)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setDeleteTarget(null)}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIconCircle}>
+              <Trash2 size={22} color="#EF4444" strokeWidth={2} />
+            </View>
+            <Text style={styles.modalTitle}>{i18n.t('workouts.deleteTitle')}</Text>
+            <Text style={styles.modalDesc}>
+              {deleteTarget?.name ? `« ${deleteTarget.name} »\n` : ''}
+              {i18n.t('workouts.deleteMessage')}
+            </Text>
+            <View style={styles.modalActions}>
+              <Pressable style={styles.modalDeleteBtn} onPress={confirmDelete}>
+                <Text style={styles.modalDeleteText}>{i18n.t('common.delete')}</Text>
+              </Pressable>
+              <Pressable style={styles.modalCancelBtn} onPress={() => setDeleteTarget(null)}>
+                <Text style={styles.modalCancelText}>{i18n.t('common.cancel')}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -267,5 +309,80 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
+  },
+
+  // Delete modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: '#1A1A1A',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: 24,
+    alignItems: 'center',
+  },
+  modalIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  modalDesc: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 14,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  modalActions: {
+    width: '100%',
+    gap: 10,
+  },
+  modalDeleteBtn: {
+    width: '100%',
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: 'rgba(239,68,68,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalDeleteText: {
+    color: '#EF4444',
+    fontSize: 15,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+  },
+  modalCancelBtn: {
+    width: '100%',
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 15,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
   },
 });

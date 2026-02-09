@@ -158,6 +158,8 @@ export default {
       equipment: 'Equipment',
       duration: 'Duration',
     },
+    deleteTitle: 'Delete this workout?',
+    deleteMessage: 'This action cannot be undone.',
   },
 
   // ─── Workout Create ───
@@ -323,6 +325,33 @@ export default {
     bilateral: 'Bilateral',
     secondaryMuscles: 'Secondary muscles',
     formTips: 'FORM TIPS',
+    // Post-session feedback
+    feedbackTitle: 'YOUR FEEDBACK',
+    feedbackPump: 'Pump',
+    feedbackPumpLow: 'Low',
+    feedbackPumpMed: 'Good',
+    feedbackPumpHigh: 'Huge',
+    feedbackSoreness: 'Soreness',
+    feedbackSorenessLow: 'None',
+    feedbackSorenessMed: 'Moderate',
+    feedbackSorenessHigh: 'Intense',
+    feedbackPerformance: 'Performance',
+    feedbackPerfLow: 'Declining',
+    feedbackPerfMed: 'Stable',
+    feedbackPerfHigh: 'Improving',
+    feedbackJointPain: 'Joint pain',
+    feedbackNudgeOverreached: 'Overreached — consider a deload',
+    feedbackNudgeUnder: 'Room to grow — add more volume',
+    feedbackNudgeOptimal: 'Optimal stimulus — keep it up!',
+    feedbackNudgeJoint: 'Watch your joints — adapt your movements',
+    // RIR (Reps In Reserve)
+    rirLabel: 'RIR',
+    rirTooltip: 'Reps in Reserve — how many more reps could you have done?',
+    rir0: 'Failure',
+    rir1: 'Hard',
+    rir2: 'Optimal',
+    rir3: 'Moderate',
+    rir4: 'Easy',
   },
 
   // ─── Program Onboarding ───
@@ -580,6 +609,7 @@ export default {
     goals: 'goals',
     total: 'total',
     successRate: 'success rate',
+    unavailable: 'Pedometer is not available on this device. Step data cannot be retrieved.',
   },
 
   // ─── Trophies Screen ───

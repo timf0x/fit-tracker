@@ -44,17 +44,16 @@ export async function initAudio() {
   try {
     await Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: true,
-      interruptionModeIOS: 2,  // DUCK_OTHERS — lower Spotify/music volume during sounds
-      interruptionModeAndroid: 2, // DUCK_OTHERS
+      playsInSilentModeIOS: false, // false = .ambient category (never interrupts other apps)
+      staysActiveInBackground: false,
+      interruptionModeIOS: 0,  // MIX_WITH_OTHERS (0=mix, 1=doNotMix, 2=duck)
+      interruptionModeAndroid: 2, // DUCK_OTHERS (no mix option on Android)
       shouldDuckAndroid: true,
     });
 
-    // Warm up iOS TTS engine (first call is often silent)
-    Speech.speak(' ', { language: 'fr-FR', rate: 10, pitch: 0.1 });
-    await new Promise(resolve => setTimeout(resolve, 200));
-    Speech.stop();
+    // NOTE: No TTS warmup here — Speech.speak() steals the iOS audio session
+    // and kills background music. The first TTS call may be slightly delayed
+    // but that's acceptable to preserve Spotify/Apple Music playback.
 
     // Preload all local sounds (instant — no network needed)
     await Promise.allSettled(
@@ -106,15 +105,32 @@ export function playTickSound() {
 
 // ─── Text-to-Speech ───
 
+function restoreMixMode() {
+  // Re-apply ambient+mix after Speech.speak steals the iOS audio session
+  Audio.setAudioModeAsync({
+    allowsRecordingIOS: false,
+    playsInSilentModeIOS: false,
+    staysActiveInBackground: false,
+    interruptionModeIOS: 0,
+    interruptionModeAndroid: 2,
+    shouldDuckAndroid: true,
+  }).catch(() => {});
+}
+
 function speakNow(text: string, pitch?: number, rate?: number) {
   if (!_voiceEnabled || _killed) return;
   const languageCode = _language === 'fr' ? 'fr-FR' : 'en-US';
   try {
+    // Re-apply mix mode before speaking so AVSpeechSynthesizer inherits it
+    restoreMixMode();
     Speech.speak(text, {
       language: languageCode,
       pitch: pitch ?? 1.0,
       rate: rate ?? 1.20,
       volume: _soundVolume,
+      onDone: restoreMixMode,
+      onStopped: restoreMixMode,
+      onError: restoreMixMode,
     });
   } catch {}
 }
@@ -213,6 +229,7 @@ export function announceCountdown(seconds: number) {
   if (_voiceEnabled && seconds <= 3 && seconds > 0) {
     const pitch = 0.9 + (4 - seconds) * 0.1;
     Speech.stop();
+    restoreMixMode();
     setTimeout(() => speakNow(seconds.toString(), pitch, 1.56), 150);
   }
 }
@@ -249,6 +266,7 @@ export async function cleanupAudio() {
 
     // Stop current speech immediately
     Speech.stop();
+    restoreMixMode();
 
     for (const sound of Object.values(soundCache)) {
       await sound.unloadAsync();

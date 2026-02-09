@@ -4,7 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Workout, WorkoutSession, WorkoutStats, HistoryFilter } from '@/types';
 import { presetWorkouts } from '@/data/workouts';
 import { useProgramStore } from '@/stores/programStore';
-import type { ReadinessCheck } from '@/types/program';
+import { useBadgeStore } from '@/stores/badgeStore';
+import type { ReadinessCheck, SessionFeedback } from '@/types/program';
 
 interface WorkoutStoreState {
   customWorkouts: Workout[];
@@ -152,7 +153,18 @@ export const useWorkoutStore = create<WorkoutStoreState>()(
         // Mark program day completed if this was a program session
         if (session?.programId && session.programWeek != null && session.programDayIndex != null) {
           useProgramStore.getState().markDayCompleted(session.programWeek, session.programDayIndex);
+          // Save session feedback to program store for volume adaptation
+          if (data.feedback) {
+            useProgramStore.getState().saveSessionFeedback(
+              session.programWeek,
+              session.programDayIndex,
+              data.feedback as SessionFeedback,
+            );
+          }
         }
+
+        // Check badge unlocks with updated history
+        useBadgeStore.getState().checkBadges(get().history);
       },
 
       deleteSession: (sessionId) => {

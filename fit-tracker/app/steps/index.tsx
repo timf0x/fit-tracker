@@ -1,9 +1,11 @@
 /**
  * Steps Detail Page
  * Hero number, ruler time picker, SVG chart, metric strip
+ * Uses real pedometer data via expo-sensors (iOS Core Motion)
+ * with AsyncStorage cache for historical data beyond 7 days.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,6 +13,8 @@ import {
   ScrollView,
   Pressable,
   Dimensions,
+  AppState,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -27,7 +31,11 @@ import Svg, {
 } from 'react-native-svg';
 import { Fonts } from '@/constants/theme';
 import i18n from '@/lib/i18n';
-import { generateMockStepsHistory } from '@/lib/mock-data';
+import {
+  getStepsHistory,
+  isPedometerAvailable,
+  DailySteps,
+} from '@/services/pedometer';
 
 type TimeFilter = 'week' | 'month' | 'year';
 
@@ -47,13 +55,32 @@ const TIME_FILTERS: { value: TimeFilter; label: string; days: number }[] = [
 export default function StepsScreen() {
   const router = useRouter();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('week');
+  const [stepsData, setStepsData] = useState<DailySteps[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [available, setAvailable] = useState(true);
 
   const filterDays =
     TIME_FILTERS.find((f) => f.value === timeFilter)?.days || 7;
-  const stepsData = useMemo(
-    () => generateMockStepsHistory(filterDays),
-    [filterDays]
-  );
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    const isAvailable = await isPedometerAvailable();
+    setAvailable(isAvailable);
+    const data = await getStepsHistory(filterDays);
+    setStepsData(data);
+    setLoading(false);
+  }, [filterDays]);
+
+  useEffect(() => {
+    fetchData();
+
+    // Refresh when app comes to foreground
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') fetchData();
+    });
+
+    return () => sub.remove();
+  }, [fetchData]);
 
   const stats = useMemo(() => {
     if (stepsData.length === 0)
@@ -106,7 +133,7 @@ export default function StepsScreen() {
     index: number,
     total: number
   ): string => {
-    const date = new Date(dateStr);
+    const date = new Date(dateStr + 'T00:00:00');
     if (timeFilter === 'week') {
       const days = i18n.t('steps.dayAbbr') as unknown as string[];
       return days[date.getDay()];
@@ -165,12 +192,25 @@ export default function StepsScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
+          {/* ── Unavailable notice ── */}
+          {!available && !loading && (
+            <View style={styles.noticeCard}>
+              <Text style={styles.noticeText}>
+                {i18n.t('steps.unavailable')}
+              </Text>
+            </View>
+          )}
+
           {/* ── Hero ── */}
           <View style={styles.hero}>
             <View style={styles.heroRow}>
-              <Text style={styles.heroNumber}>
-                {stats.todaySteps.toLocaleString()}
-              </Text>
+              {loading ? (
+                <ActivityIndicator size="small" color="#3B82F6" />
+              ) : (
+                <Text style={styles.heroNumber}>
+                  {stats.todaySteps.toLocaleString()}
+                </Text>
+              )}
               <Text style={styles.heroUnit}>{i18n.t('steps.stepsUnit')}</Text>
             </View>
             <View style={styles.heroProgressRow}>
@@ -465,6 +505,22 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 40,
+  },
+
+  // Unavailable notice
+  noticeCard: {
+    backgroundColor: 'rgba(251,191,36,0.08)',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+  noticeText: {
+    color: '#FBBF24',
+    fontSize: 13,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    lineHeight: 18,
   },
 
   // ── Hero ──

@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.chrislin-mpika.fittracker"
+      "bundleIdentifier": "com.chrislin-mpika.fittracker",
+      "infoPlist": {
+        "NSMotionUsageDescription": "Onset Fitness utilise les données de mouvement pour compter vos pas quotidiens."
+      }
     },
     "android": {
       "adaptiveIcon": {

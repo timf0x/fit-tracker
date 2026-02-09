@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -79,13 +79,16 @@ import {
   CalendarCheck,
 } from 'lucide-react-native';
 import { Fonts } from '@/constants/theme';
-import { ALL_BADGES, BADGE_CATEGORIES, TIER_CONFIG, USER_LEVELS } from '@/data/badges';
-import { MOCK_UNLOCKED_BADGE_IDS } from '@/lib/mock-data';
+import { BADGE_CATEGORIES, TIER_CONFIG, USER_LEVELS } from '@/data/badges';
+import { evaluateAllBadges } from '@/lib/badgeEvaluation';
+import { useWorkoutStore } from '@/stores/workoutStore';
+import { useBadgeStore } from '@/stores/badgeStore';
 import i18n, { getLocale } from '@/lib/i18n';
 import type { BadgeProgress, BadgeTier } from '@/types';
 
 /** Pick the locale-aware field from data objects that have both `name`/`nameFr` etc. */
-function loc<T extends Record<string, unknown>>(obj: T, field: string): string {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function loc(obj: any, field: string): string {
   const isFr = getLocale() === 'fr';
   const frKey = `${field}Fr`;
   return String(isFr ? (obj[frKey] ?? obj[field]) : (obj[field] ?? obj[frKey]));
@@ -119,23 +122,8 @@ function getIcon(name: string): IconComponent {
   return ICON_MAP[name] || Trophy;
 }
 
-// ── Build badge progress from mock data ──
-function buildMockProgress(): BadgeProgress[] {
-  return ALL_BADGES.map((badge) => {
-    const isUnlocked = MOCK_UNLOCKED_BADGE_IDS.includes(badge.id);
-    return {
-      badge,
-      isUnlocked,
-      unlockedAt: isUnlocked ? '2026-01-30T10:00:00Z' : undefined,
-      currentValue: isUnlocked ? badge.conditionValue : Math.random() * badge.conditionValue * 0.6,
-      targetValue: badge.conditionValue,
-      progressPercent: isUnlocked ? 100 : Math.random() * 60,
-    };
-  });
-}
-
-// ── Calculate summary ──
-function buildMockSummary(progress: BadgeProgress[]) {
+// ── Calculate summary from real progress ──
+function buildSummary(progress: BadgeProgress[]) {
   const unlocked = progress.filter((p) => p.isUnlocked);
   const totalPoints = unlocked.reduce((sum, p) => sum + p.badge.points, 0);
 
@@ -372,8 +360,20 @@ export default function TrophiesScreen() {
   const [detailBadge, setDetailBadge] = useState<BadgeProgress | null>(null);
   const [showDetail, setShowDetail] = useState(false);
 
-  const allProgress = useMemo(() => buildMockProgress(), []);
-  const summary = useMemo(() => buildMockSummary(allProgress), [allProgress]);
+  const history = useWorkoutStore((s) => s.history);
+  const unlockedBadges = useBadgeStore((s) => s.unlockedBadges);
+  const checkBadges = useBadgeStore((s) => s.checkBadges);
+
+  // Catch-up: persist any badges the user earned before the badge system existed
+  useEffect(() => {
+    if (history.length > 0) checkBadges(history);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const allProgress = useMemo(
+    () => evaluateAllBadges(history, unlockedBadges),
+    [history, unlockedBadges],
+  );
+  const summary = useMemo(() => buildSummary(allProgress), [allProgress]);
 
   const categorySections = useMemo(() => {
     return BADGE_CATEGORIES.map((cat) => {

@@ -89,6 +89,7 @@ export interface CompletedSet {
   weight?: number;
   completed: boolean;
   side?: 'right' | 'left';
+  rir?: number; // Reps In Reserve (0=failure, 1-3=effective, 4+=too easy)
 }
 
 export interface CompletedExercise {
@@ -110,6 +111,8 @@ export interface WorkoutSession {
   programDayIndex?: number;
   // Pre-session readiness check (optional)
   readiness?: import('@/types/program').ReadinessCheck;
+  // Post-session feedback (optional)
+  feedback?: import('@/types/program').SessionFeedback;
 }
 
 export interface WorkoutStats {

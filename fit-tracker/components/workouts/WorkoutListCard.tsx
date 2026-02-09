@@ -63,9 +63,10 @@ const BODY_PART_LABELS_FR: Record<string, string> = {
 interface WorkoutListCardProps {
   workout: Workout;
   onPress?: () => void;
+  onLongPress?: () => void;
 }
 
-export function WorkoutListCard({ workout, onPress }: WorkoutListCardProps) {
+export function WorkoutListCard({ workout, onPress, onLongPress }: WorkoutListCardProps) {
   const focusKey = workout.focus || 'full_body';
   const iconKey = workout.icon || focusKey;
   // Resolve icon: legacy alias → direct Lucide name → category lookup
@@ -98,6 +99,8 @@ export function WorkoutListCard({ workout, onPress }: WorkoutListCardProps) {
     <PressableScale
       style={styles.card}
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={500}
     >
       {/* Focus badge — subtle category tint */}
       <View style={[styles.iconBadge, { backgroundColor: badgeBg }]}>

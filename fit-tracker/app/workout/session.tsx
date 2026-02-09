@@ -43,6 +43,7 @@ import {
   Plus,
   Minus,
   X,
+  ArrowLeftRight,
 } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import i18n from '@/lib/i18n';
@@ -62,7 +63,11 @@ import {
   handleTimerTick,
 } from '@/services/audio';
 import { detectPRs } from '@/lib/progressiveOverload';
+import { TARGET_TO_MUSCLE } from '@/lib/muscleMapping';
+import { ExerciseSwapSheet } from '@/components/program/ExerciseSwapSheet';
+import { SessionFeedbackForm } from '@/components/session/SessionFeedbackForm';
 import type { CompletedSet, CompletedExercise, BodyPart } from '@/types';
+import type { EquipmentSetup, SessionFeedback } from '@/types/program';
 
 // ─── Types ───
 
@@ -132,6 +137,19 @@ function formatTimer(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+// RIR color coding (teaches users through color: green=optimal zone)
+const RIR_OPTIONS = [0, 1, 2, 3, 4] as const;
+const RIR_COLORS: Record<number, string> = {
+  0: '#EF4444', // failure — red
+  1: '#FBBF24', // very hard — amber
+  2: '#4ADE80', // optimal — green (RP sweet spot)
+  3: '#3B82F6', // moderate — blue
+  4: '#6B7280', // easy — gray (doesn't count as effective)
+};
+function getRirColor(rir: number): string {
+  return RIR_COLORS[Math.min(4, Math.max(0, rir))] || '#6B7280';
+}
+
 // ─── Main Screen ───
 
 export default function WorkoutSessionScreen() {
@@ -148,13 +166,13 @@ export default function WorkoutSessionScreen() {
     exercises: string;
   }>();
 
-  const sessionExercises: SessionExercise[] = useMemo(() => {
+  const [sessionExercises, setSessionExercises] = useState<SessionExercise[]>(() => {
     try {
       return JSON.parse(exercisesParam || '[]');
     } catch {
       return [];
     }
-  }, [exercisesParam]);
+  });
 
   // ─── Core State ───
   const [phase, setPhase] = useState<Phase>('prepare');
@@ -192,9 +210,77 @@ export default function WorkoutSessionScreen() {
     },
   }), []);
 
+  // ─── Exercise Swap ───
+  const [showSwap, setShowSwap] = useState<{ index: number; exerciseId: string } | null>(null);
+
+  const inferredEquipment: EquipmentSetup = useMemo(() => {
+    const equipTypes = sessionExercises
+      .map((ex) => {
+        const full = getExerciseById(ex.exerciseId);
+        return full?.equipment;
+      })
+      .filter(Boolean);
+    const hasGym = equipTypes.some((e) =>
+      ['barbell', 'cable', 'machine', 'smith machine', 'trap bar'].includes(e!)
+    );
+    if (hasGym) return 'full_gym';
+    const hasDumbbell = equipTypes.some((e) =>
+      ['dumbbell', 'kettlebell'].includes(e!)
+    );
+    if (hasDumbbell) return 'home_dumbbell';
+    return 'bodyweight';
+  }, [sessionExercises]);
+
+  const swapMuscleTargets = useMemo(() => {
+    if (!showSwap) return [];
+    const full = getExerciseById(showSwap.exerciseId);
+    if (!full) return [];
+    const muscle = TARGET_TO_MUSCLE[full.target] || full.bodyPart;
+    return [muscle];
+  }, [showSwap]);
+
+  const handleSessionSwap = useCallback((newExerciseId: string) => {
+    if (!showSwap) return;
+    const newEx = getExerciseById(newExerciseId);
+    if (!newEx) return;
+
+    const swapIdx = showSwap.index;
+    setSessionExercises((prev) => {
+      const updated = [...prev];
+      const old = updated[swapIdx];
+      updated[swapIdx] = {
+        ...old,
+        exerciseId: newEx.id,
+        exerciseName: newEx.nameFr,
+        exerciseNameEn: newEx.name,
+        bodyPart: newEx.bodyPart as BodyPart,
+        isUnilateral: newEx.isUnilateral,
+      };
+      return updated;
+    });
+
+    // Clear completed sets for the swapped exercise
+    setCompletedSets((prev) => {
+      const updated = { ...prev };
+      delete updated[swapIdx];
+      return updated;
+    });
+
+    setShowSwap(null);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [showSwap]);
+
   const [expandedExercises, setExpandedExercises] = useState<Record<number, boolean>>({});
   const [currentSide, setCurrentSide] = useState<'right' | 'left' | null>(null);
   const [timerKey, setTimerKey] = useState(0);
+
+  // ─── Post-Session Feedback ───
+  const [sessionFeedback, setSessionFeedback] = useState<SessionFeedback>({
+    pump: 2,
+    soreness: 1,
+    performance: 2,
+    jointPain: false,
+  });
 
   // ─── Sheet (exercise list bottom drawer) ───
   const sheetClosedY = SCREEN_HEIGHT - SHEET_HANDLE_HEIGHT - insets.bottom;
@@ -361,6 +447,7 @@ export default function WorkoutSessionScreen() {
         reps: ex.reps,
         weight: ex.weight,
         completed: true,
+        rir: ex.targetRir ?? 2,
         ...(currentSide ? { side: currentSide } : {}),
       };
       setCompletedSets((prev) => ({
@@ -593,12 +680,13 @@ export default function WorkoutSessionScreen() {
       store.endSession(sessionIdRef.current, {
         durationSeconds,
         completedExercises,
+        feedback: sessionFeedback,
       });
     }
     cleanupAudio();
     allowNavRef.current = true;
     router.back();
-  }, [completedSets, sessionExercises, store, router]);
+  }, [completedSets, sessionExercises, store, router, sessionFeedback]);
 
   // ─── Per-Set Editing Handlers ───
 
@@ -650,6 +738,16 @@ export default function WorkoutSessionScreen() {
       const sets = [...(prev[exIdx] || [])];
       if (!sets[setIdx]) return prev;
       sets[setIdx] = { ...sets[setIdx], weight: Math.max(0, num) };
+      return { ...prev, [exIdx]: sets };
+    });
+  }, []);
+
+  const handleUpdateSetRir = useCallback((exIdx: number, setIdx: number, rir: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setCompletedSets((prev) => {
+      const sets = [...(prev[exIdx] || [])];
+      if (!sets[setIdx]) return prev;
+      sets[setIdx] = { ...sets[setIdx], rir: Math.max(0, Math.min(5, rir)) };
       return { ...prev, [exIdx]: sets };
     });
   }, []);
@@ -1065,67 +1163,102 @@ export default function WorkoutSessionScreen() {
                         setLabel = String(setIdx + 1);
                       }
 
+                      const reviewRir = loggedSet.rir ?? 2;
+                      const reviewRirColor = isSetDone ? getRirColor(reviewRir) : 'rgba(255,255,255,0.2)';
+
                       return (
-                        <View key={setIdx} style={s.reviewSetRow}>
-                          <View style={[
-                            s.setNumber,
-                            isSetDone && { backgroundColor: 'rgba(74,222,128,0.12)' },
-                          ]}>
-                            <Text style={[
-                              s.setNumberText,
-                              isSetDone && { color: Colors.phases.finished },
+                        <View key={setIdx}>
+                          <View style={s.reviewSetRow}>
+                            <View style={[
+                              s.setNumber,
+                              isSetDone && { backgroundColor: 'rgba(74,222,128,0.12)' },
                             ]}>
-                              {setLabel}
-                            </Text>
-                          </View>
-
-                          <View style={s.stepperGroup}>
-                            <Text style={s.stepperLabel}>REPS</Text>
-                            <View style={s.stepperRow}>
-                              <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetReps(idx, setIdx, -1)}>
-                                <Minus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
-                              </Pressable>
-                              <TextInput
-                                style={s.stepperInput}
-                                value={String(loggedSet.reps)}
-                                onChangeText={(v) => handleSetRepsDirectly(idx, setIdx, v)}
-                                keyboardType="number-pad"
-                                selectTextOnFocus
-                              />
-                              <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetReps(idx, setIdx, 1)}>
-                                <Plus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
-                              </Pressable>
+                              <Text style={[
+                                s.setNumberText,
+                                isSetDone && { color: Colors.phases.finished },
+                              ]}>
+                                {setLabel}
+                              </Text>
                             </View>
-                          </View>
 
-                          {!isBodyweight && (
                             <View style={s.stepperGroup}>
-                              <Text style={s.stepperLabel}>KG</Text>
+                              <Text style={s.stepperLabel}>REPS</Text>
                               <View style={s.stepperRow}>
-                                <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetWeight(idx, setIdx, -0.5)}>
+                                <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetReps(idx, setIdx, -1)}>
                                   <Minus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
                                 </Pressable>
                                 <TextInput
                                   style={s.stepperInput}
-                                  value={String(loggedSet.weight ?? 0)}
-                                  onChangeText={(v) => handleSetWeightDirectly(idx, setIdx, v)}
-                                  keyboardType="decimal-pad"
+                                  value={String(loggedSet.reps)}
+                                  onChangeText={(v) => handleSetRepsDirectly(idx, setIdx, v)}
+                                  keyboardType="number-pad"
                                   selectTextOnFocus
                                 />
-                                <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetWeight(idx, setIdx, 0.5)}>
+                                <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetReps(idx, setIdx, 1)}>
                                   <Plus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
                                 </Pressable>
                               </View>
                             </View>
-                          )}
 
-                          <Pressable style={s.checkToggle} onPress={() => handleToggleSetCompleted(idx, setIdx)}>
-                            {isSetDone ? (
-                              <CircleCheck size={24} color={Colors.phases.finished} strokeWidth={2} />
-                            ) : (
-                              <Circle size={24} color="rgba(239,68,68,0.5)" strokeWidth={1.5} />
+                            {!isBodyweight && (
+                              <View style={s.stepperGroup}>
+                                <Text style={s.stepperLabel}>KG</Text>
+                                <View style={s.stepperRow}>
+                                  <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetWeight(idx, setIdx, -0.5)}>
+                                    <Minus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
+                                  </Pressable>
+                                  <TextInput
+                                    style={s.stepperInput}
+                                    value={String(loggedSet.weight ?? 0)}
+                                    onChangeText={(v) => handleSetWeightDirectly(idx, setIdx, v)}
+                                    keyboardType="decimal-pad"
+                                    selectTextOnFocus
+                                  />
+                                  <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetWeight(idx, setIdx, 0.5)}>
+                                    <Plus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
+                                  </Pressable>
+                                </View>
+                              </View>
                             )}
-                          </Pressable>
+
+                            <Pressable style={s.checkToggle} onPress={() => handleToggleSetCompleted(idx, setIdx)}>
+                              {isSetDone ? (
+                                <CircleCheck size={24} color={Colors.phases.finished} strokeWidth={2} />
+                              ) : (
+                                <Circle size={24} color="rgba(239,68,68,0.5)" strokeWidth={1.5} />
+                              )}
+                            </Pressable>
+                          </View>
+
+                          {/* RIR selector on finished screen */}
+                          {isSetDone && (
+                            <View style={s.rirRow}>
+                              <Text style={s.rirLabel}>{i18n.t('workoutSession.rirLabel')}</Text>
+                              <View style={s.rirOptions}>
+                                {RIR_OPTIONS.map((r) => {
+                                  const isActive = reviewRir === r;
+                                  const color = getRirColor(r);
+                                  return (
+                                    <Pressable
+                                      key={r}
+                                      style={[
+                                        s.rirOption,
+                                        isActive && { backgroundColor: `${color}20`, borderColor: `${color}50` },
+                                      ]}
+                                      onPress={() => handleUpdateSetRir(idx, setIdx, r)}
+                                    >
+                                      <Text style={[
+                                        s.rirOptionText,
+                                        isActive && { color, fontFamily: Fonts?.bold, fontWeight: '700' },
+                                      ]}>
+                                        {r === 4 ? '4+' : String(r)}
+                                      </Text>
+                                    </Pressable>
+                                  );
+                                })}
+                              </View>
+                            </View>
+                          )}
                         </View>
                       );
                     })}
@@ -1134,6 +1267,14 @@ export default function WorkoutSessionScreen() {
               </View>
             );
           })}
+
+          {/* ─── Post-Session Feedback ─── */}
+          <View style={s.feedbackSection}>
+            <SessionFeedbackForm
+              value={sessionFeedback}
+              onChange={setSessionFeedback}
+            />
+          </View>
         </ScrollView>
 
         {/* ─── Pinned Bottom Button ─── */}
@@ -1362,10 +1503,17 @@ export default function WorkoutSessionScreen() {
                         {completedCount}/{totalSetsNeeded} sets · {ex.minReps && ex.minReps !== (ex.maxReps || ex.reps) ? `${ex.minReps}-${ex.maxReps}` : ex.maxReps || ex.reps} reps{ex.weight > 0 ? ` · ${ex.weight} kg` : ''}
                       </Text>
                     </View>
-                    {isCurrent && (
-                      <View style={s.listEnCoursBadge}>
-                        <Text style={s.listEnCoursText}>{i18n.t('workoutSession.inProgress')}</Text>
-                      </View>
+                    {!isCompleted && (
+                      <Pressable
+                        style={s.swapBtn}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                          setShowSwap({ index: idx, exerciseId: ex.exerciseId });
+                        }}
+                        hitSlop={4}
+                      >
+                        <ArrowLeftRight size={15} color="rgba(255,255,255,0.35)" strokeWidth={2} />
+                      </Pressable>
                     )}
                     <View style={[s.expandChevron, isExpanded && s.expandChevronOpen]}>
                       <ChevronDown size={16} color="rgba(255,255,255,0.35)" strokeWidth={2.5} />
@@ -1395,82 +1543,117 @@ export default function WorkoutSessionScreen() {
                         else if (isSetCompleted && !isSetDone) accentColor = 'rgba(239,68,68,0.7)';
                         else if (isCurrentSet) accentColor = Colors.primary;
 
+                        const setRir = loggedSet?.rir ?? 2;
+                        const rirColor = isSetDone ? getRirColor(setRir) : 'rgba(255,255,255,0.2)';
+
                         return (
-                          <View key={rowIdx} style={s.setRow}>
-                            <View style={[s.setAccentBar, { backgroundColor: accentColor }]} />
-                            <View style={[
-                              s.setNumber,
-                              isSetDone && { backgroundColor: 'rgba(74,222,128,0.12)' },
-                              isCurrentSet && { backgroundColor: 'rgba(255,107,53,0.12)' },
-                            ]}>
-                              <Text style={[
-                                s.setNumberText,
-                                isSetDone && { color: Colors.phases.finished },
-                                isCurrentSet && { color: Colors.primary },
+                          <View key={rowIdx}>
+                            <View style={s.setRow}>
+                              <View style={[s.setAccentBar, { backgroundColor: accentColor }]} />
+                              <View style={[
+                                s.setNumber,
+                                isSetDone && { backgroundColor: 'rgba(74,222,128,0.12)' },
+                                isCurrentSet && { backgroundColor: 'rgba(255,107,53,0.12)' },
                               ]}>
-                                {setLabel}
-                              </Text>
-                            </View>
+                                <Text style={[
+                                  s.setNumberText,
+                                  isSetDone && { color: Colors.phases.finished },
+                                  isCurrentSet && { color: Colors.primary },
+                                ]}>
+                                  {setLabel}
+                                </Text>
+                              </View>
 
-                            <View style={s.stepperGroup}>
-                              <Text style={s.stepperLabel}>REPS</Text>
-                              {isSetCompleted ? (
-                                <View style={s.stepperRow}>
-                                  <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetReps(idx, rowIdx, -1)}>
-                                    <Minus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
-                                  </Pressable>
-                                  <TextInput
-                                    style={s.stepperInput}
-                                    value={String(loggedSet.reps)}
-                                    onChangeText={(v) => handleSetRepsDirectly(idx, rowIdx, v)}
-                                    keyboardType="number-pad"
-                                    selectTextOnFocus
-                                  />
-                                  <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetReps(idx, rowIdx, 1)}>
-                                    <Plus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
-                                  </Pressable>
-                                </View>
-                              ) : (
-                                <Text style={s.stepperValueMuted}>{ex.minReps && ex.minReps !== (ex.maxReps || ex.reps) ? `${ex.minReps}-${ex.maxReps}` : ex.maxReps || ex.reps}</Text>
-                              )}
-                            </View>
-
-                            {!isBodyweight && (
                               <View style={s.stepperGroup}>
-                                <Text style={s.stepperLabel}>KG</Text>
+                                <Text style={s.stepperLabel}>REPS</Text>
                                 {isSetCompleted ? (
                                   <View style={s.stepperRow}>
-                                    <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetWeight(idx, rowIdx, -0.5)}>
+                                    <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetReps(idx, rowIdx, -1)}>
                                       <Minus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
                                     </Pressable>
                                     <TextInput
                                       style={s.stepperInput}
-                                      value={String(loggedSet.weight ?? 0)}
-                                      onChangeText={(v) => handleSetWeightDirectly(idx, rowIdx, v)}
-                                      keyboardType="decimal-pad"
+                                      value={String(loggedSet.reps)}
+                                      onChangeText={(v) => handleSetRepsDirectly(idx, rowIdx, v)}
+                                      keyboardType="number-pad"
                                       selectTextOnFocus
                                     />
-                                    <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetWeight(idx, rowIdx, 0.5)}>
+                                    <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetReps(idx, rowIdx, 1)}>
                                       <Plus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
                                     </Pressable>
                                   </View>
                                 ) : (
-                                  <Text style={s.stepperValueMuted}>{ex.weight}</Text>
+                                  <Text style={s.stepperValueMuted}>{ex.minReps && ex.minReps !== (ex.maxReps || ex.reps) ? `${ex.minReps}-${ex.maxReps}` : ex.maxReps || ex.reps}</Text>
                                 )}
                               </View>
-                            )}
 
-                            {isSetCompleted ? (
-                              <Pressable style={s.checkToggle} onPress={() => handleToggleSetCompleted(idx, rowIdx)}>
-                                {isSetDone ? (
-                                  <CircleCheck size={24} color={Colors.phases.finished} strokeWidth={2} />
-                                ) : (
-                                  <Circle size={24} color="rgba(239,68,68,0.5)" strokeWidth={1.5} />
-                                )}
-                              </Pressable>
-                            ) : (
-                              <View style={s.checkToggle}>
-                                <Circle size={24} color="rgba(255,255,255,0.12)" strokeWidth={1.5} />
+                              {!isBodyweight && (
+                                <View style={s.stepperGroup}>
+                                  <Text style={s.stepperLabel}>KG</Text>
+                                  {isSetCompleted ? (
+                                    <View style={s.stepperRow}>
+                                      <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetWeight(idx, rowIdx, -0.5)}>
+                                        <Minus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
+                                      </Pressable>
+                                      <TextInput
+                                        style={s.stepperInput}
+                                        value={String(loggedSet.weight ?? 0)}
+                                        onChangeText={(v) => handleSetWeightDirectly(idx, rowIdx, v)}
+                                        keyboardType="decimal-pad"
+                                        selectTextOnFocus
+                                      />
+                                      <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetWeight(idx, rowIdx, 0.5)}>
+                                        <Plus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
+                                      </Pressable>
+                                    </View>
+                                  ) : (
+                                    <Text style={s.stepperValueMuted}>{ex.weight}</Text>
+                                  )}
+                                </View>
+                              )}
+
+                              {isSetCompleted ? (
+                                <Pressable style={s.checkToggle} onPress={() => handleToggleSetCompleted(idx, rowIdx)}>
+                                  {isSetDone ? (
+                                    <CircleCheck size={24} color={Colors.phases.finished} strokeWidth={2} />
+                                  ) : (
+                                    <Circle size={24} color="rgba(239,68,68,0.5)" strokeWidth={1.5} />
+                                  )}
+                                </Pressable>
+                              ) : (
+                                <View style={s.checkToggle}>
+                                  <Circle size={24} color="rgba(255,255,255,0.12)" strokeWidth={1.5} />
+                                </View>
+                              )}
+                            </View>
+
+                            {/* RIR selector — only for completed sets */}
+                            {isSetDone && (
+                              <View style={s.rirRow}>
+                                <Text style={s.rirLabel}>{i18n.t('workoutSession.rirLabel')}</Text>
+                                <View style={s.rirOptions}>
+                                  {RIR_OPTIONS.map((r) => {
+                                    const isActive = setRir === r;
+                                    const color = getRirColor(r);
+                                    return (
+                                      <Pressable
+                                        key={r}
+                                        style={[
+                                          s.rirOption,
+                                          isActive && { backgroundColor: `${color}20`, borderColor: `${color}50` },
+                                        ]}
+                                        onPress={() => handleUpdateSetRir(idx, rowIdx, r)}
+                                      >
+                                        <Text style={[
+                                          s.rirOptionText,
+                                          isActive && { color, fontFamily: Fonts?.bold, fontWeight: '700' },
+                                        ]}>
+                                          {r === 4 ? '4+' : String(r)}
+                                        </Text>
+                                      </Pressable>
+                                    );
+                                  })}
+                                </View>
                               </View>
                             )}
                           </View>
@@ -1486,6 +1669,18 @@ export default function WorkoutSessionScreen() {
       </Animated.View>
 
       {renderExerciseInfoModal()}
+
+      {/* ─── Exercise Swap Sheet ─── */}
+      {showSwap && (
+        <ExerciseSwapSheet
+          visible={!!showSwap}
+          onClose={() => setShowSwap(null)}
+          currentExerciseId={showSwap.exerciseId}
+          muscleTargets={swapMuscleTargets}
+          equipment={inferredEquipment}
+          onSwap={handleSessionSwap}
+        />
+      )}
 
       {/* ─── Stop Confirmation Modal ─── */}
       <Modal visible={showStopConfirm} transparent animationType="fade" onRequestClose={cancelStop}>
@@ -1886,18 +2081,13 @@ const s = StyleSheet.create({
     color: '#4A90E2',
     letterSpacing: 0.5,
   },
-  listEnCoursBadge: {
-    backgroundColor: 'rgba(255,107,53,0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  listEnCoursText: {
-    fontSize: 10,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    color: Colors.primary,
-    letterSpacing: 1,
+  swapBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   expandChevron: {
     width: 28,
@@ -2348,6 +2538,47 @@ const s = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     gap: 8,
+  },
+  feedbackSection: {
+    marginTop: 24,
+    marginBottom: 8,
+  },
+  rirRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 38,
+    paddingRight: 12,
+    paddingBottom: 6,
+    gap: 8,
+  },
+  rirLabel: {
+    fontSize: 9,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.25)',
+    letterSpacing: 1,
+    width: 24,
+  },
+  rirOptions: {
+    flexDirection: 'row',
+    gap: 6,
+    flex: 1,
+  },
+  rirOption: {
+    flex: 1,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rirOptionText: {
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.3)',
   },
   finishedBottomBar: {
     position: 'absolute',

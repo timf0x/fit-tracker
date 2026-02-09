@@ -1,12 +1,43 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, AppState } from 'react-native';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { useRouter } from 'expo-router';
 import { Footprints } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/theme';
-import { mockStats } from '@/lib/mock-data';
+import { getTodaySteps, watchTodaySteps } from '@/services/pedometer';
 
 export function StepsCard() {
   const router = useRouter();
+  const [steps, setSteps] = useState(0);
+
+  const fetchSteps = useCallback(async () => {
+    const count = await getTodaySteps();
+    setSteps(count);
+  }, []);
+
+  useEffect(() => {
+    fetchSteps();
+
+    // Live updates (incremental)
+    const unsub = watchTodaySteps((incremental) => {
+      // watchStepCount returns steps since subscription, add to initial
+      setSteps((prev) => Math.max(prev, prev + incremental));
+    });
+
+    // Refresh when app comes to foreground
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') fetchSteps();
+    });
+
+    return () => {
+      unsub();
+      sub.remove();
+    };
+  }, [fetchSteps]);
+
+  const display = steps >= 1000
+    ? `${(steps / 1000).toFixed(1).replace(/\.0$/, '')}k`
+    : steps.toLocaleString();
 
   return (
     <PressableScale style={styles.card} onPress={() => router.push('/steps')}>
@@ -17,7 +48,7 @@ export function StepsCard() {
         <Text style={styles.label}>STEPS</Text>
       </View>
       <View style={styles.valueRow}>
-        <Text style={styles.valueWhite}>{mockStats.steps}</Text>
+        <Text style={styles.valueWhite}>{display}</Text>
         <Text style={styles.unit}> /10k</Text>
       </View>
     </PressableScale>
