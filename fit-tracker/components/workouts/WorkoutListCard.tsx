@@ -17,6 +17,7 @@ import { getCategoryIcon } from '@/constants/icons';
 import { getExerciseById } from '@/data/exercises';
 import { Workout } from '@/types';
 import type { LucideIcon } from 'lucide-react-native';
+import i18n from '@/lib/i18n';
 
 const LUCIDE_MAP: Record<string, LucideIcon> = {
   flame: Flame,
@@ -38,23 +39,23 @@ const LEGACY_ICON_ALIAS: Record<string, string> = {
 };
 
 const LEVEL_LABELS: Record<string, string> = {
-  beginner: 'Débutant',
-  intermediate: 'Intermédiaire',
-  advanced: 'Avancé',
-  all: 'Tous niveaux',
+  beginner: i18n.t('levels.beginner'),
+  intermediate: i18n.t('levels.intermediate'),
+  advanced: i18n.t('levels.advanced'),
+  all: i18n.t('levels.all'),
 };
 
 // BodyPart → French labels (for exercise body parts)
 const BODY_PART_LABELS_FR: Record<string, string> = {
-  back: 'Dos',
-  shoulders: 'Épaules',
-  chest: 'Pecs',
-  'upper arms': 'Bras',
-  'lower arms': 'Avant-bras',
-  'upper legs': 'Jambes',
-  'lower legs': 'Mollets',
-  waist: 'Abdos',
-  cardio: 'Cardio',
+  back: i18n.t('bodyParts.back'),
+  shoulders: i18n.t('bodyParts.shoulders'),
+  chest: i18n.t('bodyParts.chest'),
+  'upper arms': i18n.t('bodyParts.upperArms'),
+  'lower arms': i18n.t('bodyParts.forearms'),
+  'upper legs': i18n.t('bodyParts.upperLegs'),
+  'lower legs': i18n.t('bodyParts.lowerLegs'),
+  waist: i18n.t('bodyParts.waist'),
+  cardio: i18n.t('bodyParts.cardio'),
 };
 
 // ─── Card ────────────────────────────────────────

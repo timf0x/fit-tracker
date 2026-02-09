@@ -4,13 +4,14 @@ import { BarChart3, ChevronDown, ChevronUp, TrendingUp } from 'lucide-react-nati
 import { Fonts } from '@/constants/theme';
 import type { SessionInsightsData, MuscleImpact } from '@/lib/sessionInsights';
 import type { VolumeLandmarkZone } from '@/constants/volumeLandmarks';
+import i18n from '@/lib/i18n';
 
 const ZONE_LABEL: Record<VolumeLandmarkZone, string> = {
-  below_mv: 'Sous MV',
-  mv_mev: 'Maintien',
-  mev_mav: 'Optimal',
-  mav_mrv: 'Élevé',
-  above_mrv: 'Excès',
+  below_mv: i18n.t('zones.belowMv'),
+  mv_mev: i18n.t('zones.maintenance'),
+  mev_mav: i18n.t('zones.optimal'),
+  mav_mrv: i18n.t('zones.high'),
+  above_mrv: i18n.t('zones.excess'),
 };
 
 interface Props {
@@ -84,7 +85,7 @@ export function SessionInsights({ data }: Props) {
       {/* Header */}
       <Pressable style={styles.header} onPress={toggleExpanded}>
         <BarChart3 size={14} color="rgba(160,150,140,1)" />
-        <Text style={styles.headerText}>VOLUME HEBDO</Text>
+        <Text style={styles.headerText}>{i18n.t('sessionInsights.weeklyVolume')}</Text>
         <View style={{ flex: 1 }} />
         {expanded ? (
           <ChevronUp size={16} color="rgba(160,150,140,0.6)" />

@@ -11,6 +11,7 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { Play, Zap } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 
 /**
  * "Ignite" start button — premium loading animation before navigation.
@@ -32,8 +33,8 @@ interface AnimatedStartButtonProps {
 
 export function AnimatedStartButton({
   onPress,
-  label = 'Commencer',
-  loadingLabel = "C'est parti !",
+  label = i18n.t('common.start'),
+  loadingLabel = i18n.t('common.letsGo'),
   style,
   disabled,
   iconSize = 18,

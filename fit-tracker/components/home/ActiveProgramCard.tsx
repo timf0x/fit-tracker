@@ -25,6 +25,7 @@ import {
   Diamond,
   HeartPulse,
   Shield,
+  AlertTriangle,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
@@ -33,14 +34,17 @@ import { useWorkoutStore } from '@/stores/workoutStore';
 import { getExerciseById } from '@/data/exercises';
 import { estimateDuration } from '@/lib/programGenerator';
 import { buildProgramExercisesParam } from '@/lib/programSession';
+import { getProgressiveWeight } from '@/lib/weightEstimation';
+import { checkDeloadStatus } from '@/lib/deloadDetection';
 import { ReadinessCheck } from '@/components/program/ReadinessCheck';
 import { ConfirmModal } from '@/components/program/ConfirmModal';
 import type { ReadinessCheck as ReadinessCheckType } from '@/types/program';
+import i18n from '@/lib/i18n';
 
 const SPLIT_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  ppl: { label: 'PPL', color: '#FF6B35', bg: 'rgba(255,107,53,0.15)' },
-  upper_lower: { label: 'Haut/Bas', color: '#3B82F6', bg: 'rgba(59,130,246,0.15)' },
-  full_body: { label: 'Full Body', color: '#A855F7', bg: 'rgba(168,85,247,0.15)' },
+  ppl: { label: i18n.t('activeProgram.splitLabels.ppl'), color: '#FF6B35', bg: 'rgba(255,107,53,0.15)' },
+  upper_lower: { label: i18n.t('activeProgram.splitLabels.upperLower'), color: '#3B82F6', bg: 'rgba(59,130,246,0.15)' },
+  full_body: { label: i18n.t('activeProgram.splitLabels.fullBody'), color: '#A855F7', bg: 'rgba(168,85,247,0.15)' },
 };
 
 // Onset muscle identity — each body part gets a Lucide icon + colored tint
@@ -99,6 +103,12 @@ export function ActiveProgramCard() {
 
   const programComplete = useMemo(() => isProgramComplete(), [activeState?.completedDays, program]);
 
+  // Deload detection
+  const deloadStatus = useMemo(
+    () => checkDeloadStatus(workoutHistory),
+    [workoutHistory],
+  );
+
   // ─── State 1: No program — Clean CTA ───
   if (!userProfile || !program || !activeState) {
     return (
@@ -109,19 +119,19 @@ export function ActiveProgramCard() {
         >
           <View style={styles.sessionTitleRow}>
             <View style={[styles.focusDot, { backgroundColor: Colors.primary }]} />
-            <Text style={styles.sessionName}>Crée ton programme</Text>
+            <Text style={styles.sessionName}>{i18n.t('activeProgram.createTitle')}</Text>
             <View style={{ flex: 1 }} />
             <ChevronRight size={16} color="rgba(120,120,130,1)" />
           </View>
           <Text style={styles.sessionMeta}>
-            PPL · Haut/Bas · Full Body · 4-6 sem
+            {i18n.t('activeProgram.createSubtitle')}
           </Text>
           <PressableScale
             style={styles.ghostCta}
             activeScale={0.97}
             onPress={() => router.push('/program/onboarding')}
           >
-            <Text style={styles.ghostCtaText}>C'est parti</Text>
+            <Text style={styles.ghostCtaText}>{i18n.t('activeProgram.createCta')}</Text>
             <ChevronRight size={14} color={Colors.primary} strokeWidth={2.5} />
           </PressableScale>
         </PressableScale>
@@ -137,7 +147,7 @@ export function ActiveProgramCard() {
       <View style={styles.container}>
         <PressableScale style={styles.card} onPress={() => router.push('/program')}>
           <View style={styles.titleRow}>
-            <Text style={styles.sectionTitle}>PROGRAMME</Text>
+            <Text style={styles.sectionTitle}>{i18n.t('activeProgram.programLabel')}</Text>
             <ChevronRight size={16} color="rgba(120,120,130,1)" strokeWidth={2} />
           </View>
 
@@ -146,9 +156,9 @@ export function ActiveProgramCard() {
               <Trophy size={24} color="#FBBF24" />
             </View>
             <View style={styles.completeTextWrap}>
-              <Text style={styles.completeTitle}>Programme terminé !</Text>
+              <Text style={styles.completeTitle}>{i18n.t('activeProgram.completed')}</Text>
               <Text style={styles.completeSubtitle}>
-                {splitInfo.label} · {program.totalWeeks} semaines
+                {splitInfo.label} · {program.totalWeeks} {i18n.t('activeProgram.weeks')}
               </Text>
             </View>
           </View>
@@ -157,19 +167,19 @@ export function ActiveProgramCard() {
           <View style={styles.completeStats}>
             <View style={styles.completeStat}>
               <Text style={styles.completeStatValue}>{totalSessions}</Text>
-              <Text style={styles.completeStatLabel}>séances</Text>
+              <Text style={styles.completeStatLabel}>{i18n.t('activeProgram.sessions')}</Text>
             </View>
             <View style={styles.completeStatDivider} />
             <View style={styles.completeStat}>
               <Text style={styles.completeStatValue}>{program.totalWeeks}</Text>
-              <Text style={styles.completeStatLabel}>semaines</Text>
+              <Text style={styles.completeStatLabel}>{i18n.t('activeProgram.weeks')}</Text>
             </View>
             <View style={styles.completeStatDivider} />
             <View style={styles.completeStat}>
               <Text style={[styles.completeStatValue, { color: splitInfo.color }]}>
                 {splitInfo.label}
               </Text>
-              <Text style={styles.completeStatLabel}>split</Text>
+              <Text style={styles.completeStatLabel}>{i18n.t('activeProgram.split')}</Text>
             </View>
           </View>
 
@@ -191,7 +201,7 @@ export function ActiveProgramCard() {
             activeScale={0.97}
             onPress={() => router.push('/program/onboarding')}
           >
-            <Text style={styles.ghostCtaText}>Nouveau programme</Text>
+            <Text style={styles.ghostCtaText}>{i18n.t('activeProgram.newProgram')}</Text>
             <ChevronRight size={14} color={Colors.primary} strokeWidth={2.5} />
           </PressableScale>
         </PressableScale>
@@ -237,6 +247,26 @@ export function ActiveProgramCard() {
     setShowReadiness(true);
   };
 
+  // Compute progressive weight overrides for session
+  const progressiveWeights = useMemo(() => {
+    if (!todayDay) return {};
+    const map: Record<string, { weight: number; action: string }> = {};
+    for (const pex of todayDay.exercises) {
+      const ex = getExerciseById(pex.exerciseId);
+      if (!ex) continue;
+      const prog = getProgressiveWeight(
+        pex.exerciseId,
+        ex.equipment,
+        pex.minReps || pex.reps,
+        workoutHistory,
+      );
+      if (prog.action !== 'none') {
+        map[pex.exerciseId] = prog;
+      }
+    }
+    return map;
+  }, [todayDay, workoutHistory]);
+
   const startSessionNow = (readiness?: ReadinessCheckType) => {
     if (!todayDay) return;
 
@@ -252,7 +282,7 @@ export function ActiveProgramCard() {
       saveSessionReadiness(sessionId, readiness);
     }
 
-    const exercisesJson = buildProgramExercisesParam(todayDay);
+    const exercisesJson = buildProgramExercisesParam(todayDay, progressiveWeights);
 
     router.push({
       pathname: '/workout/session',
@@ -289,6 +319,20 @@ export function ActiveProgramCard() {
                 {duration > 0 ? ` · ~${duration} min` : ''}
                 {` · ${todayDay.exercises.length} exos`}
               </Text>
+
+              {/* Deload warning */}
+              {deloadStatus.needsDeload && (
+                <View style={[styles.deloadBanner, deloadStatus.severity === 'urgent' && styles.deloadBannerUrgent]}>
+                  <AlertTriangle
+                    size={13}
+                    color={deloadStatus.severity === 'urgent' ? '#FF4B4B' : '#FBBF24'}
+                    strokeWidth={2.5}
+                  />
+                  <Text style={[styles.deloadText, deloadStatus.severity === 'urgent' && styles.deloadTextUrgent]}>
+                    {deloadStatus.messageFr}
+                  </Text>
+                </View>
+              )}
 
               {exercisePreview.length > 0 && (
                 <View style={styles.exercisePreviewList}>
@@ -353,7 +397,7 @@ export function ActiveProgramCard() {
             <Animated.View style={[styles.startButtonWrap, pulseStyle]}>
               <AnimatedStartButton
                 onPress={handleStart}
-                label="Commencer"
+                label={i18n.t('activeProgram.start')}
                 style={styles.startButton}
                 iconSize={14}
               />
@@ -362,7 +406,7 @@ export function ActiveProgramCard() {
           {isDayDone && (
             <View style={styles.doneRow}>
               <Check size={14} color={Colors.success} strokeWidth={2.5} />
-              <Text style={styles.doneText}>Séance terminée</Text>
+              <Text style={styles.doneText}>{i18n.t('activeProgram.sessionDone')}</Text>
             </View>
           )}
         </PressableScale>
@@ -373,10 +417,10 @@ export function ActiveProgramCard() {
         onClose={() => setShowPacingWarning(false)}
         icon={<Clock size={28} color="#FBBF24" />}
         iconBgColor="rgba(251,191,36,0.12)"
-        title="Déjà une séance aujourd'hui"
-        description="Tu as déjà terminé une séance aujourd'hui. La récupération est essentielle pour la progression."
-        cancelText="Reporter"
-        confirmText="Continuer"
+        title={i18n.t('activeProgram.alreadyTrainedTitle')}
+        description={i18n.t('activeProgram.alreadyTrainedMessage')}
+        cancelText={i18n.t('common.postpone')}
+        confirmText={i18n.t('common.continue')}
         confirmColor={Colors.primary}
         onConfirm={() => {
           setShowPacingWarning(false);
@@ -628,5 +672,31 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
+  },
+
+  // Deload banner
+  deloadBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(251,191,36,0.08)',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginLeft: 16,
+  },
+  deloadBannerUrgent: {
+    backgroundColor: 'rgba(255,75,75,0.08)',
+  },
+  deloadText: {
+    flex: 1,
+    color: '#FBBF24',
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    lineHeight: 16,
+  },
+  deloadTextUrgent: {
+    color: '#FF4B4B',
   },
 });

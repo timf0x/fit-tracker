@@ -24,7 +24,7 @@ import {
 } from '@/constants/programTemplates';
 import { isCompound } from '@/lib/programGenerator';
 import { getExerciseCategory } from '@/lib/exerciseClassification';
-import { getEstimatedWeight, getLastLoggedWeight, roundToIncrement } from '@/lib/weightEstimation';
+import { getEstimatedWeight, getProgressiveWeight, roundToIncrement } from '@/lib/weightEstimation';
 import { RECOVERY_COLORS, TRACKABLE_BODY_PARTS } from '@/constants/recovery';
 
 // ─── Types ───
@@ -226,6 +226,7 @@ export function getAllMuscleData(
 export function estimateSessionSummary(
   selectedMuscles: string[],
   equipment: EquipmentSetup,
+  targetDurationMin?: number,
 ): SessionSummary {
   let totalSets = 0;
   const allowedEquipment = EQUIPMENT_BY_SETUP[equipment];
@@ -246,12 +247,19 @@ export function estimateSessionSummary(
   }
 
   // Estimate duration: ~2.5 min per set average (set + rest)
-  const estimatedMinutes = Math.round(totalSets * 2.5);
+  let estimatedMinutes = Math.round(totalSets * 2.5);
+
+  // If target duration specified, cap sets proportionally
+  if (targetDurationMin && estimatedMinutes > targetDurationMin) {
+    const ratio = targetDurationMin / estimatedMinutes;
+    totalSets = Math.max(Math.round(totalSets * ratio), selectedMuscles.length);
+    estimatedMinutes = targetDurationMin;
+  }
 
   return {
     muscleCount: selectedMuscles.length,
     totalSets,
-    estimatedMinutes,
+    estimatedMinutes: targetDurationMin || estimatedMinutes,
   };
 }
 
@@ -262,6 +270,7 @@ export function generateSmartWorkout(params: {
   selectedMuscles: string[];
   equipment: EquipmentSetup;
   goal?: string;
+  targetDurationMin?: number;
   history: WorkoutSession[];
   userWeight?: number;
   userSex?: 'male' | 'female';
@@ -272,6 +281,7 @@ export function generateSmartWorkout(params: {
     equipment,
     history,
     goal = 'hypertrophy',
+    targetDurationMin,
     userWeight = 80,
     userSex = 'male',
     userExperience = 'intermediate',
@@ -320,8 +330,13 @@ export function generateSmartWorkout(params: {
 
     if (available.length === 0) continue;
 
-    // Number of exercises: 1 if <=4 sets, 2 if >4
-    const exerciseCount = setsForMuscle > 4 ? 2 : 1;
+    // How many unique unused exercises exist for this muscle?
+    const unusedAvailable = available.filter((id) => !usedExercises.has(id));
+    // Number of exercises: prefer 2 if >4 sets, but cap to what's actually available
+    const exerciseCount = Math.min(
+      setsForMuscle > 4 ? 2 : 1,
+      Math.max(unusedAvailable.length, 1),
+    );
 
     for (let i = 0; i < exerciseCount; i++) {
       let picked: string | null = null;
@@ -337,7 +352,7 @@ export function generateSmartWorkout(params: {
         }
       }
 
-      // Fallback: accept any unused exercise
+      // Fallback: accept any unused exercise (compound preferred for first)
       if (!picked) {
         for (const id of available) {
           if (usedExercises.has(id)) continue;
@@ -345,14 +360,15 @@ export function generateSmartWorkout(params: {
         }
       }
 
-      // Final fallback: any available
+      // Final fallback: any unused exercise
       if (!picked) {
         for (const id of available) {
           if (!usedExercises.has(id)) { picked = id; break; }
         }
       }
 
-      if (!picked) picked = available[0];
+      // Skip if no unused exercise found (never duplicate)
+      if (!picked) continue;
 
       usedExercises.add(picked);
 
@@ -366,15 +382,20 @@ export function generateSmartWorkout(params: {
       const category = getExerciseCategory(picked);
       const catConfig = goalConfig[category];
 
-      // Weight: check history first, then estimate
+      // Weight: progressive overload from history, else estimate
       const ex = exerciseMap.get(picked);
       let weight = 0;
 
       if (ex) {
-        const logged = getLastLoggedWeight(picked, completedHistory);
-        if (logged !== null) {
-          weight = logged;
+        // Try progressive overload from history
+        const progressive = getProgressiveWeight(
+          picked, ex.equipment, catConfig.minReps, completedHistory,
+        );
+
+        if (progressive.action !== 'none') {
+          weight = progressive.weight;
         } else {
+          // No history → cold estimate from BW ratios
           weight = getEstimatedWeight(
             picked, ex.equipment, ex.target,
             userWeight, userSex, userExperience,
@@ -403,6 +424,35 @@ export function generateSmartWorkout(params: {
     if (aComp !== bComp) return aComp ? -1 : 1;
     return (MUSCLE_SORT_ORDER[a.muscle] ?? 99) - (MUSCLE_SORT_ORDER[b.muscle] ?? 99);
   });
+
+  // Duration-based trimming: if target duration is set, trim from the end
+  if (targetDurationMin && targetDurationMin > 0) {
+    const targetSeconds = targetDurationMin * 60;
+    let running = 0;
+    let cutoff = allExercises.length;
+    for (let i = 0; i < allExercises.length; i++) {
+      running += allExercises[i].sets * (allExercises[i].setTime + allExercises[i].restTime);
+      if (running > targetSeconds) {
+        cutoff = i + 1; // keep at least this exercise
+        break;
+      }
+    }
+    // If over budget, reduce sets on last exercise or drop trailing isolations
+    if (running > targetSeconds && allExercises.length > cutoff) {
+      allExercises.splice(cutoff);
+    }
+    // If still over, trim sets from the last exercise
+    while (allExercises.length > 1) {
+      const totalSec = allExercises.reduce((s, e) => s + e.sets * (e.setTime + e.restTime), 0);
+      if (totalSec <= targetSeconds) break;
+      const last = allExercises[allExercises.length - 1];
+      if (last.sets > 2) {
+        last.sets--;
+      } else {
+        allExercises.pop();
+      }
+    }
+  }
 
   // Estimate duration
   let totalSeconds = 0;

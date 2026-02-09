@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, Pressable, Modal } from 'react-native';
 import { Fonts } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 
 interface ConfirmModalProps {
   visible: boolean;
@@ -21,7 +22,7 @@ export function ConfirmModal({
   iconBgColor = 'rgba(239,68,68,0.12)',
   title,
   description,
-  cancelText = 'Annuler',
+  cancelText = i18n.t('common.cancel'),
   confirmText,
   confirmColor = '#EF4444',
   onConfirm,

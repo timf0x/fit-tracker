@@ -159,6 +159,15 @@ export const exercises: Exercise[] = [
   { id: 'ex_121', name: 'Superman', nameFr: 'Superman', bodyPart: 'waist', equipment: 'body weight', isUnilateral: false, target: 'lower back', description: 'Lie face down, raise arms and legs off ground. Lower back and posterior chain.', category: 'core' },
   { id: 'ex_122', name: 'Hollow Body Hold', nameFr: 'Hollow body', bodyPart: 'waist', equipment: 'body weight', isUnilateral: false, target: 'abs', description: 'Gymnastics core hold. Arms overhead, legs extended, low back pressed to floor.', category: 'core' },
 
+  // Bodyweight legs — additional
+  { id: 'ex_127', name: 'Bodyweight Squat', nameFr: 'Squat poids du corps', bodyPart: 'upper legs', equipment: 'body weight', isUnilateral: false, target: 'quads', description: 'Fundamental squat pattern. Full depth, chest up, drive through heels.', category: 'legs' },
+  { id: 'ex_128', name: 'Reverse Lunge', nameFr: 'Fentes arrière', bodyPart: 'upper legs', equipment: 'body weight', isUnilateral: true, target: 'quads', description: 'Step backward into lunge. Knee-friendly alternative to forward lunge.', category: 'legs' },
+  { id: 'ex_129', name: 'Bulgarian Split Squat', nameFr: 'Squat bulgare', bodyPart: 'upper legs', equipment: 'body weight', isUnilateral: true, target: 'quads', description: 'Rear foot elevated split squat. Elite unilateral quad and glute builder.', category: 'legs' },
+  { id: 'ex_130', name: 'Jump Squat', nameFr: 'Squat sauté', bodyPart: 'upper legs', equipment: 'body weight', isUnilateral: false, target: 'quads', description: 'Explosive squat with jump. Power and quad development.', category: 'legs' },
+  { id: 'ex_131', name: 'Single Leg Glute Bridge', nameFr: 'Pont fessier unilat.', bodyPart: 'upper legs', equipment: 'body weight', isUnilateral: true, target: 'glutes', description: 'Single leg hip thrust from floor. Great glute isolation without equipment.', category: 'legs' },
+  { id: 'ex_132', name: 'Sliding Leg Curl', nameFr: 'Leg curl glissé', bodyPart: 'upper legs', equipment: 'body weight', isUnilateral: false, target: 'hamstrings', description: 'Lie on back, slide feet out and curl back. Bodyweight hamstring curl.', category: 'legs' },
+  { id: 'ex_133', name: 'Calf Raise', nameFr: 'Mollets debout PDC', bodyPart: 'lower legs', equipment: 'body weight', isUnilateral: false, target: 'calves', description: 'Bilateral bodyweight calf raise on a step. Slow eccentric for growth.', category: 'legs' },
+
   // Cardio — additional
   { id: 'ex_123', name: 'Bear Crawl', nameFr: 'Marche de l\'ours', bodyPart: 'cardio', equipment: 'body weight', isUnilateral: false, target: 'full body', description: 'Crawl on hands and feet. Total body conditioning and coordination.', category: 'cardio' },
   { id: 'ex_124', name: 'Treadmill Run', nameFr: 'Course tapis', bodyPart: 'cardio', equipment: 'machine', isUnilateral: false, target: 'cardiovascular', description: 'Steady state or interval running on treadmill.', category: 'cardio' },

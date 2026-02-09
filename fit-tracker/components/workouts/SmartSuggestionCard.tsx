@@ -8,6 +8,7 @@ import { MUSCLE_TO_BODYPART } from '@/lib/muscleMapping';
 import { RECOVERY_COLORS } from '@/constants/recovery';
 import { RP_VOLUME_LANDMARKS } from '@/constants/volumeLandmarks';
 import type { SmartSuggestion } from '@/lib/smartWorkout';
+import i18n from '@/lib/i18n';
 
 interface SmartSuggestionCardProps {
   suggestion: SmartSuggestion;
@@ -26,21 +27,21 @@ export function SmartSuggestionCard({
   if (!suggestion.hasHistory) {
     return (
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>SÉANCE SUGGÉRÉE</Text>
+        <Text style={styles.sectionLabel}>{i18n.t('smartSuggestion.label')}</Text>
 
         <View style={styles.heroRow}>
           <View style={[styles.focusDot, { backgroundColor: Colors.primary }]} />
-          <Text style={styles.heroText}>Première séance</Text>
+          <Text style={styles.heroText}>{i18n.t('smartSuggestion.firstSession')}</Text>
         </View>
         <Text style={styles.subtitle}>
-          Génère une séance en choisissant tes muscles, ou crée un programme personnalisé.
+          {i18n.t('smartSuggestion.firstSessionDesc')}
         </Text>
 
         <View style={styles.generateWrap}>
           <AnimatedStartButton
             onPress={onGenerate}
-            label="Générer une séance"
-            loadingLabel="C'est parti !"
+            label={i18n.t('smartSuggestion.generateSession')}
+            loadingLabel={i18n.t('smartSuggestion.letsGo')}
             iconSize={16}
           />
         </View>
@@ -48,11 +49,11 @@ export function SmartSuggestionCard({
         <View style={styles.actionRow}>
           <PressableScale style={styles.actionLink} activeScale={0.97} onPress={onCreateManual}>
             <Plus size={14} color={Colors.primary} strokeWidth={2.5} />
-            <Text style={styles.actionLinkText}>Créer manuellement</Text>
+            <Text style={styles.actionLinkText}>{i18n.t('smartSuggestion.createManual')}</Text>
           </PressableScale>
           <PressableScale style={styles.actionLink} activeScale={0.97} onPress={onCreateProgram}>
             <BookOpen size={14} color={Colors.primary} strokeWidth={2} />
-            <Text style={styles.actionLinkText}>Programme</Text>
+            <Text style={styles.actionLinkText}>{i18n.t('smartSuggestion.program')}</Text>
           </PressableScale>
         </View>
       </View>
@@ -63,10 +64,10 @@ export function SmartSuggestionCard({
   if (suggestion.sessionType === 'rest') {
     return (
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>SÉANCE SUGGÉRÉE</Text>
+        <Text style={styles.sectionLabel}>{i18n.t('smartSuggestion.label')}</Text>
         <View style={styles.heroRow}>
           <View style={[styles.focusDot, { backgroundColor: suggestion.sessionColor }]} />
-          <Text style={styles.heroText}>Repos</Text>
+          <Text style={styles.heroText}>{i18n.t('smartSuggestion.rest')}</Text>
         </View>
         {suggestion.nudge ? (
           <Text style={styles.nudge}>{suggestion.nudge}</Text>
@@ -85,7 +86,7 @@ export function SmartSuggestionCard({
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionLabel}>SÉANCE SUGGÉRÉE</Text>
+      <Text style={styles.sectionLabel}>{i18n.t('smartSuggestion.label')}</Text>
 
       {/* Hero */}
       <View style={styles.heroRow}>
@@ -130,8 +131,8 @@ export function SmartSuggestionCard({
       <View style={styles.generateWrap}>
         <AnimatedStartButton
           onPress={onGenerate}
-          label="Générer la séance"
-          loadingLabel="Génération..."
+          label={i18n.t('smartSuggestion.generateButton')}
+          loadingLabel={i18n.t('common.generating')}
           iconSize={16}
         />
       </View>

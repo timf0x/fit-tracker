@@ -7,6 +7,7 @@ import { mockRecoveryOverview } from '@/lib/mock-data';
 import { ScoreRing } from '@/components/recovery/ScoreRing';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { computeRecoveryOverview } from '@/lib/recoveryHelpers';
+import i18n from '@/lib/i18n';
 
 export function RecoveryCard() {
   const router = useRouter();
@@ -22,7 +23,7 @@ export function RecoveryCard() {
     <PressableScale style={styles.card} onPress={() => router.push('/recovery')}>
       <View style={styles.content}>
         <ScoreRing score={recoveryScore} size={72} />
-        <Text style={styles.label}>RECUP</Text>
+        <Text style={styles.label}>{i18n.t('recoveryCard.label')}</Text>
       </View>
     </PressableScale>
   );

@@ -131,16 +131,20 @@ export const EXERCISE_POOLS: Record<string, string[]> = {
     'ex_052', // Front Squat
     'ex_054', // Hack Squat
     'ex_055', // Leg Extension
-    'ex_059', // Bulgarian Split Squat
+    'ex_059', // Bulgarian Split Squat (DB)
     'ex_062', // Goblet Squat
     'ex_060', // Walking Lunges
     'ex_103', // DB Lunge
     'ex_104', // Step-Up
     'ex_109', // Smith Machine Squat
     'ex_110', // Trap Bar DL
-    'ex_112', // Pistol Squat
-    'ex_113', // Wall Sit
+    'ex_112', // Pistol Squat (BW)
+    'ex_113', // Wall Sit (BW)
     'ex_114', // Band Squat
+    'ex_127', // Bodyweight Squat (BW)
+    'ex_128', // Reverse Lunge (BW)
+    'ex_129', // Bulgarian Split Squat (BW)
+    'ex_130', // Jump Squat (BW)
   ],
   // Hamstrings
   hamstrings: [
@@ -148,7 +152,8 @@ export const EXERCISE_POOLS: Record<string, string[]> = {
     'ex_057', // Leg Curl
     'ex_058', // Stiff Leg DL
     'ex_107', // Good Morning
-    'ex_108', // Nordic Curl
+    'ex_108', // Nordic Curl (BW)
+    'ex_132', // Sliding Leg Curl (BW)
   ],
   // Glutes
   glutes: [
@@ -156,7 +161,8 @@ export const EXERCISE_POOLS: Record<string, string[]> = {
     'ex_102', // Sumo Deadlift
     'ex_111', // KB Swing
     'ex_106', // Cable Pull-Through
-    'ex_105', // Glute Bridge
+    'ex_105', // Glute Bridge (BW)
+    'ex_131', // Single Leg Glute Bridge (BW)
   ],
   // Calves
   calves: [
@@ -164,7 +170,8 @@ export const EXERCISE_POOLS: Record<string, string[]> = {
     'ex_064', // Seated Calf Raise
     'ex_065', // Donkey Calf Raise
     'ex_115', // DB Calf Raise
-    'ex_066', // Single Leg Calf Raise
+    'ex_066', // Single Leg Calf Raise (BW)
+    'ex_133', // Calf Raise (BW)
   ],
   // Abs
   abs: [

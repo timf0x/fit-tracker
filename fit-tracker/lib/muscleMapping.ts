@@ -1,5 +1,6 @@
 import { exercises } from '@/data/exercises';
 import { WorkoutSession } from '@/types';
+import i18n from '@/lib/i18n';
 
 /**
  * Maps exercise `target` field values → canonical muscle group keys
@@ -43,23 +44,42 @@ export const TARGET_TO_MUSCLE: Record<string, string> = {
   obliques: 'obliques',
 };
 
-/** French labels for muscle groups */
-export const MUSCLE_LABELS_FR: Record<string, string> = {
-  chest: 'Pectoraux',
-  'upper back': 'Haut dos',
-  lats: 'Dorsaux',
-  'lower back': 'Bas dos',
-  shoulders: 'Épaules',
-  biceps: 'Biceps',
-  triceps: 'Triceps',
-  forearms: 'Avant-bras',
-  quads: 'Quadriceps',
-  hamstrings: 'Ischio',
-  glutes: 'Fessiers',
-  calves: 'Mollets',
-  abs: 'Abdos',
-  obliques: 'Obliques',
+/** Muscle key → i18n key mapping for bodyPartsShort */
+const MUSCLE_I18N_KEYS: Record<string, string> = {
+  chest: 'bodyPartsShort.chest',
+  'upper back': 'bodyPartsShort.upperBack',
+  lats: 'bodyPartsShort.lats',
+  'lower back': 'bodyPartsShort.lowerBack',
+  shoulders: 'bodyPartsShort.shoulders',
+  biceps: 'bodyPartsShort.biceps',
+  triceps: 'bodyPartsShort.triceps',
+  forearms: 'bodyPartsShort.forearms',
+  quads: 'bodyPartsShort.quads',
+  hamstrings: 'bodyPartsShort.hamstrings',
+  glutes: 'bodyPartsShort.glutes',
+  calves: 'bodyPartsShort.calves',
+  abs: 'bodyPartsShort.abs',
+  obliques: 'bodyPartsShort.obliques',
 };
+
+/** Localized short labels for muscle groups (reads from i18n) */
+export function getMuscleLabel(muscle: string): string {
+  const key = MUSCLE_I18N_KEYS[muscle];
+  return key ? i18n.t(key) : muscle;
+}
+
+/** @deprecated Use getMuscleLabel() instead. Kept for backward compat. */
+export const MUSCLE_LABELS_FR: Record<string, string> = new Proxy({} as Record<string, string>, {
+  get(_, prop: string) {
+    return getMuscleLabel(prop);
+  },
+  ownKeys() {
+    return Object.keys(MUSCLE_I18N_KEYS);
+  },
+  getOwnPropertyDescriptor() {
+    return { configurable: true, enumerable: true };
+  },
+});
 
 /**
  * Maps RP muscle keys → BODY_ICONS body-part keys (from ActiveProgramCard)

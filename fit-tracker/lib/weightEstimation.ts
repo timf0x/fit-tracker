@@ -308,26 +308,87 @@ export function getNextWeight(
   equipment: Equipment,
 ): number {
   if (lastWeight <= 0) return 0;
+  return lastWeight + getIncrement(equipment);
+}
 
-  let increment: number;
+function getIncrement(equipment: Equipment): number {
   switch (equipment) {
     case 'barbell':
     case 'ez bar':
     case 'smith machine':
     case 'trap bar':
-      increment = 2.5;
-      break;
+      return 2.5;
     case 'dumbbell':
     case 'kettlebell':
-      increment = 2;
-      break;
+      return 2;
     case 'cable':
     case 'machine':
-      increment = 2.5; // cable/machine smaller jumps than plate-loaded
-      break;
+      return 2.5;
     default:
-      increment = 2.5;
+      return 2.5;
+  }
+}
+
+/**
+ * Smart progressive overload for generated sessions.
+ *
+ * Analyzes recent history for an exercise and decides:
+ * - BUMP: user completed all sets at/above target reps → add one increment
+ * - HOLD: user struggled (missed reps on some sets) → keep same weight
+ * - DROP: user failed >50% of sets → reduce by one increment
+ *
+ * Returns { weight, overloadAction } so the UI can show context.
+ */
+export function getProgressiveWeight(
+  exerciseId: string,
+  equipment: Equipment,
+  targetMinReps: number,
+  history: Array<{
+    completedExercises: Array<{
+      exerciseId: string;
+      sets: Array<{ reps: number; weight?: number; completed: boolean }>;
+    }>;
+  }>,
+): { weight: number; action: 'bump' | 'hold' | 'drop' | 'none' } {
+  // Find the most recent session with this exercise
+  for (const session of history) {
+    if (!session.completedExercises) continue;
+    const found = session.completedExercises.find((e) => e.exerciseId === exerciseId);
+    if (!found) continue;
+
+    const completedSets = found.sets.filter((s) => s.completed && s.weight && s.weight > 0);
+    if (completedSets.length === 0) continue;
+
+    // Median weight from last session
+    const weights = completedSets.map((s) => s.weight as number).sort((a, b) => a - b);
+    const mid = Math.floor(weights.length / 2);
+    const lastWeight = weights.length % 2 === 0
+      ? (weights[mid - 1] + weights[mid]) / 2
+      : weights[mid];
+
+    const increment = getIncrement(equipment);
+
+    // Count how many sets hit the minimum rep target
+    const hitsTarget = completedSets.filter((s) => s.reps >= targetMinReps).length;
+    const ratio = hitsTarget / completedSets.length;
+
+    if (ratio >= 0.8) {
+      // 80%+ sets hit target reps → ready to progress
+      return {
+        weight: roundToIncrement(lastWeight + increment, equipment),
+        action: 'bump',
+      };
+    } else if (ratio >= 0.4) {
+      // 40-80% → hold weight, still adapting
+      return { weight: roundToIncrement(lastWeight, equipment), action: 'hold' };
+    } else {
+      // <40% → weight too heavy, drop
+      return {
+        weight: roundToIncrement(Math.max(0, lastWeight - increment), equipment),
+        action: 'drop',
+      };
+    }
   }
 
-  return lastWeight + increment;
+  return { weight: 0, action: 'none' };
 }
