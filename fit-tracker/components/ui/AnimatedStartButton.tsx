@@ -22,6 +22,8 @@ import i18n from '@/lib/i18n';
  * 4. At 100% → scale pop + heavy haptic → callback fires
  */
 
+type IconComponent = React.ComponentType<{ size: number; color: string; fill?: string }>;
+
 interface AnimatedStartButtonProps {
   onPress: () => void;
   label?: string;
@@ -29,6 +31,8 @@ interface AnimatedStartButtonProps {
   style?: Record<string, unknown>;
   disabled?: boolean;
   iconSize?: number;
+  icon?: IconComponent;
+  loadingIcon?: IconComponent;
 }
 
 export function AnimatedStartButton({
@@ -38,6 +42,8 @@ export function AnimatedStartButton({
   style,
   disabled,
   iconSize = 18,
+  icon: IconDefault = Play,
+  loadingIcon: IconLoading = Zap,
 }: AnimatedStartButtonProps) {
   const [isAnimating, setIsAnimating] = useState(false);
   const progress = useSharedValue(0);
@@ -133,13 +139,13 @@ export function AnimatedStartButton({
         <View style={styles.contentLayer}>
           {/* Default label */}
           <Animated.View style={[styles.row, labelAnim]}>
-            <Play size={iconSize} color="#0C0C0C" fill="#0C0C0C" />
+            <IconDefault size={iconSize} color="#0C0C0C" fill="#0C0C0C" />
             <Text style={styles.label}>{label}</Text>
           </Animated.View>
 
           {/* Loading label — positioned on top */}
           <Animated.View style={[styles.row, styles.overlay, loadingAnim]}>
-            <Zap size={iconSize} color="#0C0C0C" fill="#0C0C0C" />
+            <IconLoading size={iconSize} color="#0C0C0C" fill="#0C0C0C" />
             <Text style={styles.label}>{loadingLabel}</Text>
           </Animated.View>
         </View>

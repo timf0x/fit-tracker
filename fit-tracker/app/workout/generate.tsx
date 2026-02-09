@@ -14,6 +14,7 @@ import {
   Bookmark,
   TrendingUp,
   Check,
+  Sparkles,
 } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import i18n from '@/lib/i18n';
@@ -501,6 +502,7 @@ export default function GenerateWorkoutScreen() {
               label={i18n.t('workoutGenerate.generate')}
               loadingLabel={i18n.t('workoutGenerate.generating')}
               disabled={selectedMuscles.size === 0}
+              icon={Sparkles}
             />
           </View>
         </View>
