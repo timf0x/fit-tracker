@@ -42,6 +42,7 @@ import { computeSessionInsights } from '@/lib/sessionInsights';
 import { SessionInsights } from '@/components/program/SessionInsights';
 import { computeReadinessScore, computeSessionAdjustments, applyAdjustmentsToExercises } from '@/lib/readinessEngine';
 import { checkDeloadStatus } from '@/lib/deloadDetection';
+import { getTodayISO } from '@/lib/scheduleEngine';
 import type { ProgramExercise } from '@/types/program';
 
 // Focus color mapping
@@ -83,12 +84,20 @@ export default function ProgramDayScreen() {
 
   const duration = useMemo(() => estimateDuration(day), [day]);
   const isDone = activeState.completedDays.includes(`${weekNum}-${dayIdx}`);
-  const isToday =
-    weekNum === activeState.currentWeek &&
-    dayIdx === activeState.currentDayIndex;
 
-  const isFutureDay = weekNum > activeState.currentWeek ||
-    (weekNum === activeState.currentWeek && dayIdx > activeState.currentDayIndex);
+  // Determine isToday from the schedule's planned date (not just program index)
+  const todayISO = getTodayISO();
+  const scheduledDay = activeState.schedule?.scheduledDays.find(
+    (sd) => sd.weekNumber === weekNum && sd.dayIndex === dayIdx,
+  );
+  const isToday = scheduledDay
+    ? scheduledDay.plannedDate === todayISO
+    : weekNum === activeState.currentWeek && dayIdx === activeState.currentDayIndex;
+
+  const isFutureDay = scheduledDay
+    ? scheduledDay.plannedDate > todayISO
+    : weekNum > activeState.currentWeek ||
+      (weekNum === activeState.currentWeek && dayIdx > activeState.currentDayIndex);
   const isPastIncomplete = !isDone && !isToday && !isFutureDay;
 
   const totalSets = useMemo(
