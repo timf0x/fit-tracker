@@ -4,6 +4,7 @@ import { PressableScale } from '@/components/ui/PressableScale';
 import { useRouter } from 'expo-router';
 import { Footprints } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 import { getTodaySteps, watchTodaySteps } from '@/services/pedometer';
 
 export function StepsCard() {
@@ -45,7 +46,7 @@ export function StepsCard() {
         <View style={styles.iconBox}>
           <Footprints size={16} color="#3b82f6" strokeWidth={2.5} />
         </View>
-        <Text style={styles.label}>STEPS</Text>
+        <Text style={styles.label}>{i18n.t('home.stats.steps')}</Text>
       </View>
       <View style={styles.valueRow}>
         <Text style={styles.valueWhite}>{display}</Text>

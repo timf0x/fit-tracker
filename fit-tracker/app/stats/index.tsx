@@ -91,7 +91,8 @@ function formatVolume(kg: number): string {
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  const locale = i18n.locale === 'fr' ? 'fr-FR' : 'en-US';
+  return d.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
 }
 
 function formatSessionDuration(seconds: number): string {
@@ -102,8 +103,9 @@ function formatSessionDuration(seconds: number): string {
 function getShortWeekLabel(offset: number): string {
   const { start } = getWeekBounds(offset);
   const day = start.getDate();
+  const locale = i18n.locale === 'fr' ? 'fr-FR' : 'en-US';
   const month = start
-    .toLocaleDateString('fr-FR', { month: 'short' })
+    .toLocaleDateString(locale, { month: 'short' })
     .replace('.', '');
   return `${day} ${month}`;
 }
@@ -678,7 +680,7 @@ export default function StatsScreen() {
                               )}{' '}
                               ·{' '}
                               {session.completedExercises.length}{' '}
-                              exos
+                              {i18n.t('common.exosAbbr')}
                             </Text>
                           </View>
                           {isExpanded ? (

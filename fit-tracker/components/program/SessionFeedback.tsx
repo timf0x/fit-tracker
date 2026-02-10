@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Modal } from 'react-native';
 import { Flame, Activity, TrendingUp, AlertCircle } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 import type { SessionFeedback as SessionFeedbackType } from '@/types/program';
 
 interface SessionFeedbackProps {
@@ -10,23 +11,29 @@ interface SessionFeedbackProps {
   onSkip: () => void;
 }
 
-const PUMP_OPTIONS = [
-  { value: 1 as const, label: 'Faible' },
-  { value: 2 as const, label: 'Bon' },
-  { value: 3 as const, label: 'Enorme' },
-];
+function getPumpOptions() {
+  return [
+    { value: 1 as const, label: i18n.t('sessionFeedbackModal.pumpLow') },
+    { value: 2 as const, label: i18n.t('sessionFeedbackModal.pumpMed') },
+    { value: 3 as const, label: i18n.t('sessionFeedbackModal.pumpHigh') },
+  ];
+}
 
-const SORENESS_OPTIONS = [
-  { value: 1 as const, label: 'Aucune' },
-  { value: 2 as const, label: 'Moderees' },
-  { value: 3 as const, label: 'Fortes' },
-];
+function getSorenessOptions() {
+  return [
+    { value: 1 as const, label: i18n.t('sessionFeedbackModal.sorenessLow') },
+    { value: 2 as const, label: i18n.t('sessionFeedbackModal.sorenessMed') },
+    { value: 3 as const, label: i18n.t('sessionFeedbackModal.sorenessHigh') },
+  ];
+}
 
-const PERFORMANCE_OPTIONS = [
-  { value: 1 as const, label: 'Baisse' },
-  { value: 2 as const, label: 'Stable' },
-  { value: 3 as const, label: 'Hausse' },
-];
+function getPerformanceOptions() {
+  return [
+    { value: 1 as const, label: i18n.t('sessionFeedbackModal.perfLow') },
+    { value: 2 as const, label: i18n.t('sessionFeedbackModal.perfMed') },
+    { value: 3 as const, label: i18n.t('sessionFeedbackModal.perfHigh') },
+  ];
+}
 
 export function SessionFeedback({ visible, onSubmit, onSkip }: SessionFeedbackProps) {
   const [pump, setPump] = useState<1 | 2 | 3>(2);
@@ -42,16 +49,16 @@ export function SessionFeedback({ visible, onSubmit, onSkip }: SessionFeedbackPr
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
         <View style={styles.content}>
-          <Text style={styles.title}>Comment etait cette seance ?</Text>
+          <Text style={styles.title}>{i18n.t('sessionFeedbackModal.title')}</Text>
 
           {/* Pump */}
           <View style={styles.scaleSection}>
             <View style={styles.scaleLabelRow}>
               <Flame size={14} color={Colors.primary} />
-              <Text style={styles.scaleLabel}>Pump</Text>
+              <Text style={styles.scaleLabel}>{i18n.t('sessionFeedbackModal.pump')}</Text>
             </View>
             <View style={styles.optionRow}>
-              {PUMP_OPTIONS.map((opt) => (
+              {getPumpOptions().map((opt) => (
                 <Pressable
                   key={opt.value}
                   style={[styles.option, pump === opt.value && styles.optionActive]}
@@ -69,10 +76,10 @@ export function SessionFeedback({ visible, onSubmit, onSkip }: SessionFeedbackPr
           <View style={styles.scaleSection}>
             <View style={styles.scaleLabelRow}>
               <Activity size={14} color="#A855F7" />
-              <Text style={styles.scaleLabel}>Courbatures attendues</Text>
+              <Text style={styles.scaleLabel}>{i18n.t('sessionFeedbackModal.soreness')}</Text>
             </View>
             <View style={styles.optionRow}>
-              {SORENESS_OPTIONS.map((opt) => (
+              {getSorenessOptions().map((opt) => (
                 <Pressable
                   key={opt.value}
                   style={[styles.option, soreness === opt.value && styles.optionActive]}
@@ -90,10 +97,10 @@ export function SessionFeedback({ visible, onSubmit, onSkip }: SessionFeedbackPr
           <View style={styles.scaleSection}>
             <View style={styles.scaleLabelRow}>
               <TrendingUp size={14} color="#4ADE80" />
-              <Text style={styles.scaleLabel}>Performance</Text>
+              <Text style={styles.scaleLabel}>{i18n.t('sessionFeedbackModal.performance')}</Text>
             </View>
             <View style={styles.optionRow}>
-              {PERFORMANCE_OPTIONS.map((opt) => (
+              {getPerformanceOptions().map((opt) => (
                 <Pressable
                   key={opt.value}
                   style={[styles.option, performance === opt.value && styles.optionActive]}
@@ -111,29 +118,29 @@ export function SessionFeedback({ visible, onSubmit, onSkip }: SessionFeedbackPr
           <View style={styles.scaleSection}>
             <View style={styles.scaleLabelRow}>
               <AlertCircle size={14} color="#FBBF24" />
-              <Text style={styles.scaleLabel}>Inconfort articulaire</Text>
+              <Text style={styles.scaleLabel}>{i18n.t('sessionFeedbackModal.jointPain')}</Text>
             </View>
             <View style={styles.optionRow}>
               <Pressable
                 style={[styles.option, !jointPain && styles.optionActive]}
                 onPress={() => setJointPain(false)}
               >
-                <Text style={[styles.optionText, !jointPain && styles.optionTextActive]}>Non</Text>
+                <Text style={[styles.optionText, !jointPain && styles.optionTextActive]}>{i18n.t('common.no')}</Text>
               </Pressable>
               <Pressable
                 style={[styles.option, jointPain && styles.optionActiveWarning]}
                 onPress={() => setJointPain(true)}
               >
-                <Text style={[styles.optionText, jointPain && styles.optionTextActiveWarning]}>Oui</Text>
+                <Text style={[styles.optionText, jointPain && styles.optionTextActiveWarning]}>{i18n.t('common.yes')}</Text>
               </Pressable>
             </View>
           </View>
 
           <Pressable style={styles.submitButton} onPress={handleSubmit}>
-            <Text style={styles.submitText}>Valider</Text>
+            <Text style={styles.submitText}>{i18n.t('common.validate')}</Text>
           </Pressable>
           <Pressable style={styles.skipButton} onPress={onSkip}>
-            <Text style={styles.skipText}>Passer</Text>
+            <Text style={styles.skipText}>{i18n.t('common.skip')}</Text>
           </Pressable>
         </View>
       </View>

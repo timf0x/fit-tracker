@@ -27,8 +27,8 @@ import {
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { OnboardingStep } from '@/components/program/OnboardingStep';
-import { MUSCLE_LABELS_FR } from '@/lib/muscleMapping';
 import { getSplitForDays, SPLIT_TEMPLATES } from '@/constants/programTemplates';
+import { getMuscleLabel } from '@/lib/muscleMapping';
 
 const FOCUS_COLORS: Record<string, { bg: string; text: string }> = {
   push: { bg: 'rgba(255,107,53,0.12)', text: '#FF6B35' },
@@ -58,6 +58,7 @@ export default function OnboardingScreen() {
   const [experience, setExperience] = useState<ExperienceLevel | null>(null);
   const [daysPerWeek, setDaysPerWeek] = useState<3 | 4 | 5 | 6 | null>(null);
   const [equipment, setEquipment] = useState<EquipmentSetup | null>(null);
+  const [userName, setUserName] = useState('');
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
   const [age, setAge] = useState('');
@@ -96,6 +97,7 @@ export default function OnboardingScreen() {
 
     const now = new Date().toISOString();
     const profile: UserProfile = {
+      name: userName.trim() || undefined,
       goal,
       experience,
       daysPerWeek,
@@ -234,7 +236,7 @@ export default function OnboardingScreen() {
                 return (
                   <View key={i} style={[styles.splitSlot, { backgroundColor: focusColors.bg }]}>
                     <Text style={[styles.splitSlotText, { color: focusColors.text }]}>
-                      {day.labelFr}
+                      {i18n.t(`programLabels.${day.labelKey}`)}
                     </Text>
                   </View>
                 );
@@ -287,6 +289,17 @@ export default function OnboardingScreen() {
         style={{ flex: 1 }}
       >
         <View style={styles.inputsGrid}>
+          <View style={styles.inputRow}>
+            <Text style={styles.inputLabel}>{i18n.t('programOnboarding.measurements.name')}</Text>
+            <TextInput
+              style={styles.input}
+              value={userName}
+              onChangeText={setUserName}
+              placeholder={i18n.t('programOnboarding.measurements.namePlaceholder')}
+              placeholderTextColor="rgba(255,255,255,0.2)"
+              autoCapitalize="words"
+            />
+          </View>
           <View style={styles.inputRow}>
             <Text style={styles.inputLabel}>{i18n.t('programOnboarding.measurements.sex')}</Text>
             <View style={styles.sexToggle}>
@@ -347,7 +360,10 @@ export default function OnboardingScreen() {
     </OnboardingStep>
   );
 
-  const muscleKeys = Object.keys(MUSCLE_LABELS_FR);
+  const muscleKeys = [
+    'chest', 'upper_back', 'lats', 'shoulders', 'quads', 'hamstrings', 'glutes',
+    'biceps', 'triceps', 'forearms', 'calves', 'abs', 'obliques', 'lower_back',
+  ];
 
   const renderPriorityMuscles = () => (
     <OnboardingStep
@@ -366,7 +382,7 @@ export default function OnboardingScreen() {
               onPress={() => toggleMuscle(key)}
             >
               <Text style={[styles.musclePillText, selected && styles.musclePillTextSelected]}>
-                {MUSCLE_LABELS_FR[key]}
+                {getMuscleLabel(key)}
               </Text>
             </Pressable>
           );
@@ -399,7 +415,7 @@ export default function OnboardingScreen() {
     { label: i18n.t('programOnboarding.confirmation.sex'), value: sex === 'male' ? i18n.t('programOnboarding.measurements.male') : sex === 'female' ? i18n.t('programOnboarding.measurements.female') : '—' },
     { label: i18n.t('programOnboarding.confirmation.weight'), value: weight ? `${weight} kg` : '—' },
     ...(priorityMuscles.length > 0
-      ? [{ label: i18n.t('programOnboarding.confirmation.priorities'), value: priorityMuscles.map((m) => MUSCLE_LABELS_FR[m]).join(', ') }]
+      ? [{ label: i18n.t('programOnboarding.confirmation.priorities'), value: priorityMuscles.map((m) => getMuscleLabel(m)).join(', ') }]
       : []),
   ];
 

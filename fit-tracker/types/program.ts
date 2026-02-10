@@ -5,6 +5,7 @@ export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
 export type EquipmentSetup = 'full_gym' | 'home_dumbbell' | 'bodyweight';
 
 export interface UserProfile {
+  name?: string; // display name for greeting
   goal: TrainingGoal;
   experience: ExperienceLevel;
   daysPerWeek: 3 | 4 | 5 | 6;
@@ -45,7 +46,8 @@ export interface ProgramExercise {
 export interface ProgramDay {
   dayIndex: number;
   label: string;
-  labelFr: string;
+  labelKey?: string; // i18n key under programLabels.* (new programs)
+  labelFr: string;   // legacy — kept for backward compat with persisted programs
   focus: string;
   muscleTargets: string[];
   exercises: ProgramExercise[];

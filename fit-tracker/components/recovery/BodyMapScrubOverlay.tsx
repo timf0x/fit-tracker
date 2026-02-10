@@ -17,6 +17,7 @@ import { findHitZone } from '@/constants/bodyHitZones';
 import { BODY_PART_LABELS, RECOVERY_COLORS } from '@/constants/recovery';
 import { MuscleRecoveryData, RecoveryBodyPart } from '@/types';
 import { Fonts } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 
 interface ScrubOverlayProps {
   bodyWidth: number;
@@ -134,7 +135,7 @@ export function BodyMapScrubOverlay({
   }
 
   const tooltipLabel = currentZone
-    ? BODY_PART_LABELS[currentZone]?.fr || currentZone
+    ? BODY_PART_LABELS[currentZone]?.[i18n.locale === 'fr' ? 'fr' : 'en'] || currentZone
     : '';
 
   const muscleData = currentZone

@@ -61,6 +61,7 @@ import {
   announceCountdown,
   announceSetComplete,
   handleTimerTick,
+  cancelPendingSpeech,
 } from '@/services/audio';
 import { detectPRs } from '@/lib/progressiveOverload';
 import { TARGET_TO_MUSCLE } from '@/lib/muscleMapping';
@@ -532,6 +533,7 @@ export default function WorkoutSessionScreen() {
   const handleDoubleSkip = useCallback(() => {
     if (phase === 'finished') return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    cancelPendingSpeech();
 
     const nextExIdx = exerciseIndex + 1;
     if (nextExIdx < totalExercises) {
@@ -1136,12 +1138,12 @@ export default function WorkoutSessionScreen() {
                       <Text style={s.reviewCardName} numberOfLines={1}>{ex.exerciseName}</Text>
                       {ex.isUnilateral && (
                         <View style={s.uniTag}>
-                          <Text style={s.uniTagText}>UNI</Text>
+                          <Text style={s.uniTagText}>{i18n.t('workoutSession.uniTag')}</Text>
                         </View>
                       )}
                     </View>
                     <Text style={s.reviewCardDetail}>
-                      {completedCount}/{totalSetsNeeded} sets · {ex.minReps && ex.minReps !== (ex.maxReps || ex.reps) ? `${ex.minReps}-${ex.maxReps}` : ex.maxReps || ex.reps} reps{ex.weight > 0 ? ` · ${ex.weight} kg` : ''}
+                      {completedCount}/{totalSetsNeeded} {i18n.t('common.sets')} · {ex.minReps && ex.minReps !== (ex.maxReps || ex.reps) ? `${ex.minReps}-${ex.maxReps}` : ex.maxReps || ex.reps} {i18n.t('common.reps')}{ex.weight > 0 ? ` · ${ex.weight} ${i18n.t('common.kgUnit')}` : ''}
                     </Text>
                   </View>
                   <View style={[s.expandChevron, isExpanded && s.expandChevronOpen]}>
@@ -1157,7 +1159,7 @@ export default function WorkoutSessionScreen() {
                       let setLabel: string;
                       if (ex.isUnilateral) {
                         const setNum = Math.floor(setIdx / 2) + 1;
-                        const sideSuffix = setIdx % 2 === 0 ? 'D' : 'G';
+                        const sideSuffix = setIdx % 2 === 0 ? i18n.t('workoutSession.rightAbbr') : i18n.t('workoutSession.leftAbbr');
                         setLabel = `${setNum}${sideSuffix}`;
                       } else {
                         setLabel = String(setIdx + 1);
@@ -1182,7 +1184,7 @@ export default function WorkoutSessionScreen() {
                             </View>
 
                             <View style={s.stepperGroup}>
-                              <Text style={s.stepperLabel}>REPS</Text>
+                              <Text style={s.stepperLabel}>{i18n.t('workoutSession.repsLabel')}</Text>
                               <View style={s.stepperRow}>
                                 <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetReps(idx, setIdx, -1)}>
                                   <Minus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
@@ -1202,7 +1204,7 @@ export default function WorkoutSessionScreen() {
 
                             {!isBodyweight && (
                               <View style={s.stepperGroup}>
-                                <Text style={s.stepperLabel}>KG</Text>
+                                <Text style={s.stepperLabel}>{i18n.t('workoutSession.kgLabel')}</Text>
                                 <View style={s.stepperRow}>
                                   <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetWeight(idx, setIdx, -0.5)}>
                                     <Minus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
@@ -1346,9 +1348,9 @@ export default function WorkoutSessionScreen() {
                 : (' · ' + i18n.t('workoutSession.leftSide'))) : ''}
               {' · '}{currentExercise.minReps && currentExercise.minReps !== (currentExercise.maxReps || currentExercise.reps)
                 ? `${currentExercise.minReps}-${currentExercise.maxReps}`
-                : currentExercise.maxReps || currentExercise.reps} REPS
-              {currentExercise.weight > 0 ? ` · ${currentExercise.weight} KG` : ''}
-              {currentExercise.targetRir != null ? ` · RIR ${currentExercise.targetRir}` : ''}
+                : currentExercise.maxReps || currentExercise.reps} {i18n.t('workoutSession.repsLabel')}
+              {currentExercise.weight > 0 ? ` · ${currentExercise.weight} ${i18n.t('workoutSession.kgLabel')}` : ''}
+              {currentExercise.targetRir != null ? ` · ${i18n.t('workoutSession.rirLabel')} ${currentExercise.targetRir}` : ''}
             </Text>
             {currentExercise.overloadAction === 'bump' && (
               <Text style={s.overloadTip}>{i18n.t('workoutSession.overloadBump')}</Text>
@@ -1495,12 +1497,12 @@ export default function WorkoutSessionScreen() {
                         </Text>
                         {ex.isUnilateral && (
                           <View style={s.uniTag}>
-                            <Text style={s.uniTagText}>UNI</Text>
+                            <Text style={s.uniTagText}>{i18n.t('workoutSession.uniTag')}</Text>
                           </View>
                         )}
                       </View>
                       <Text style={s.listCardDetail}>
-                        {completedCount}/{totalSetsNeeded} sets · {ex.minReps && ex.minReps !== (ex.maxReps || ex.reps) ? `${ex.minReps}-${ex.maxReps}` : ex.maxReps || ex.reps} reps{ex.weight > 0 ? ` · ${ex.weight} kg` : ''}
+                        {completedCount}/{totalSetsNeeded} {i18n.t('common.sets')} · {ex.minReps && ex.minReps !== (ex.maxReps || ex.reps) ? `${ex.minReps}-${ex.maxReps}` : ex.maxReps || ex.reps} {i18n.t('common.reps')}{ex.weight > 0 ? ` · ${ex.weight} ${i18n.t('common.kgUnit')}` : ''}
                       </Text>
                     </View>
                     {!isCompleted && (
@@ -1532,7 +1534,7 @@ export default function WorkoutSessionScreen() {
                         let setLabel: string;
                         if (ex.isUnilateral) {
                           const setNum = Math.floor(rowIdx / 2) + 1;
-                          const sideSuffix = rowIdx % 2 === 0 ? 'D' : 'G';
+                          const sideSuffix = rowIdx % 2 === 0 ? i18n.t('workoutSession.rightAbbr') : i18n.t('workoutSession.leftAbbr');
                           setLabel = `${setNum}${sideSuffix}`;
                         } else {
                           setLabel = String(rowIdx + 1);
@@ -1565,7 +1567,7 @@ export default function WorkoutSessionScreen() {
                               </View>
 
                               <View style={s.stepperGroup}>
-                                <Text style={s.stepperLabel}>REPS</Text>
+                                <Text style={s.stepperLabel}>{i18n.t('workoutSession.repsLabel')}</Text>
                                 {isSetCompleted ? (
                                   <View style={s.stepperRow}>
                                     <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetReps(idx, rowIdx, -1)}>
@@ -1589,7 +1591,7 @@ export default function WorkoutSessionScreen() {
 
                               {!isBodyweight && (
                                 <View style={s.stepperGroup}>
-                                  <Text style={s.stepperLabel}>KG</Text>
+                                  <Text style={s.stepperLabel}>{i18n.t('workoutSession.kgLabel')}</Text>
                                   {isSetCompleted ? (
                                     <View style={s.stepperRow}>
                                       <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetWeight(idx, rowIdx, -0.5)}>

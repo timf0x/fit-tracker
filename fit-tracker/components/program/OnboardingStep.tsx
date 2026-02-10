@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Fonts, Spacing } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 
 interface OnboardingStepProps {
   title: string;
@@ -25,7 +26,7 @@ export function OnboardingStep({
       <View style={styles.content}>{children}</View>
       {isOptional && onSkip && (
         <Pressable style={styles.skipButton} onPress={onSkip}>
-          <Text style={styles.skipText}>Passer</Text>
+          <Text style={styles.skipText}>{i18n.t('common.skip')}</Text>
         </Pressable>
       )}
     </View>

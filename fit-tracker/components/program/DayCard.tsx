@@ -3,7 +3,10 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Check, ChevronRight } from 'lucide-react-native';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Colors, Fonts } from '@/constants/theme';
-import { MUSCLE_LABELS_FR } from '@/lib/muscleMapping';
+import i18n from '@/lib/i18n';
+import { MUSCLE_TO_BODYPART } from '@/lib/muscleMapping';
+import { BODY_ICONS, DEFAULT_BODY_ICON } from '@/components/home/ActiveProgramCard';
+import { resolveDayLabel } from '@/lib/programLabels';
 import { ProgramDay } from '@/types/program';
 import { estimateDuration } from '@/lib/programGenerator';
 
@@ -17,7 +20,7 @@ interface DayCardProps {
 
 /**
  * Day row — minimal list item inside a single glass card.
- * Status dot (●/○/✓) + title + duration + muscle text + series.
+ * Status dot (●/○/✓) + title + duration + body part icons + series.
  * No pills, no badges, no colored focus tags.
  */
 export function DayCard({
@@ -33,14 +36,12 @@ export function DayCard({
     [day.exercises],
   );
 
-  const muscleText = useMemo(() => {
-    const labels = day.muscleTargets
-      .slice(0, 3)
-      .map((m) => MUSCLE_LABELS_FR[m] || m);
-    let text = labels.join(', ');
-    if (day.muscleTargets.length > 3)
-      text += ` +${day.muscleTargets.length - 3}`;
-    return text;
+  const bodyIcons = useMemo(() => {
+    const seen = new Set<string>();
+    return day.muscleTargets
+      .map((m) => MUSCLE_TO_BODYPART[m])
+      .filter((bp): bp is string => !!bp && !seen.has(bp) && (seen.add(bp), true))
+      .map((bp) => ({ key: bp, ...(BODY_ICONS[bp] || DEFAULT_BODY_ICON) }));
   }, [day.muscleTargets]);
 
   return (
@@ -72,13 +73,22 @@ export function DayCard({
             style={[styles.title, isCompleted && styles.titleDone]}
             numberOfLines={1}
           >
-            {day.labelFr}
+            {resolveDayLabel(day)}
           </Text>
-          <Text style={styles.duration}>~{duration} min</Text>
+          <Text style={styles.duration}>~{duration} {i18n.t('common.minAbbr')}</Text>
         </View>
-        <Text style={styles.meta} numberOfLines={1}>
-          {muscleText} · {totalSets} séries
-        </Text>
+        <View style={styles.iconRow}>
+          <View style={styles.iconGroup}>
+            {bodyIcons.map((icon) => (
+              <View key={icon.key} style={[styles.iconBox, { backgroundColor: icon.bg }]}>
+                <icon.Icon size={11} color={icon.color} strokeWidth={2.5} />
+              </View>
+            ))}
+          </View>
+          <Text style={styles.setsText}>
+            {totalSets} {i18n.t('common.sets')}
+          </Text>
+        </View>
       </View>
 
       <ChevronRight size={14} color="rgba(100,100,110,1)" />
@@ -130,7 +140,7 @@ const styles = StyleSheet.create({
   // Content
   content: {
     flex: 1,
-    gap: 3,
+    gap: 5,
   },
   titleRow: {
     flexDirection: 'row',
@@ -154,7 +164,23 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: 8,
   },
-  meta: {
+  iconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  iconGroup: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  iconBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  setsText: {
     color: 'rgba(255,255,255,0.3)',
     fontSize: 12,
     fontFamily: Fonts?.medium,

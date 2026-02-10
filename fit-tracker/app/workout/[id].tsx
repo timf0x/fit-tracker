@@ -48,6 +48,8 @@ import { useProgramStore } from '@/stores/programStore';
 import type { WorkoutExercise, Exercise, BodyPart, Equipment } from '@/types';
 import { DEFAULT_SET_TIME } from '@/types';
 import type { ReadinessCheck as ReadinessCheckType } from '@/types/program';
+import { DropdownModal } from '@/components/ui/DropdownModal';
+import { getFocusOptions, getEquipmentOptions } from '@/constants/filterOptions';
 
 // ─── Constants ───
 
@@ -62,30 +64,8 @@ const FOCUS_COLORS: Record<string, string> = {
   lower: '#66bb6a',
 };
 
-const FOCUS_OPTIONS: { value: BodyPart | 'all'; label: string }[] = [
-  { value: 'all', label: i18n.t('workoutCreate.focus.all') },
-  { value: 'chest', label: i18n.t('workoutCreate.focus.chest') },
-  { value: 'back', label: i18n.t('workoutCreate.focus.back') },
-  { value: 'shoulders', label: i18n.t('workoutCreate.focus.shoulders') },
-  { value: 'upper legs', label: i18n.t('workoutCreate.focus.legs') },
-  { value: 'upper arms', label: i18n.t('workoutCreate.focus.arms') },
-  { value: 'waist', label: i18n.t('workoutCreate.focus.waist') },
-  { value: 'cardio', label: i18n.t('workoutCreate.focus.cardio') },
-];
-
-const EQUIPMENT_OPTIONS: { value: Equipment | 'all'; label: string }[] = [
-  { value: 'all', label: i18n.t('common.all') },
-  { value: 'dumbbell', label: i18n.t('equipment.dumbbells') },
-  { value: 'barbell', label: i18n.t('equipment.barbell') },
-  { value: 'cable', label: i18n.t('equipment.cable') },
-  { value: 'machine', label: i18n.t('equipment.machine') },
-  { value: 'body weight', label: i18n.t('equipment.bodyweight') },
-  { value: 'kettlebell', label: i18n.t('equipment.kettlebell') },
-  { value: 'resistance band', label: i18n.t('equipment.bands') },
-  { value: 'ez bar', label: i18n.t('equipment.ezBar') },
-  { value: 'smith machine', label: i18n.t('equipment.smithMachine') },
-  { value: 'trap bar', label: i18n.t('equipment.trapBar') },
-];
+const FOCUS_OPTIONS = getFocusOptions();
+const EQUIPMENT_OPTIONS = getEquipmentOptions();
 
 // ─── Types ───
 
@@ -102,53 +82,6 @@ const OVERLOAD_CONFIG = {
   hold: { icon: ArrowRight, label: '→', color: 'rgba(255,255,255,0.4)', bg: 'rgba(255,255,255,0.04)' },
   drop: { icon: TrendingDown, label: '↓', color: '#FBBF24', bg: 'rgba(251,191,36,0.10)' },
 } as const;
-
-// ─── Dropdown Modal Component ───
-
-function DropdownModal({
-  visible,
-  title,
-  options,
-  selected,
-  onSelect,
-  onClose,
-}: {
-  visible: boolean;
-  title: string;
-  options: { value: string; label: string }[];
-  selected: string;
-  onSelect: (v: string) => void;
-  onClose: () => void;
-}) {
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={s.modalOverlay} onPress={onClose}>
-        <View style={s.dropdownModal}>
-          <View style={s.dropdownHeader}>
-            <Text style={s.dropdownTitle}>{title}</Text>
-            <Pressable onPress={onClose}>
-              <X size={18} color={Colors.text} strokeWidth={2} />
-            </Pressable>
-          </View>
-          <ScrollView style={{ maxHeight: 300 }}>
-            {options.map((opt) => (
-              <Pressable
-                key={opt.value}
-                style={[s.dropdownOption, selected === opt.value && s.dropdownOptionActive]}
-                onPress={() => onSelect(opt.value)}
-              >
-                <Text style={[s.dropdownOptionText, selected === opt.value && s.dropdownOptionTextActive]}>
-                  {opt.label}
-                </Text>
-                {selected === opt.value && <Check size={16} color={Colors.primary} strokeWidth={2.5} />}
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-      </Pressable>
-    </Modal>
-  );
-}
 
 // ─── Main Screen ───
 
@@ -1743,52 +1676,4 @@ const s = StyleSheet.create({
     alignItems: 'center',
     padding: 32,
   },
-  dropdownModal: {
-    width: '100%',
-    maxWidth: 320,
-    backgroundColor: 'rgba(28,28,32,0.98)',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    overflow: 'hidden',
-  },
-  dropdownHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
-  },
-  dropdownTitle: {
-    color: Colors.text,
-    fontSize: 16,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-  dropdownOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 13,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.04)',
-  },
-  dropdownOptionActive: {
-    backgroundColor: 'rgba(255,107,53,0.06)',
-  },
-  dropdownOptionText: {
-    color: 'rgba(180,180,190,1)',
-    fontSize: 14,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-  dropdownOptionTextActive: {
-    color: Colors.primary,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-
 });

@@ -97,7 +97,7 @@ export function SmartSuggestionCard({
 
       {/* Meta line */}
       <Text style={styles.metaLine}>
-        {suggestion.muscles.length} muscles · ~{estimatedSets} séries · ~{estimatedMin} min
+        {i18n.t('smartSuggestion.summaryFormat', { muscles: suggestion.muscles.length, sets: estimatedSets, minutes: estimatedMin })}
       </Text>
 
       {/* Muscle rows */}
@@ -118,7 +118,7 @@ export function SmartSuggestionCard({
             );
           })}
           {suggestion.muscles.length > 3 && (
-            <Text style={styles.moreText}>+{suggestion.muscles.length - 3} muscles</Text>
+            <Text style={styles.moreText}>+{suggestion.muscles.length - 3} {i18n.t('common.musclesUnit')}</Text>
           )}
         </View>
       )}

@@ -33,10 +33,11 @@ import { ExerciseInfoSheet } from '@/components/ExerciseInfoSheet';
 import { ReadinessCheck } from '@/components/program/ReadinessCheck';
 import { SessionFeedback } from '@/components/program/SessionFeedback';
 import { AnimatedStartButton } from '@/components/ui/AnimatedStartButton';
-import { MUSCLE_LABELS_FR } from '@/lib/muscleMapping';
+import { getMuscleLabel } from '@/lib/muscleMapping';
 import { estimateDuration, isCompound, getOverloadSuggestions } from '@/lib/programGenerator';
 import { buildProgramExercisesParam } from '@/lib/programSession';
 import { getProgressiveWeight, getEstimatedWeight } from '@/lib/weightEstimation';
+import { resolveDayLabel } from '@/lib/programLabels';
 import { computeSessionInsights } from '@/lib/sessionInsights';
 import { SessionInsights } from '@/components/program/SessionInsights';
 import { checkDeloadStatus } from '@/lib/deloadDetection';
@@ -214,7 +215,7 @@ export default function ProgramDayScreen() {
   const startSessionNow = useCallback((readiness?: import('@/types/program').ReadinessCheck) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const workoutId = `program_${program.id}_w${weekNum}_d${dayIdx}`;
-    const sessionId = startSession(workoutId, day.labelFr, {
+    const sessionId = startSession(workoutId, resolveDayLabel(day), {
       programId: program.id,
       programWeek: weekNum,
       programDayIndex: dayIdx,
@@ -227,7 +228,7 @@ export default function ProgramDayScreen() {
       params: {
         workoutId,
         sessionId,
-        workoutName: day.labelFr,
+        workoutName: resolveDayLabel(day),
         exercises: buildProgramExercisesParam(day, progressiveWeights),
       },
     });
@@ -321,7 +322,7 @@ export default function ProgramDayScreen() {
 
             {lastPerf && (
               <Text style={styles.lastPerfText}>
-                {i18n.t('programDay.lastTime')} : {lastPerf.weight > 0 ? `${lastPerf.weight}kg x ` : ''}{lastPerf.reps} reps
+                {i18n.t('programDay.lastTime')} : {lastPerf.weight > 0 ? `${lastPerf.weight}${i18n.t('common.kgUnit')} x ` : ''}{lastPerf.reps} {i18n.t('common.reps')}
               </Text>
             )}
 
@@ -338,7 +339,7 @@ export default function ProgramDayScreen() {
                 <View style={[styles.exMetaPill, styles.exWeightPill]}>
                   <Weight size={10} color={Colors.primary} />
                   <Text style={[styles.exMetaText, styles.exWeightText]}>
-                    {displayWeight}kg
+                    {displayWeight}{i18n.t('common.kgUnit')}
                   </Text>
                 </View>
               )}
@@ -501,7 +502,7 @@ export default function ProgramDayScreen() {
             <ArrowLeft size={22} color="#fff" strokeWidth={2} />
           </Pressable>
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>{day.labelFr}</Text>
+            <Text style={styles.headerTitle}>{resolveDayLabel(day)}</Text>
             <Text style={styles.headerSub}>{i18n.t('programDay.weekLabel', { week: weekNum })}</Text>
           </View>
           {isDone && (
@@ -558,7 +559,7 @@ export default function ProgramDayScreen() {
               }}
             >
               <Text style={styles.musclePillText}>
-                {MUSCLE_LABELS_FR[m] || m}
+                {getMuscleLabel(m)}
               </Text>
             </Pressable>
           ))}
@@ -602,7 +603,7 @@ export default function ProgramDayScreen() {
                 <Text style={styles.sectionLabel}>{i18n.t('programDay.compounds')}</Text>
                 {weekRir != null && (
                   <View style={styles.sectionRirBadge}>
-                    <Text style={styles.sectionRirText}>RIR {weekRir}</Text>
+                    <Text style={styles.sectionRirText}>{i18n.t('workoutSession.rirLabel')} {weekRir}</Text>
                   </View>
                 )}
                 <View style={styles.sectionLine} />
@@ -624,7 +625,7 @@ export default function ProgramDayScreen() {
                 <Text style={styles.sectionLabel}>{i18n.t('programDay.isolation')}</Text>
                 {weekRir != null && compounds.length === 0 && (
                   <View style={styles.sectionRirBadge}>
-                    <Text style={styles.sectionRirText}>RIR {weekRir}</Text>
+                    <Text style={styles.sectionRirText}>{i18n.t('workoutSession.rirLabel')} {weekRir}</Text>
                   </View>
                 )}
                 <View style={styles.sectionLine} />
@@ -1012,17 +1013,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  exNumberCompound: {
-    backgroundColor: 'rgba(255,107,53,0.1)',
-  },
   exNumberText: {
     color: 'rgba(120,120,130,1)',
     fontSize: 11,
     fontFamily: Fonts?.bold,
     fontWeight: '700',
-  },
-  exNumberTextCompound: {
-    color: Colors.primary,
   },
   exInfo: {
     flex: 1,
@@ -1253,12 +1248,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
     width: '100%',
-  },
-  startText: {
-    color: '#0C0C0C',
-    fontSize: 16,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
   },
   ctaMicro: {
     color: 'rgba(255,255,255,0.3)',

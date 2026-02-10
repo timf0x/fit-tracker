@@ -417,7 +417,7 @@ export default function GenerateWorkoutScreen() {
                         targetDuration === min && styles.durationTextActive,
                       ]}
                     >
-                      {min} min
+                      {min} {i18n.t('common.minAbbr')}
                     </Text>
                   </PressableScale>
                 ))}
@@ -494,7 +494,7 @@ export default function GenerateWorkoutScreen() {
           <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
             {selectedMuscles.size > 0 && (
               <Text style={styles.summaryText}>
-                {summary.muscleCount} muscle{summary.muscleCount > 1 ? 's' : ''} · ~{summary.totalSets} séries · ~{summary.estimatedMinutes} min
+                {i18n.t('workoutGenerate.summaryFormat', { muscles: summary.muscleCount, sets: summary.totalSets, minutes: summary.estimatedMinutes })}
               </Text>
             )}
             <AnimatedStartButton
@@ -532,7 +532,7 @@ export default function GenerateWorkoutScreen() {
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>{sessionLabel}</Text>
             <Text style={styles.headerSub}>
-              {generatedExercises.length} exos · {reviewStats.totalSets} séries · ~{reviewStats.durationMin}min
+              {i18n.t('workoutGenerate.reviewFormat', { exercises: generatedExercises.length, sets: reviewStats.totalSets, minutes: reviewStats.durationMin })}
             </Text>
           </View>
           <Pressable style={styles.saveIconBtn} onPress={handleSave}>

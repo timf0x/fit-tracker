@@ -26,6 +26,17 @@ export default {
     comingSoon: 'Coming Soon',
     comingSoonDesc: 'This feature is coming soon.',
     letsGo: "Let's go!",
+    minAbbr: 'min',
+    kgUnit: 'kg',
+    exosAbbr: 'exos',
+    musclesUnit: 'muscles',
+    currentLabel: 'Current',
+    skip: 'Skip',
+    validate: 'Submit',
+    yes: 'Yes',
+    no: 'No',
+    weekAbbr: 'W',
+    deload: 'Deload',
   },
 
   // ─── Tabs ───
@@ -121,6 +132,9 @@ export default {
       streak: 'wk',
       goalReached: 'goal reached!',
       days: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+      sessions: 'sessions',
+      pr: 'PR',
+      volumeHebdo: 'WEEKLY VOLUME',
     },
     friends: {
       title: 'friends',
@@ -346,12 +360,20 @@ export default {
     feedbackNudgeJoint: 'Watch your joints — adapt your movements',
     // RIR (Reps In Reserve)
     rirLabel: 'RIR',
+    repsLabel: 'REPS',
+    kgLabel: 'KG',
+    exerciseDetailFormat: '%{completedSets}/%{totalSets} sets · %{reps} reps',
+    exerciseDetailFormatKg: '%{completedSets}/%{totalSets} sets · %{reps} reps · %{weight} kg',
     rirTooltip: 'Reps in Reserve — how many more reps could you have done?',
     rir0: 'Failure',
     rir1: 'Hard',
     rir2: 'Optimal',
     rir3: 'Moderate',
     rir4: 'Easy',
+    // Unilateral labels
+    uniTag: 'UNI',
+    rightAbbr: 'R',
+    leftAbbr: 'L',
   },
 
   // ─── Program Onboarding ───
@@ -394,6 +416,8 @@ export default {
     measurements: {
       title: 'Your profile',
       subtitle: 'Essential to estimate your starting weights',
+      name: 'First name',
+      namePlaceholder: 'Your first name',
       sex: 'Sex *',
       male: 'Male',
       female: 'Female',
@@ -422,6 +446,33 @@ export default {
   },
 
   // ─── Program Overview ───
+  // ─── Program Labels (day names, split names) ───
+  programLabels: {
+    // Day labels
+    upperA: 'Upper A',
+    upperB: 'Upper B',
+    lowerA: 'Lower A',
+    lowerB: 'Lower B',
+    fullBodyA: 'Full Body A',
+    fullBodyB: 'Full Body B',
+    fullBodyC: 'Full Body C',
+    fullBodyPump: 'Full Body Pump',
+    pushA: 'Push A',
+    pushB: 'Push B',
+    pullA: 'Pull A',
+    pullB: 'Pull B',
+    legsA: 'Legs A',
+    legsB: 'Legs B',
+    // Split names
+    splitFullBody: 'Full Body',
+    splitUpperLower: 'Upper/Lower',
+    splitPPL: 'Push/Pull/Legs',
+    // Program name template
+    programName: '%{split} – %{weeks} weeks',
+    // Muscle suffix
+    andMoreMuscles: '+%{count} more',
+  },
+
   programOverview: {
     thisWeek: 'THIS WEEK',
     weekLabel: 'WEEK %{week}',
@@ -443,6 +494,31 @@ export default {
     alreadyTrainedMessage: 'You already completed a session today. Recovery is essential for progression.',
     programme: 'PROGRAM',
     weekProgress: 'Week %{current}/%{total}',
+    rirTarget: 'RIR %{rir}',
+    rirFailure: 'Failure',
+    volumeUp: '+%{delta} sets vs W%{prev}',
+    volumeDown: '%{delta} sets vs W%{prev}',
+    volumeSame: 'Same volume',
+    deloadVolume: 'Reduced volume',
+    // RIR meter phases
+    phaseAdaptation: 'Adaptation',
+    phaseAccumulation: 'Accumulation',
+    phaseIntensification: 'Intensification',
+    phasePeak: 'Peak',
+    phaseFailure: 'Muscular failure',
+    phaseRecovery: 'Recovery',
+    // RIR tooltip
+    rirTooltip: 'RIR = Reps In Reserve. This week: keep %{rir} reps in reserve on every set.',
+    rirTooltipFailure: 'RIR = Reps In Reserve. This week: push every set to failure.',
+    rirTooltipDeload: 'Recovery week. Light weight, perfect form.',
+    // Smart nudges
+    nudgeAdaptation: 'Adaptation week — focus on technique and mind-muscle connection.',
+    nudgeAccumulation: 'Volume is increasing — progress is built here.',
+    nudgeIntensification: 'Push harder — fewer reps in reserve.',
+    nudgePeak: 'Final stretch before deload — give it everything.',
+    nudgeDeload: 'Reduced volume for supercompensation. Enjoy the recovery.',
+    // Volume snapshot
+    nMoreMuscles: '+%{count} more',
   },
 
   // ─── Program Day ───
@@ -476,6 +552,10 @@ export default {
     sessionFormat: '~%{duration} min · %{sets} sets',
     catchUp: 'Catch up on this session',
     catchUpDesc: 'Previously planned session',
+    // Overload suggestions (from programGenerator)
+    overloadReduce: 'Reduce to %{weight}kg',
+    overloadBumpReps: '%{weight}kg (back to %{reps} reps)',
+    overloadPlusRep: '+1 rep (target: %{reps})',
   },
 
   // ─── Stats Screen ───
@@ -558,6 +638,19 @@ export default {
     hoursProgress: '%{since}h / %{total}h',
     setsCount: '%{count} sets',
     viewVolumeHistory: 'View volume & history',
+    // Training recommendations
+    recRest: 'Many muscles are fatigued — a rest day would be ideal.',
+    recFresh: '%{muscles} are fresh — ideal for a %{type} session.',
+    recUntrained: "%{muscles} haven't been trained recently.",
+    recUntrainedSingle: "%{muscles} hasn't been trained recently.",
+    recGeneral: 'Good overall recovery — pick your workout!',
+    recLegs: 'legs',
+    // Time since
+    timeNever: 'Never',
+    timeLessThan1h: '< 1h ago',
+    timeHours: '%{hours}h ago',
+    timeDay: '1 day ago',
+    timeDays: '%{days} days ago',
   },
 
   // ─── Volume Screen ───
@@ -591,6 +684,13 @@ export default {
     },
     progression: {
       title: 'IDEAL PROGRESSION',
+    },
+    zoneAdvice: {
+      belowMv: 'Insufficient volume — you risk losing your gains',
+      mvMev: 'Maintenance volume — increase to make progress',
+      mevMav: 'Optimal zone — keep up the momentum!',
+      mavMrv: 'High volume — monitor your recovery',
+      aboveMrv: 'Likely overtraining — reduce volume',
     },
   },
 
@@ -734,6 +834,51 @@ export default {
   deload: {
     urgentMessage: 'Accumulated fatigue on %{muscles}. Deload recommended this week.',
     warningMessage: '%{muscles} above MRV for %{weeks} weeks. Consider a deload.',
+  },
+
+  // ─── Readiness Check ───
+  readiness: {
+    title: 'How are you feeling?',
+    sleep: 'Sleep',
+    energy: 'Energy',
+    soreness: 'Soreness',
+    submit: "Let's go",
+    recLow: 'Your body needs rest. Light session recommended.',
+    recHigh: "You're in great shape! Push a bit harder.",
+  },
+
+  // ─── Exercise Swap ───
+  exerciseSwap: {
+    title: 'Replace exercise',
+    noAlternatives: 'No alternatives available',
+    choose: 'Choose',
+  },
+
+  // ─── Session Feedback (Program) ───
+  sessionFeedbackModal: {
+    title: 'How was this session?',
+    pump: 'Pump',
+    pumpLow: 'Low',
+    pumpMed: 'Good',
+    pumpHigh: 'Huge',
+    soreness: 'Expected soreness',
+    sorenessLow: 'None',
+    sorenessMed: 'Moderate',
+    sorenessHigh: 'Strong',
+    performance: 'Performance',
+    perfLow: 'Declined',
+    perfMed: 'Stable',
+    perfHigh: 'Improved',
+    jointPain: 'Joint discomfort',
+  },
+
+  // ─── Body Map ───
+  bodyMap: {
+    front: 'Front',
+    back: 'Back',
+    fatigued: 'Fatigued',
+    fresh: 'Fresh',
+    undertrained: 'Undertrained',
   },
 
   // ─── Placeholders ───

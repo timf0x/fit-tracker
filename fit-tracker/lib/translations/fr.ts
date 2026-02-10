@@ -26,12 +26,23 @@ export default {
     comingSoon: 'Bientôt',
     comingSoonDesc: 'Cette fonctionnalité arrive bientôt.',
     letsGo: "C'est parti !",
+    minAbbr: 'min',
+    kgUnit: 'kg',
+    exosAbbr: 'exos',
+    musclesUnit: 'muscles',
+    currentLabel: 'Actuel',
+    skip: 'Passer',
+    validate: 'Valider',
+    yes: 'Oui',
+    no: 'Non',
+    weekAbbr: 'S',
+    deload: 'Décharge',
   },
 
   // ─── Tabs ───
   tabs: {
-    home: 'Home',
-    workouts: 'Workouts',
+    home: 'Accueil',
+    workouts: 'Entraînements',
     settings: 'Réglages',
   },
 
@@ -114,13 +125,16 @@ export default {
     },
     stats: {
       recovery: 'RÉCUP',
-      steps: 'STEPS',
+      steps: 'PAS',
     },
     weekly: {
       title: 'CETTE SEMAINE',
       streak: 'sem',
       goalReached: 'objectif atteint !',
       days: ['L', 'M', 'M', 'J', 'V', 'S', 'D'],
+      sessions: 'séances',
+      pr: 'PR',
+      volumeHebdo: 'VOLUME HEBDO',
     },
     friends: {
       title: 'amis',
@@ -143,14 +157,14 @@ export default {
 
   // ─── Workouts Tab ───
   workouts: {
-    header: 'MES WORKOUTS',
+    header: 'MES ENTRAÎNEMENTS',
     title: 'Entraînements',
-    myWorkouts: 'Mes workouts',
-    noCustom: 'Aucun workout personnalisé',
-    noCustomDesc: 'Créez votre premier workout personnalisé',
-    createWorkout: 'Créer un workout',
-    presets: 'Presets',
-    custom: 'Custom',
+    myWorkouts: 'Mes entraînements',
+    noCustom: 'Aucun entraînement personnalisé',
+    noCustomDesc: 'Créez votre premier entraînement personnalisé',
+    createWorkout: 'Créer un entraînement',
+    presets: 'Modèles',
+    custom: 'Personnalisé',
     exercises: 'exercices',
     filters: {
       level: 'Niveau',
@@ -164,9 +178,9 @@ export default {
 
   // ─── Workout Create ───
   workoutCreate: {
-    title: 'Nouveau Workout',
+    title: 'Nouvel entraînement',
     save: 'Sauver',
-    namePlaceholder: 'Nom du workout',
+    namePlaceholder: 'Nom de l\'entraînement',
     iconSection: 'ICÔNE',
     exercisesSection: 'EXERCICES',
     addExercise: 'AJOUTER UN EXERCICE',
@@ -175,22 +189,22 @@ export default {
     exerciseCount: '%{count} exercices',
     selectedCount: '%{count} exercice sélectionné',
     selectedCountPlural: '%{count} exercices sélectionnés',
-    addToWorkout: 'Ajouter au workout',
+    addToWorkout: 'Ajouter à l\'entraînement',
     sets: 'Séries',
     reps: 'Répétitions',
     weight: 'Poids (kg)',
     rest: 'Repos (sec)',
     timePerSet: 'Temps/set (s)',
-    errorNoName: 'Entrez un nom pour le workout',
+    errorNoName: 'Entrez un nom pour l\'entraînement',
     errorNoExercise: 'Ajoutez au moins un exercice',
-    errorCreate: 'Impossible de créer le workout',
+    errorCreate: 'Impossible de créer l\'entraînement',
     icons: {
-      push: 'Push',
-      pull: 'Pull',
+      push: 'Poussée',
+      pull: 'Tirage',
       legs: 'Jambes',
       core: 'Abdos',
       cardio: 'Cardio',
-      fullBody: 'Full Body',
+      fullBody: 'Corps entier',
       upper: 'Haut',
       lower: 'Bas',
     },
@@ -208,13 +222,13 @@ export default {
 
   // ─── Workout Detail ───
   workoutDetail: {
-    notFound: 'Workout introuvable',
+    notFound: 'Entraînement introuvable',
     addExercisesModal: 'Ajouter des exercices',
     searchPlaceholder: 'Rechercher...',
-    addToWorkout: 'Ajouter au workout',
+    addToWorkout: 'Ajouter à l\'entraînement',
     removeExercise: 'Retirer cet exercice',
     addExercise: 'AJOUTER UN EXERCICE',
-    deleteWorkout: 'Supprimer ce workout',
+    deleteWorkout: 'Supprimer cet entraînement',
     sets: 'Séries',
     reps: 'Reps',
     weight: 'Charge (kg)',
@@ -250,18 +264,18 @@ export default {
       bodyweight: 'Poids du corps',
     },
     muscleGroups: {
-      push: 'PUSH',
-      pull: 'PULL',
+      push: 'POUSSÉE',
+      pull: 'TIRAGE',
       legs: 'JAMBES',
       core: 'TRONC',
     },
     sessionLabels: {
-      push: 'Push',
-      pull: 'Pull',
+      push: 'Poussée',
+      pull: 'Tirage',
       legs: 'Jambes',
       upper: 'Haut du corps',
       lower: 'Bas du corps',
-      fullBody: 'Full Body',
+      fullBody: 'Corps entier',
       default: 'Entraînement',
     },
     summaryMuscles: '%{count} muscle',
@@ -273,14 +287,14 @@ export default {
   // ─── Workout Session ───
   workoutSession: {
     phases: {
-      prepare: 'PREPARE',
-      exercise: 'EXERCISE',
-      rest: 'REST',
-      break: 'BREAK',
+      prepare: 'PRÉPARATION',
+      exercise: 'EXERCICE',
+      rest: 'REPOS',
+      break: 'PAUSE',
       finished: 'TERMINÉ',
     },
     paused: 'EN PAUSE',
-    setOf: 'SET %{current} OF %{total}',
+    setOf: 'SÉRIE %{current} SUR %{total}',
     rightSide: 'DROITE ›',
     leftSide: '‹ GAUCHE',
     overloadBump: '↑ Charge augmentée',
@@ -346,12 +360,20 @@ export default {
     feedbackNudgeJoint: 'Attention aux articulations — adapte tes mouvements',
     // RIR (Reps In Reserve)
     rirLabel: 'RIR',
+    repsLabel: 'REPS',
+    kgLabel: 'KG',
+    exerciseDetailFormat: '%{completedSets}/%{totalSets} séries · %{reps} reps',
+    exerciseDetailFormatKg: '%{completedSets}/%{totalSets} séries · %{reps} reps · %{weight} kg',
     rirTooltip: 'Reps en réserve — combien de reps de plus aurais-tu pu faire ?',
     rir0: 'Échec',
     rir1: 'Dur',
     rir2: 'Optimal',
     rir3: 'Modéré',
     rir4: 'Facile',
+    // Unilateral labels
+    uniTag: 'UNI',
+    rightAbbr: 'D',
+    leftAbbr: 'G',
   },
 
   // ─── Program Onboarding ───
@@ -394,6 +416,8 @@ export default {
     measurements: {
       title: 'Ton profil',
       subtitle: 'Indispensable pour estimer tes charges de départ',
+      name: 'Prénom',
+      namePlaceholder: 'Ton prénom',
       sex: 'Sexe *',
       male: 'Homme',
       female: 'Femme',
@@ -422,10 +446,37 @@ export default {
   },
 
   // ─── Program Overview ───
+  // ─── Program Labels (day names, split names) ───
+  programLabels: {
+    // Day labels
+    upperA: 'Haut A',
+    upperB: 'Haut B',
+    lowerA: 'Bas A',
+    lowerB: 'Bas B',
+    fullBodyA: 'Corps entier A',
+    fullBodyB: 'Corps entier B',
+    fullBodyC: 'Corps entier C',
+    fullBodyPump: 'Pump global',
+    pushA: 'Poussée A',
+    pushB: 'Poussée B',
+    pullA: 'Tirage A',
+    pullB: 'Tirage B',
+    legsA: 'Jambes A',
+    legsB: 'Jambes B',
+    // Split names
+    splitFullBody: 'Corps entier',
+    splitUpperLower: 'Haut/Bas',
+    splitPPL: 'Poussée/Tirage/Jambes',
+    // Program name template
+    programName: '%{split} – %{weeks} semaines',
+    // Muscle suffix
+    andMoreMuscles: '+%{count} autres',
+  },
+
   programOverview: {
     thisWeek: 'CETTE SEMAINE',
     weekLabel: 'SEMAINE %{week}',
-    deloadWeek: 'Semaine de deload',
+    deloadWeek: 'Semaine de décharge',
     deloadDesc: 'Volume réduit pour la récupération et la supercompensation.',
     completed: 'Programme terminé !',
     completedSessions: '%{count} séances complétées',
@@ -443,6 +494,31 @@ export default {
     alreadyTrainedMessage: 'Tu as déjà terminé une séance aujourd\'hui. La récupération est essentielle pour la progression.',
     programme: 'PROGRAMME',
     weekProgress: 'Semaine %{current}/%{total}',
+    rirTarget: 'RIR %{rir}',
+    rirFailure: 'Échec',
+    volumeUp: '+%{delta} séries vs S%{prev}',
+    volumeDown: '%{delta} séries vs S%{prev}',
+    volumeSame: 'Volume identique',
+    deloadVolume: 'Volume réduit',
+    // RIR meter phases
+    phaseAdaptation: 'Adaptation',
+    phaseAccumulation: 'Accumulation',
+    phaseIntensification: 'Intensification',
+    phasePeak: 'Peak',
+    phaseFailure: 'Échec musculaire',
+    phaseRecovery: 'Récupération',
+    // RIR tooltip
+    rirTooltip: 'RIR = Répétitions en réserve. Cette semaine : garde %{rir} reps en réserve sur chaque série.',
+    rirTooltipFailure: 'RIR = Répétitions en réserve. Cette semaine : pousse chaque série jusqu\'à l\'échec.',
+    rirTooltipDeload: 'Semaine de récupération. Charge légère, technique parfaite.',
+    // Smart nudges
+    nudgeAdaptation: 'Semaine d\'adaptation — concentre-toi sur la technique et le ressenti.',
+    nudgeAccumulation: 'Le volume augmente — les progrès se construisent ici.',
+    nudgeIntensification: 'Pousse plus fort — moins de répétitions en réserve.',
+    nudgePeak: 'Dernière ligne droite avant le deload — donne tout.',
+    nudgeDeload: 'Volume réduit pour la supercompensation. Profite de la récupération.',
+    // Volume snapshot
+    nMoreMuscles: '+%{count} autres',
   },
 
   // ─── Program Day ───
@@ -469,13 +545,17 @@ export default {
     rest: 'Repos (s)',
     timePerSet: 'Temps/set (s)',
     reset: 'Réinitialiser',
-    deloadBanner: 'Semaine de deload : volume réduit pour favoriser la récupération et la supercompensation.',
+    deloadBanner: 'Semaine de décharge : volume réduit pour favoriser la récupération et la supercompensation.',
     estimatedWeightTip: 'Les charges sont estimées à partir de ton poids de corps. Ajuste selon ton ressenti.',
     sessionDone: 'Séance terminée',
     startSession: 'Commencer',
     sessionFormat: '~%{duration} min · %{sets} séries',
     catchUp: 'Rattraper cette séance',
     catchUpDesc: 'Séance planifiée précédemment',
+    // Overload suggestions (from programGenerator)
+    overloadReduce: 'Réduis à %{weight}kg',
+    overloadBumpReps: '%{weight}kg (reviens à %{reps} reps)',
+    overloadPlusRep: '+1 rep (objectif : %{reps})',
   },
 
   // ─── Stats Screen ───
@@ -558,6 +638,19 @@ export default {
     hoursProgress: '%{since}h / %{total}h',
     setsCount: '%{count} séries',
     viewVolumeHistory: 'Voir volume & historique',
+    // Training recommendations
+    recRest: 'Beaucoup de muscles sont fatigués — un jour de repos serait idéal.',
+    recFresh: '%{muscles} sont frais — idéal pour une séance %{type}.',
+    recUntrained: "%{muscles} n'ont pas été entraînés récemment.",
+    recUntrainedSingle: "%{muscles} n'a pas été entraîné récemment.",
+    recGeneral: 'Bonne récupération générale — choisis ton entraînement !',
+    recLegs: 'jambes',
+    // Time since
+    timeNever: 'Jamais',
+    timeLessThan1h: 'Il y a < 1h',
+    timeHours: 'Il y a %{hours}h',
+    timeDay: 'Il y a 1 jour',
+    timeDays: 'Il y a %{days} jours',
   },
 
   // ─── Volume Screen ───
@@ -591,6 +684,13 @@ export default {
     },
     progression: {
       title: 'PROGRESSION IDÉALE',
+    },
+    zoneAdvice: {
+      belowMv: 'Volume insuffisant — vous risquez de perdre vos gains',
+      mvMev: 'Volume de maintien — augmentez pour progresser',
+      mevMav: 'Zone optimale — continuez sur cette lancée !',
+      mavMrv: 'Volume élevé — surveillez votre récupération',
+      aboveMrv: 'Surentraînement probable — réduisez le volume',
     },
   },
 
@@ -733,7 +833,52 @@ export default {
   // ─── Deload Detection ───
   deload: {
     urgentMessage: 'Fatigue accumulée sur %{muscles}. Deload recommandé cette semaine.',
-    warningMessage: '%{muscles} au-dessus du MRV depuis %{weeks} semaines. Pense à un deload.',
+    warningMessage: '%{muscles} au-dessus du MRV depuis %{weeks} semaines. Pense à une décharge.',
+  },
+
+  // ─── Readiness Check ───
+  readiness: {
+    title: 'Comment te sens-tu ?',
+    sleep: 'Sommeil',
+    energy: 'Énergie',
+    soreness: 'Courbatures',
+    submit: "C'est parti",
+    recLow: 'Ton corps a besoin de repos. Séance légère conseillée.',
+    recHigh: 'Tu es en forme ! Pousse un peu plus.',
+  },
+
+  // ─── Exercise Swap ───
+  exerciseSwap: {
+    title: "Remplacer l'exercice",
+    noAlternatives: 'Aucune alternative disponible',
+    choose: 'Choisir',
+  },
+
+  // ─── Session Feedback (Program) ───
+  sessionFeedbackModal: {
+    title: 'Comment était cette séance ?',
+    pump: 'Pump',
+    pumpLow: 'Faible',
+    pumpMed: 'Bon',
+    pumpHigh: 'Énorme',
+    soreness: 'Courbatures attendues',
+    sorenessLow: 'Aucune',
+    sorenessMed: 'Modérées',
+    sorenessHigh: 'Fortes',
+    performance: 'Performance',
+    perfLow: 'Baisse',
+    perfMed: 'Stable',
+    perfHigh: 'Hausse',
+    jointPain: 'Inconfort articulaire',
+  },
+
+  // ─── Body Map ───
+  bodyMap: {
+    front: 'Avant',
+    back: 'Arrière',
+    fatigued: 'Fatigué',
+    fresh: 'Frais',
+    undertrained: 'Sous-entraîné',
   },
 
   // ─── Placeholders ───

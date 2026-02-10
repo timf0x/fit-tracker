@@ -13,6 +13,7 @@ import {
   BODY_PART_LABELS,
 } from '@/constants/recovery';
 import { TARGET_TO_MUSCLE } from '@/lib/muscleMapping';
+import i18n from '@/lib/i18n';
 
 const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
 
@@ -204,7 +205,7 @@ export function getTrainingRecommendation(
   // If everything is fatigued, suggest rest
   if (fatigued.length >= 10) {
     return {
-      message: 'Beaucoup de muscles sont fatigués \u2014 un jour de repos serait idéal.',
+      message: i18n.t('recovery.recRest'),
       muscles: [],
       type: 'rest',
     };
@@ -221,21 +222,25 @@ export function getTrainingRecommendation(
     ['quads', 'hamstrings', 'glutes', 'calves'].includes(m.bodyPart)
   );
 
-  const labelFr = (bp: string) => BODY_PART_LABELS[bp as RecoveryBodyPart]?.fr || bp;
+  const locale = i18n.locale;
+  const getLabel = (bp: string) => {
+    const labels = BODY_PART_LABELS[bp as RecoveryBodyPart];
+    return labels ? (locale === 'fr' ? labels.fr : labels.en) : bp;
+  };
 
   // Suggest the category with the most fresh muscles
   const categories = [
     { type: 'push' as const, muscles: pushMuscles, label: 'push' },
     { type: 'pull' as const, muscles: pullMuscles, label: 'pull' },
-    { type: 'legs' as const, muscles: legMuscles, label: 'jambes' },
+    { type: 'legs' as const, muscles: legMuscles, label: i18n.t('recovery.recLegs') },
   ].sort((a, b) => b.muscles.length - a.muscles.length);
 
   const best = categories[0];
 
   if (best.muscles.length >= 2) {
-    const names = best.muscles.slice(0, 3).map((m) => labelFr(m.bodyPart));
+    const names = best.muscles.slice(0, 3).map((m) => getLabel(m.bodyPart));
     return {
-      message: `${names.join(', ')} sont frais \u2014 id\u00e9al pour une s\u00e9ance ${best.label}.`,
+      message: i18n.t('recovery.recFresh', { muscles: names.join(', '), type: best.label }),
       muscles: best.muscles.map((m) => m.bodyPart),
       type: best.type,
     };
@@ -243,29 +248,30 @@ export function getTrainingRecommendation(
 
   // If undertrained muscles exist, nudge those
   if (undertrained.length > 0) {
-    const names = undertrained.slice(0, 3).map((m) => labelFr(m.bodyPart));
+    const names = undertrained.slice(0, 3).map((m) => getLabel(m.bodyPart));
+    const key = undertrained.length === 1 ? 'recovery.recUntrainedSingle' : 'recovery.recUntrained';
     return {
-      message: `${names.join(', ')} ${undertrained.length === 1 ? 'n\'a' : 'n\'ont'} pas \u00e9t\u00e9 entra\u00een\u00e9${undertrained.length === 1 ? '' : 's'} r\u00e9cemment.`,
+      message: i18n.t(key, { muscles: names.join(', ') }),
       muscles: undertrained.slice(0, 3).map((m) => m.bodyPart),
       type: 'general',
     };
   }
 
   return {
-    message: 'Bonne r\u00e9cup\u00e9ration g\u00e9n\u00e9rale \u2014 choisis ton entra\u00eenement !',
+    message: i18n.t('recovery.recGeneral'),
     muscles: [],
     type: 'general',
   };
 }
 
 /**
- * Format hours since training as a human-readable French string.
+ * Format hours since training as a human-readable localized string.
  */
 export function formatTimeSince(hours: number | null): string {
-  if (hours === null) return 'Jamais';
-  if (hours < 1) return 'Il y a < 1h';
-  if (hours < 24) return `Il y a ${Math.round(hours)}h`;
+  if (hours === null) return i18n.t('recovery.timeNever');
+  if (hours < 1) return i18n.t('recovery.timeLessThan1h');
+  if (hours < 24) return i18n.t('recovery.timeHours', { hours: Math.round(hours) });
   const days = Math.round(hours / 24);
-  if (days === 1) return 'Il y a 1 jour';
-  return `Il y a ${days} jours`;
+  if (days === 1) return i18n.t('recovery.timeDay');
+  return i18n.t('recovery.timeDays', { days });
 }

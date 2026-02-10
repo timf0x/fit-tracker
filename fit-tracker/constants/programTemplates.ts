@@ -201,46 +201,42 @@ export const EXERCISE_POOLS: Record<string, string[]> = {
  */
 export interface SplitDayTemplate {
   label: string;
-  labelFr: string;
+  labelKey: string; // i18n key under programLabels.*
   focus: string;
   muscles: string[];
 }
 
 export const SPLIT_TEMPLATES: Record<SplitType, SplitDayTemplate[][]> = {
   full_body: [
-    // 3 days, each hits all major muscles with different exercises
     [
-      { label: 'Full Body A', labelFr: 'Full Body A', focus: 'full_body', muscles: ['chest', 'lats', 'shoulders', 'quads', 'hamstrings', 'biceps', 'triceps', 'abs'] },
-      { label: 'Full Body B', labelFr: 'Full Body B', focus: 'full_body', muscles: ['chest', 'upper back', 'shoulders', 'quads', 'glutes', 'biceps', 'triceps', 'obliques'] },
-      { label: 'Full Body C', labelFr: 'Full Body C', focus: 'full_body', muscles: ['chest', 'lats', 'shoulders', 'hamstrings', 'quads', 'biceps', 'triceps', 'abs'] },
+      { label: 'Full Body A', labelKey: 'fullBodyA', focus: 'full_body', muscles: ['chest', 'lats', 'shoulders', 'quads', 'hamstrings', 'biceps', 'triceps', 'abs'] },
+      { label: 'Full Body B', labelKey: 'fullBodyB', focus: 'full_body', muscles: ['chest', 'upper back', 'shoulders', 'quads', 'glutes', 'biceps', 'triceps', 'obliques'] },
+      { label: 'Full Body C', labelKey: 'fullBodyC', focus: 'full_body', muscles: ['chest', 'lats', 'shoulders', 'hamstrings', 'quads', 'biceps', 'triceps', 'abs'] },
     ],
   ],
   upper_lower: [
-    // 4-day rotation
     [
-      { label: 'Upper A', labelFr: 'Haut A', focus: 'upper', muscles: ['chest', 'lats', 'shoulders', 'biceps', 'triceps'] },
-      { label: 'Lower A', labelFr: 'Bas A', focus: 'lower', muscles: ['quads', 'hamstrings', 'glutes', 'calves', 'abs'] },
-      { label: 'Upper B', labelFr: 'Haut B', focus: 'upper', muscles: ['chest', 'upper back', 'shoulders', 'biceps', 'triceps'] },
-      { label: 'Lower B', labelFr: 'Bas B', focus: 'lower', muscles: ['quads', 'hamstrings', 'glutes', 'calves', 'obliques'] },
+      { label: 'Upper A', labelKey: 'upperA', focus: 'upper', muscles: ['chest', 'lats', 'shoulders', 'biceps', 'triceps'] },
+      { label: 'Lower A', labelKey: 'lowerA', focus: 'lower', muscles: ['quads', 'hamstrings', 'glutes', 'calves', 'abs'] },
+      { label: 'Upper B', labelKey: 'upperB', focus: 'upper', muscles: ['chest', 'upper back', 'shoulders', 'biceps', 'triceps'] },
+      { label: 'Lower B', labelKey: 'lowerB', focus: 'lower', muscles: ['quads', 'hamstrings', 'glutes', 'calves', 'obliques'] },
     ],
-    // 5-day: same + pump day
     [
-      { label: 'Upper A', labelFr: 'Haut A', focus: 'upper', muscles: ['chest', 'lats', 'shoulders', 'biceps', 'triceps'] },
-      { label: 'Lower A', labelFr: 'Bas A', focus: 'lower', muscles: ['quads', 'hamstrings', 'glutes', 'calves', 'abs'] },
-      { label: 'Upper B', labelFr: 'Haut B', focus: 'upper', muscles: ['chest', 'upper back', 'shoulders', 'biceps', 'triceps'] },
-      { label: 'Lower B', labelFr: 'Bas B', focus: 'lower', muscles: ['quads', 'hamstrings', 'glutes', 'calves', 'obliques'] },
-      { label: 'Full Body Pump', labelFr: 'Full Body Pump', focus: 'full_body', muscles: ['chest', 'lats', 'shoulders', 'quads', 'abs'] },
+      { label: 'Upper A', labelKey: 'upperA', focus: 'upper', muscles: ['chest', 'lats', 'shoulders', 'biceps', 'triceps'] },
+      { label: 'Lower A', labelKey: 'lowerA', focus: 'lower', muscles: ['quads', 'hamstrings', 'glutes', 'calves', 'abs'] },
+      { label: 'Upper B', labelKey: 'upperB', focus: 'upper', muscles: ['chest', 'upper back', 'shoulders', 'biceps', 'triceps'] },
+      { label: 'Lower B', labelKey: 'lowerB', focus: 'lower', muscles: ['quads', 'hamstrings', 'glutes', 'calves', 'obliques'] },
+      { label: 'Full Body Pump', labelKey: 'fullBodyPump', focus: 'full_body', muscles: ['chest', 'lats', 'shoulders', 'quads', 'abs'] },
     ],
   ],
   ppl: [
-    // 6 days
     [
-      { label: 'Push A', labelFr: 'Push A', focus: 'push', muscles: ['chest', 'shoulders', 'triceps'] },
-      { label: 'Pull A', labelFr: 'Pull A', focus: 'pull', muscles: ['lats', 'upper back', 'biceps', 'forearms'] },
-      { label: 'Legs A', labelFr: 'Legs A', focus: 'legs', muscles: ['quads', 'hamstrings', 'glutes', 'calves', 'abs'] },
-      { label: 'Push B', labelFr: 'Push B', focus: 'push', muscles: ['chest', 'shoulders', 'triceps'] },
-      { label: 'Pull B', labelFr: 'Pull B', focus: 'pull', muscles: ['lats', 'upper back', 'biceps', 'forearms'] },
-      { label: 'Legs B', labelFr: 'Legs B', focus: 'legs', muscles: ['quads', 'hamstrings', 'glutes', 'calves', 'obliques'] },
+      { label: 'Push A', labelKey: 'pushA', focus: 'push', muscles: ['chest', 'shoulders', 'triceps'] },
+      { label: 'Pull A', labelKey: 'pullA', focus: 'pull', muscles: ['lats', 'upper back', 'biceps', 'forearms'] },
+      { label: 'Legs A', labelKey: 'legsA', focus: 'legs', muscles: ['quads', 'hamstrings', 'glutes', 'calves', 'abs'] },
+      { label: 'Push B', labelKey: 'pushB', focus: 'push', muscles: ['chest', 'shoulders', 'triceps'] },
+      { label: 'Pull B', labelKey: 'pullB', focus: 'pull', muscles: ['lats', 'upper back', 'biceps', 'forearms'] },
+      { label: 'Legs B', labelKey: 'legsB', focus: 'legs', muscles: ['quads', 'hamstrings', 'glutes', 'calves', 'obliques'] },
     ],
   ],
 };

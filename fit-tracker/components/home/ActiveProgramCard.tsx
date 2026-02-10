@@ -40,6 +40,7 @@ import { ReadinessCheck } from '@/components/program/ReadinessCheck';
 import { ConfirmModal } from '@/components/program/ConfirmModal';
 import type { ReadinessCheck as ReadinessCheckType } from '@/types/program';
 import i18n from '@/lib/i18n';
+import { resolveDayLabel } from '@/lib/programLabels';
 
 const SPLIT_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   ppl: { label: i18n.t('activeProgram.splitLabels.ppl'), color: '#FF6B35', bg: 'rgba(255,107,53,0.15)' },
@@ -271,7 +272,7 @@ export function ActiveProgramCard() {
     if (!todayDay) return;
 
     const workoutId = `program_${program.id}_w${activeState.currentWeek}_d${activeState.currentDayIndex}`;
-    const sessionId = startSession(workoutId, todayDay.labelFr, {
+    const sessionId = startSession(workoutId, resolveDayLabel(todayDay), {
       programId: program.id,
       programWeek: activeState.currentWeek,
       programDayIndex: activeState.currentDayIndex,
@@ -289,7 +290,7 @@ export function ActiveProgramCard() {
       params: {
         workoutId,
         sessionId,
-        workoutName: todayDay.labelFr,
+        workoutName: resolveDayLabel(todayDay),
         exercises: exercisesJson,
       },
     });
@@ -310,14 +311,14 @@ export function ActiveProgramCard() {
             <View style={styles.sessionHeader}>
               <View style={styles.sessionTitleRow}>
                 <View style={[styles.focusDot, { backgroundColor: splitStyle.color }]} />
-                <Text style={styles.sessionName}>{todayDay.labelFr}</Text>
+                <Text style={styles.sessionName}>{resolveDayLabel(todayDay)}</Text>
                 <View style={{ flex: 1 }} />
                 <ChevronRight size={16} color="rgba(120,120,130,1)" />
               </View>
               <Text style={styles.sessionMeta}>
                 S{activeState.currentWeek}/{program.totalWeeks}
-                {duration > 0 ? ` · ~${duration} min` : ''}
-                {` · ${todayDay.exercises.length} exos`}
+                {duration > 0 ? ` · ~${duration} ${i18n.t('common.minAbbr')}` : ''}
+                {` · ${todayDay.exercises.length} ${i18n.t('common.exosAbbr')}`}
               </Text>
 
               {/* Deload warning */}

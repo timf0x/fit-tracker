@@ -17,6 +17,9 @@ import {
   Trophy,
   ChevronRight,
   Clock,
+  TrendingUp,
+  TrendingDown,
+  Minus,
 } from 'lucide-react-native';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { AnimatedStartButton } from '@/components/ui/AnimatedStartButton';
@@ -29,7 +32,10 @@ import { MesocycleTimeline } from '@/components/program/MesocycleTimeline';
 import { DayCard } from '@/components/program/DayCard';
 import { ConfirmModal } from '@/components/program/ConfirmModal';
 import { ReadinessCheck } from '@/components/program/ReadinessCheck';
+import { RirMeter } from '@/components/program/RirMeter';
+import { VolumeSnapshot } from '@/components/program/VolumeSnapshot';
 import { buildProgramExercisesParam } from '@/lib/programSession';
+import { resolveDayLabel, resolveProgramName } from '@/lib/programLabels';
 
 export default function ProgramScreen() {
   const router = useRouter();
@@ -78,7 +84,7 @@ export default function ProgramScreen() {
     return result;
   }, [program.weeks, activeState.completedDays]);
 
-  // Week summary — just completed/total + total sets
+  // Week summary — completed/total + total sets
   const weekSummary = useMemo(() => {
     if (!currentWeekData) return { done: 0, total: 0, sets: 0 };
     const done = activeState.completedDays.filter((k) =>
@@ -90,6 +96,62 @@ export default function ProgramScreen() {
     );
     return { done, total: currentWeekData.days.length, sets };
   }, [currentWeekData, selectedWeek, activeState.completedDays]);
+
+  // RIR target for selected week — extracted from first exercise
+  const weekRir = useMemo(() => {
+    if (!currentWeekData) return null;
+    const firstEx = currentWeekData.days
+      .flatMap((d) => d.exercises)
+      .find((e) => e.targetRir !== undefined);
+    return firstEx?.targetRir ?? null;
+  }, [currentWeekData]);
+
+  // Volume delta vs previous week
+  const volumeDelta = useMemo(() => {
+    if (!currentWeekData) return null;
+    const currentTotal = Object.values(currentWeekData.volumeTargets).reduce((s, v) => s + v, 0);
+    const prevWeek = program.weeks.find((w) => w.weekNumber === selectedWeek - 1);
+    if (!prevWeek) return null;
+    const prevTotal = Object.values(prevWeek.volumeTargets).reduce((s, v) => s + v, 0);
+    return { delta: currentTotal - prevTotal, prevWeek: selectedWeek - 1 };
+  }, [currentWeekData, selectedWeek, program.weeks]);
+
+  // Mesocycle phase for smart nudge
+  const weekPhase = useMemo(() => {
+    if (!currentWeekData) return 'adaptation';
+    if (currentWeekData.isDeload) return 'deload' as const;
+    const training = program.totalWeeks - 1; // exclude deload
+    const weekIdx = selectedWeek - 1;
+    const progress = weekIdx / Math.max(training - 1, 1);
+    if (progress <= 0.15) return 'adaptation' as const;
+    if (progress <= 0.55) return 'accumulation' as const;
+    if (progress <= 0.85) return 'intensification' as const;
+    return 'peak' as const;
+  }, [currentWeekData, selectedWeek, program.totalWeeks]);
+
+  const NUDGE_KEYS: Record<string, string> = {
+    adaptation: 'programOverview.nudgeAdaptation',
+    accumulation: 'programOverview.nudgeAccumulation',
+    intensification: 'programOverview.nudgeIntensification',
+    peak: 'programOverview.nudgePeak',
+    deload: 'programOverview.nudgeDeload',
+  };
+
+  const PHASE_COLORS: Record<string, string> = {
+    adaptation: 'rgba(255,255,255,0.25)',
+    accumulation: '#3B82F6',
+    intensification: '#FF6B35',
+    peak: '#FBBF24',
+    deload: '#3B82F6',
+  };
+
+  const NUDGE_TEXT_COLORS: Record<string, string> = {
+    adaptation: 'rgba(255,255,255,0.2)',
+    accumulation: 'rgba(59,130,246,0.5)',
+    intensification: 'rgba(255,107,53,0.5)',
+    peak: 'rgba(251,191,36,0.5)',
+    deload: 'rgba(59,130,246,0.5)',
+  };
 
   const handleSelectWeek = (week: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -117,7 +179,7 @@ export default function ProgramScreen() {
     if (!todayDay) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const workoutId = `program_${program.id}_w${activeState.currentWeek}_d${activeState.currentDayIndex}`;
-    const sessionId = startSession(workoutId, todayDay.labelFr, {
+    const sessionId = startSession(workoutId, resolveDayLabel(todayDay), {
       programId: program.id,
       programWeek: activeState.currentWeek,
       programDayIndex: activeState.currentDayIndex,
@@ -131,7 +193,7 @@ export default function ProgramScreen() {
       params: {
         workoutId,
         sessionId,
-        workoutName: todayDay.labelFr,
+        workoutName: resolveDayLabel(todayDay),
         exercises: buildProgramExercisesParam(todayDay),
       },
     });
@@ -153,7 +215,7 @@ export default function ProgramScreen() {
           </Pressable>
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle} numberOfLines={1}>
-              {program.nameFr}
+              {resolveProgramName(program)}
             </Text>
             <Text style={styles.headerSub}>
               {i18n.t('programOverview.weekProgress', { current: activeState.currentWeek, total: program.totalWeeks })}
@@ -170,16 +232,6 @@ export default function ProgramScreen() {
           deloadWeek={deloadWeekNum}
           completedWeeks={completedWeeks}
         />
-
-        {/* ─── Deload banner ─── */}
-        {currentWeekData?.isDeload && (
-          <View style={styles.deloadBanner}>
-            <Text style={styles.deloadTitle}>{i18n.t('programOverview.deloadWeek')}</Text>
-            <Text style={styles.deloadText}>
-              {i18n.t('programOverview.deloadDesc')}
-            </Text>
-          </View>
-        )}
 
         {/* ─── Program completion ─── */}
         {programComplete && (
@@ -214,6 +266,59 @@ export default function ProgramScreen() {
               <Text style={styles.weekCardLabel}>{sectionLabel}</Text>
               <Text style={styles.weekCardSummary}>
                 {i18n.t('programOverview.weekSummary', { done: weekSummary.done, total: weekSummary.total, sets: weekSummary.sets })}
+              </Text>
+            </View>
+
+            {/* RIR Meter + Volume delta */}
+            <View style={styles.meterRow}>
+              <RirMeter rir={weekRir} isDeload={!!currentWeekData?.isDeload} />
+              {volumeDelta && (
+                <View style={styles.volumeDelta}>
+                  {currentWeekData?.isDeload ? (
+                    <>
+                      <TrendingDown size={11} color="rgba(59,130,246,0.6)" strokeWidth={2.5} />
+                      <Text style={[styles.volumeDeltaText, { color: 'rgba(59,130,246,0.6)' }]}>
+                        {i18n.t('programOverview.deloadVolume')}
+                      </Text>
+                    </>
+                  ) : volumeDelta.delta > 0 ? (
+                    <>
+                      <TrendingUp size={11} color="#4ADE80" strokeWidth={2.5} />
+                      <Text style={[styles.volumeDeltaText, { color: '#4ADE80' }]}>
+                        {i18n.t('programOverview.volumeUp', { delta: volumeDelta.delta, prev: volumeDelta.prevWeek })}
+                      </Text>
+                    </>
+                  ) : volumeDelta.delta < 0 ? (
+                    <>
+                      <TrendingDown size={11} color="#FBBF24" strokeWidth={2.5} />
+                      <Text style={[styles.volumeDeltaText, { color: '#FBBF24' }]}>
+                        {i18n.t('programOverview.volumeDown', { delta: volumeDelta.delta, prev: volumeDelta.prevWeek })}
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Minus size={11} color="rgba(255,255,255,0.3)" strokeWidth={2.5} />
+                      <Text style={styles.volumeDeltaText}>
+                        {i18n.t('programOverview.volumeSame')}
+                      </Text>
+                    </>
+                  )}
+                </View>
+              )}
+            </View>
+
+            {/* Volume snapshot — top muscles with zone-colored bars */}
+            {currentWeekData?.volumeTargets && (
+              <View style={styles.snapshotWrap}>
+                <VolumeSnapshot volumeTargets={currentWeekData.volumeTargets} />
+              </View>
+            )}
+
+            {/* Smart nudge */}
+            <View style={styles.nudgeRow}>
+              <View style={[styles.nudgeAccent, { backgroundColor: PHASE_COLORS[weekPhase] }]} />
+              <Text style={[styles.nudgeText, { color: NUDGE_TEXT_COLORS[weekPhase] }]}>
+                {i18n.t(NUDGE_KEYS[weekPhase])}
               </Text>
             </View>
 
@@ -397,30 +502,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // ─── Deload banner ───
-  deloadBanner: {
-    marginHorizontal: 20,
-    marginTop: 4,
-    backgroundColor: 'rgba(59,130,246,0.06)',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(59,130,246,0.1)',
-    gap: 4,
-  },
-  deloadTitle: {
-    color: 'rgba(59,130,246,0.8)',
-    fontSize: 14,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-  },
-  deloadText: {
-    color: 'rgba(59,130,246,0.5)',
-    fontSize: 12,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    lineHeight: 17,
-  },
+  // (deload banner removed — replaced by smart nudge)
 
   // ─── Completion ───
   completionCard: {
@@ -505,6 +587,48 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
+  },
+  meterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 4,
+  },
+  volumeDelta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  volumeDeltaText: {
+    color: 'rgba(255,255,255,0.35)',
+    fontSize: 11,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+  },
+  snapshotWrap: {
+    paddingHorizontal: 16,
+    paddingBottom: 4,
+  },
+  nudgeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 6,
+  },
+  nudgeAccent: {
+    width: 3,
+    height: 14,
+    borderRadius: 1.5,
+    marginTop: 1,
+  },
+  nudgeText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    lineHeight: 16,
   },
   daySeparator: {
     height: 1,

@@ -35,6 +35,52 @@ When building new features, **search the web** for:
 
 Don't hesitate to look things up — accuracy matters, we're building on real science.
 
+## NO PLACEHOLDERS — PRODUCTION QUALITY ONLY
+
+- **This is NOT a POC / prototype.** Every feature must show real, accurate data from the store.
+- **No mock data, no hardcoded numbers, no placeholder text** — if a value is displayed, it must come from real user data (workout history, pedometer, program state, etc.)
+- **Data consistency across screens** — The volume shown on the home screen MUST match the volume on the Volume Hebdo page. Recovery score on home MUST match the recovery screen. Stats MUST reflect real history. If two screens show the same metric, they must use the same source function.
+- **Data refresh** — UI must update after every workout session ends. All screens that depend on workout history should read from the Zustand store (which auto-updates). Screens opened from navigation should always compute fresh data from `useWorkoutStore().history`.
+- **No dead features** — Every button must work, every card must navigate somewhere, every metric must be computed from real data. If a feature isn't ready, don't show it at all rather than showing a placeholder.
+
+## Icons Design System — MANDATORY
+
+- **ALL icons must be custom Lucide React Native icons** — no regular emojis, no emoji Unicode characters, no system emoji anywhere in the app
+- Every icon must feel intentionally chosen for the Onset brand: stroke-based, consistent weight (2-2.5 strokeWidth), monochrome or tinted to match context
+- Body part icons: `BODY_ICONS` in `ActiveProgramCard.tsx` (Flame=chest, Mountain=back, Zap=legs, Dumbbell=arms, Target=shoulders, Diamond=core)
+- Category icons: `constants/icons.ts` for exercise types
+- If a new icon is needed, pick from Lucide's library — never fall back to emoji
+
+## Internationalization (i18n) — MANDATORY
+
+**ALL user-visible text MUST go through the translation system.** No exceptions.
+
+- Translation files: `lib/translations/fr.ts` (French, default) and `lib/translations/en.ts` (English)
+- Access via: `i18n.t('section.key')` with `import i18n from '@/lib/i18n'`
+- **Never hardcode** user-facing strings (labels, units, messages, abbreviations, placeholders)
+- This includes: "kg", "min", "reps", "séries", "exos", "RIR", button labels, section headers, error messages, etc.
+- Common units live in `common.*` (e.g., `common.sets`, `common.reps`, `common.minAbbr`, `common.kgUnit`)
+- **When adding ANY new text**: add the key to BOTH `fr.ts` and `en.ts` simultaneously
+- The app will support English, Spanish, German, etc. — every string must be translation-ready
+- Console logs and developer-only messages are exempt
+
+## Coding Standards
+
+- **No duplicated code** — Extract shared logic into helpers/hooks. If the same computation exists in two places, unify it.
+- **No duplicated screens** — Each route serves one purpose. Avoid copy-pasting screens with slight variations.
+- **Single source of truth** — One function computes each metric (volume, recovery, streak, etc.). All screens call that same function.
+- **DRY principle** — Constants, color values, magic numbers should live in `constants/` not scattered across files.
+- **Clean imports** — Remove unused imports. Keep import blocks organized.
+- **TypeScript strict** — Proper types, no `any` unless truly unavoidable. Use the types from `types/` directory.
+
+## Development Approach
+
+- **Budget**: $200 Claude Code subscription — take time to implement carefully and fully
+- **No rushing** — each feature should respect the app philosophy, design system, and audit findings
+- **Quality over speed** — craft each screen with the same care as existing ones
+- **Be creative** — no feature is too hard. Push boundaries on design and intelligence.
+- **Unified intelligence** — The RP hypertrophy philosophy must be consistently applied across ALL screens, cards, and features. Volume zones, progressive overload, frequency, recovery — the same science, the same algorithms, everywhere.
+
 ## Feature Roadmap (Philosophy-Driven)
 
 ### Implemented
@@ -42,23 +88,17 @@ Don't hesitate to look things up — accuracy matters, we're building on real sc
 - Muscle detail page (`/volume/[muscle]`) — 12-week history, zone advice, exercise breakdown
 - Progressive overload tracking (sparklines, PRs, trends)
 - Recovery body map with muscle fatigue status
-
-### In Progress
-- **Post-session feedback UI** — Collect pump/soreness/performance after each session (backend exists, needs UI)
-- **RIR/RPE logging per set** — Effort field during session timer, factors into volume quality
-- **Badge unlocking logic** — Connect 67+ badges to session events, PRs, streaks
-- **Real pedometer (iOS)** — Replace mock steps with HealthKit data
+- Post-session feedback (spectrum track UI)
+- RIR/RPE logging per set
+- Badge unlocking logic (67+ badges)
+- Real pedometer (iOS Core Motion)
+- Deload detection & warnings
+- Smart workout generator
 
 ### Next Up
 - **Frequency insights** — Show how many times each muscle was hit this week, suggest splits
 - **Progressive overload alerts** — "You've done 80kg bench 3 weeks in a row — try 82.5kg or add a rep"
 - **Volume auto-adjustment** — After several weeks of data, suggest personalized MEV/MAV/MRV
-
-## Development Approach
-
-- **Budget**: $200 Claude Code — take time to implement carefully and fully
-- **No rushing** — each feature should respect the app philosophy, design system, and audit findings
-- **Quality over speed** — craft each screen with the same care as existing ones
 
 ## Technical Notes
 

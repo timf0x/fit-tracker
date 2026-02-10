@@ -141,6 +141,16 @@ function speakDelayed(text: string, delayMs: number, pitch?: number, rate?: numb
   _pendingTimeouts.push(id);
 }
 
+// ─── Cancel Pending Speech ───
+
+/** Cancel all pending delayed speech and stop current TTS. Call before new announcements. */
+export function cancelPendingSpeech() {
+  for (const id of _pendingTimeouts) clearTimeout(id);
+  _pendingTimeouts.length = 0;
+  Speech.stop();
+  restoreMixMode();
+}
+
 // ─── Phase Announcements ───
 
 export function announcePhase(
@@ -149,6 +159,9 @@ export function announcePhase(
   nextExerciseName?: string,
   details?: { sets?: number; reps?: number; weight?: number },
 ) {
+  // Cancel any pending speech from the previous phase
+  cancelPendingSpeech();
+
   // Play sound
   if (_soundEnabled) {
     switch (phase) {

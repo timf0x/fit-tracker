@@ -7,6 +7,7 @@ import {
   VolumeLandmarkZone,
   getVolumeZone,
 } from '@/constants/volumeLandmarks';
+import i18n from '@/lib/i18n';
 
 // ─── Types ───
 
@@ -126,19 +127,19 @@ export function getExerciseBreakdown(
 }
 
 /**
- * Returns a French advice string based on current zone.
+ * Returns a localized advice string based on current zone.
  */
 export function getZoneAdvice(zone: VolumeLandmarkZone): string {
   switch (zone) {
     case 'below_mv':
-      return 'Volume insuffisant — vous risquez de perdre vos gains';
+      return i18n.t('volume.zoneAdvice.belowMv');
     case 'mv_mev':
-      return 'Volume de maintien — augmentez pour progresser';
+      return i18n.t('volume.zoneAdvice.mvMev');
     case 'mev_mav':
-      return 'Zone optimale — continuez sur cette lancée !';
+      return i18n.t('volume.zoneAdvice.mevMav');
     case 'mav_mrv':
-      return 'Volume élevé — surveillez votre récupération';
+      return i18n.t('volume.zoneAdvice.mavMrv');
     case 'above_mrv':
-      return 'Surentraînement probable — réduisez le volume';
+      return i18n.t('volume.zoneAdvice.aboveMrv');
   }
 }

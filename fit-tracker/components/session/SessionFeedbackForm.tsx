@@ -1,19 +1,13 @@
-import { useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable, Switch } from 'react-native';
-import {
-  Droplet,
-  Flame,
-  Zap,
-  CircleCheck,
-  Minus,
-  AlertTriangle,
-  TrendingDown,
-  TrendingUp,
-  Activity,
-  Lightbulb,
-} from 'lucide-react-native';
+import { useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  interpolateColor,
+} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { Colors, Fonts } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import type { SessionFeedback } from '@/types/program';
 
@@ -24,148 +18,230 @@ interface SessionFeedbackFormProps {
   onChange: (feedback: SessionFeedback) => void;
 }
 
-// ─── Option Configs ───
-
-interface FeedbackOption {
-  value: 1 | 2 | 3;
+interface MetricConfig {
+  field: 'pump' | 'soreness' | 'performance';
   label: string;
-  icon: React.ReactNode;
   color: string;
-  bg: string;
-  borderColor: string;
+  labels: [string, string, string];
 }
 
-function getPumpOptions(): FeedbackOption[] {
-  return [
-    {
-      value: 1,
-      label: i18n.t('workoutSession.feedbackPumpLow'),
-      icon: <Droplet size={20} color="#6B7280" strokeWidth={2} />,
-      color: '#6B7280',
-      bg: 'rgba(107,114,128,0.12)',
-      borderColor: 'rgba(107,114,128,0.3)',
-    },
-    {
-      value: 2,
-      label: i18n.t('workoutSession.feedbackPumpMed'),
-      icon: <Flame size={20} color={Colors.primary} strokeWidth={2} />,
-      color: Colors.primary,
-      bg: 'rgba(255,107,53,0.12)',
-      borderColor: `${Colors.primary}50`,
-    },
-    {
-      value: 3,
-      label: i18n.t('workoutSession.feedbackPumpHigh'),
-      icon: <Zap size={20} color="#EF4444" strokeWidth={2} />,
-      color: '#EF4444',
-      bg: 'rgba(239,68,68,0.12)',
-      borderColor: 'rgba(239,68,68,0.3)',
-    },
-  ];
+// ─── Spectrum Row ───
+
+function SpectrumRow({
+  config,
+  selected,
+  onSelect,
+}: {
+  config: MetricConfig;
+  selected: 1 | 2 | 3;
+  onSelect: (v: 1 | 2 | 3) => void;
+}) {
+  // Track fill: 0%, 50%, 100% based on selected (1, 2, 3)
+  const fillProgress = useSharedValue(selected === 1 ? 0 : selected === 2 ? 0.5 : 1);
+
+  useEffect(() => {
+    fillProgress.value = withTiming(selected === 1 ? 0 : selected === 2 ? 0.5 : 1, { duration: 300 });
+  }, [selected]);
+
+  const trackFillStyle = useAnimatedStyle(() => ({
+    width: `${fillProgress.value * 100}%` as any,
+  }));
+
+  return (
+    <View style={styles.spectrumSection}>
+      {/* Label with colored dot */}
+      <View style={styles.spectrumHeader}>
+        <View style={[styles.dot, { backgroundColor: config.color }]} />
+        <Text style={styles.spectrumLabel}>{config.label}</Text>
+      </View>
+
+      {/* Track + Nodes */}
+      <View style={styles.trackContainer}>
+        {/* Background track */}
+        <View style={styles.trackBg} />
+
+        {/* Filled track */}
+        <Animated.View
+          style={[styles.trackFill, { backgroundColor: config.color }, trackFillStyle]}
+        />
+
+        {/* Three nodes */}
+        <View style={styles.nodesRow}>
+          {([1, 2, 3] as const).map((v) => (
+            <SpectrumNode
+              key={v}
+              isSelected={selected === v}
+              color={config.color}
+              label={config.labels[v - 1]}
+              onPress={() => onSelect(v)}
+            />
+          ))}
+        </View>
+      </View>
+    </View>
+  );
 }
 
-function getSorenessOptions(): FeedbackOption[] {
-  return [
-    {
-      value: 1,
-      label: i18n.t('workoutSession.feedbackSorenessLow'),
-      icon: <CircleCheck size={20} color="#4ADE80" strokeWidth={2} />,
-      color: '#4ADE80',
-      bg: 'rgba(74,222,128,0.12)',
-      borderColor: 'rgba(74,222,128,0.3)',
-    },
-    {
-      value: 2,
-      label: i18n.t('workoutSession.feedbackSorenessMed'),
-      icon: <Activity size={20} color="#FBBF24" strokeWidth={2} />,
-      color: '#FBBF24',
-      bg: 'rgba(251,191,36,0.12)',
-      borderColor: 'rgba(251,191,36,0.3)',
-    },
-    {
-      value: 3,
-      label: i18n.t('workoutSession.feedbackSorenessHigh'),
-      icon: <AlertTriangle size={20} color="#EF4444" strokeWidth={2} />,
-      color: '#EF4444',
-      bg: 'rgba(239,68,68,0.12)',
-      borderColor: 'rgba(239,68,68,0.3)',
-    },
-  ];
+// ─── Spectrum Node ───
+
+function SpectrumNode({
+  isSelected,
+  color,
+  label,
+  onPress,
+}: {
+  isSelected: boolean;
+  color: string;
+  label: string;
+  onPress: () => void;
+}) {
+  const progress = useSharedValue(isSelected ? 1 : 0);
+
+  useEffect(() => {
+    progress.value = withTiming(isSelected ? 1 : 0, { duration: 250 });
+  }, [isSelected]);
+
+  const nodeStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + progress.value * 0.25 }],
+    backgroundColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      ['transparent', color],
+    ),
+    borderColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      ['rgba(255,255,255,0.15)', color],
+    ),
+  }));
+
+  const labelStyle = useAnimatedStyle(() => ({
+    opacity: 0.3 + progress.value * 0.7,
+  }));
+
+  return (
+    <Pressable style={styles.nodeHitArea} onPress={onPress}>
+      <Animated.View style={[styles.node, nodeStyle]} />
+      <Animated.Text
+        style={[
+          styles.nodeLabel,
+          { color: isSelected ? color : 'rgba(255,255,255,0.3)' },
+          isSelected && { fontFamily: Fonts?.semibold, fontWeight: '600' as const },
+          labelStyle,
+        ]}
+        numberOfLines={1}
+      >
+        {label}
+      </Animated.Text>
+    </Pressable>
+  );
 }
 
-function getPerformanceOptions(): FeedbackOption[] {
-  return [
-    {
-      value: 1,
-      label: i18n.t('workoutSession.feedbackPerfLow'),
-      icon: <TrendingDown size={20} color="#EF4444" strokeWidth={2} />,
-      color: '#EF4444',
-      bg: 'rgba(239,68,68,0.12)',
-      borderColor: 'rgba(239,68,68,0.3)',
-    },
-    {
-      value: 2,
-      label: i18n.t('workoutSession.feedbackPerfMed'),
-      icon: <Minus size={20} color="#FBBF24" strokeWidth={2} />,
-      color: '#FBBF24',
-      bg: 'rgba(251,191,36,0.12)',
-      borderColor: 'rgba(251,191,36,0.3)',
-    },
-    {
-      value: 3,
-      label: i18n.t('workoutSession.feedbackPerfHigh'),
-      icon: <TrendingUp size={20} color="#4ADE80" strokeWidth={2} />,
-      color: '#4ADE80',
-      bg: 'rgba(74,222,128,0.12)',
-      borderColor: 'rgba(74,222,128,0.3)',
-    },
-  ];
+// ─── Joint Pain Toggle ───
+
+function JointPainToggle({
+  active,
+  onToggle,
+}: {
+  active: boolean;
+  onToggle: () => void;
+}) {
+  const progress = useSharedValue(active ? 1 : 0);
+
+  useEffect(() => {
+    progress.value = withTiming(active ? 1 : 0, { duration: 250 });
+  }, [active]);
+
+  const circleStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      ['rgba(255,255,255,0.06)', '#FBBF24'],
+    ),
+    borderColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      ['rgba(255,255,255,0.12)', '#FBBF24'],
+    ),
+    transform: [{ scale: 1 + progress.value * 0.08 }],
+  }));
+
+  const underlineStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+  }));
+
+  return (
+    <View style={styles.jointSection}>
+      <Pressable style={styles.jointRow} onPress={onToggle}>
+        <View style={styles.jointLeft}>
+          <View style={[styles.dot, { backgroundColor: '#FBBF24' }]} />
+          <Text style={styles.spectrumLabel}>
+            {i18n.t('workoutSession.feedbackJointPain').toUpperCase()}
+          </Text>
+        </View>
+        <Animated.View style={[styles.toggleCircle, circleStyle]}>
+          {active && <View style={styles.toggleCheck} />}
+        </Animated.View>
+      </Pressable>
+      <Animated.View style={[styles.jointUnderline, underlineStyle]} />
+    </View>
+  );
 }
 
 // ─── Smart Nudge ───
 
-function getSmartNudge(feedback: SessionFeedback): { text: string; color: string; bg: string } | null {
-  // Joint pain takes priority
+function getSmartNudge(feedback: SessionFeedback): { text: string; color: string } | null {
   if (feedback.jointPain) {
-    return {
-      text: i18n.t('workoutSession.feedbackNudgeJoint'),
-      color: '#FBBF24',
-      bg: 'rgba(251,191,36,0.08)',
-    };
+    return { text: i18n.t('workoutSession.feedbackNudgeJoint'), color: '#FBBF24' };
   }
-  // Overreached: high soreness + declining performance
   if (feedback.soreness === 3 && feedback.performance === 1) {
-    return {
-      text: i18n.t('workoutSession.feedbackNudgeOverreached'),
-      color: '#EF4444',
-      bg: 'rgba(239,68,68,0.08)',
-    };
+    return { text: i18n.t('workoutSession.feedbackNudgeOverreached'), color: '#EF4444' };
   }
-  // Under-stimulated: low pump + no soreness + good performance
   if (feedback.pump === 1 && feedback.soreness === 1 && feedback.performance >= 2) {
-    return {
-      text: i18n.t('workoutSession.feedbackNudgeUnder'),
-      color: '#3B82F6',
-      bg: 'rgba(59,130,246,0.08)',
-    };
+    return { text: i18n.t('workoutSession.feedbackNudgeUnder'), color: '#3B82F6' };
   }
-  // Optimal: decent pump + not too sore + stable or improving
   if (feedback.pump >= 2 && feedback.soreness <= 2 && feedback.performance >= 2) {
-    return {
-      text: i18n.t('workoutSession.feedbackNudgeOptimal'),
-      color: '#4ADE80',
-      bg: 'rgba(74,222,128,0.08)',
-    };
+    return { text: i18n.t('workoutSession.feedbackNudgeOptimal'), color: '#4ADE80' };
   }
   return null;
 }
 
-// ─── Component ───
+// ─── Main Component ───
 
 export function SessionFeedbackForm({ value, onChange }: SessionFeedbackFormProps) {
-  const pumpOptions = useMemo(() => getPumpOptions(), []);
-  const sorenessOptions = useMemo(() => getSorenessOptions(), []);
-  const performanceOptions = useMemo(() => getPerformanceOptions(), []);
+  const metrics: MetricConfig[] = useMemo(() => [
+    {
+      field: 'pump',
+      label: i18n.t('workoutSession.feedbackPump').toUpperCase(),
+      color: Colors.primary,
+      labels: [
+        i18n.t('workoutSession.feedbackPumpLow'),
+        i18n.t('workoutSession.feedbackPumpMed'),
+        i18n.t('workoutSession.feedbackPumpHigh'),
+      ],
+    },
+    {
+      field: 'soreness',
+      label: i18n.t('workoutSession.feedbackSoreness').toUpperCase(),
+      color: '#A855F7',
+      labels: [
+        i18n.t('workoutSession.feedbackSorenessLow'),
+        i18n.t('workoutSession.feedbackSorenessMed'),
+        i18n.t('workoutSession.feedbackSorenessHigh'),
+      ],
+    },
+    {
+      field: 'performance',
+      label: i18n.t('workoutSession.feedbackPerformance').toUpperCase(),
+      color: '#3B82F6',
+      labels: [
+        i18n.t('workoutSession.feedbackPerfLow'),
+        i18n.t('workoutSession.feedbackPerfMed'),
+        i18n.t('workoutSession.feedbackPerfHigh'),
+      ],
+    },
+  ], []);
+
   const nudge = useMemo(() => getSmartNudge(value), [value]);
 
   const handleSelect = (field: 'pump' | 'soreness' | 'performance', v: 1 | 2 | 3) => {
@@ -173,113 +249,29 @@ export function SessionFeedbackForm({ value, onChange }: SessionFeedbackFormProp
     onChange({ ...value, [field]: v });
   };
 
-  const handleToggleJointPain = (v: boolean) => {
+  const handleToggleJointPain = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onChange({ ...value, jointPain: v });
+    onChange({ ...value, jointPain: !value.jointPain });
   };
-
-  const renderRow = (
-    sectionIcon: React.ReactNode,
-    sectionLabel: string,
-    options: FeedbackOption[],
-    selected: 1 | 2 | 3,
-    field: 'pump' | 'soreness' | 'performance',
-  ) => (
-    <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        {sectionIcon}
-        <Text style={styles.sectionLabel}>{sectionLabel}</Text>
-      </View>
-      <View style={styles.optionsRow}>
-        {options.map((opt) => {
-          const isSelected = opt.value === selected;
-          return (
-            <Pressable
-              key={opt.value}
-              style={[
-                styles.optionCard,
-                isSelected && {
-                  backgroundColor: opt.bg,
-                  borderColor: opt.borderColor,
-                },
-              ]}
-              onPress={() => handleSelect(field, opt.value)}
-            >
-              <View style={[
-                styles.optionIconBox,
-                isSelected && { backgroundColor: `${opt.color}18` },
-              ]}>
-                {opt.icon}
-              </View>
-              <Text
-                style={[
-                  styles.optionLabel,
-                  isSelected && { color: opt.color, fontFamily: Fonts?.semibold, fontWeight: '600' },
-                ]}
-                numberOfLines={1}
-              >
-                {opt.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </View>
-  );
 
   return (
     <View style={styles.container}>
-      {/* Section Title */}
       <Text style={styles.title}>{i18n.t('workoutSession.feedbackTitle')}</Text>
 
-      {/* Pump */}
-      {renderRow(
-        <Flame size={14} color={Colors.primary} strokeWidth={2.5} />,
-        i18n.t('workoutSession.feedbackPump'),
-        pumpOptions,
-        value.pump,
-        'pump',
-      )}
-
-      {/* Soreness */}
-      {renderRow(
-        <Activity size={14} color="#A855F7" strokeWidth={2.5} />,
-        i18n.t('workoutSession.feedbackSoreness'),
-        sorenessOptions,
-        value.soreness,
-        'soreness',
-      )}
-
-      {/* Performance */}
-      {renderRow(
-        <TrendingUp size={14} color="#3B82F6" strokeWidth={2.5} />,
-        i18n.t('workoutSession.feedbackPerformance'),
-        performanceOptions,
-        value.performance,
-        'performance',
-      )}
-
-      {/* Joint Pain Toggle */}
-      <View style={styles.jointPainRow}>
-        <View style={styles.jointPainLeft}>
-          <AlertTriangle size={14} color="#FBBF24" strokeWidth={2.5} />
-          <Text style={styles.sectionLabel}>
-            {i18n.t('workoutSession.feedbackJointPain')}
-          </Text>
-        </View>
-        <Switch
-          value={value.jointPain}
-          onValueChange={handleToggleJointPain}
-          trackColor={{ false: 'rgba(255,255,255,0.08)', true: 'rgba(251,191,36,0.35)' }}
-          thumbColor={value.jointPain ? '#FBBF24' : 'rgba(255,255,255,0.3)'}
-          ios_backgroundColor="rgba(255,255,255,0.08)"
+      {metrics.map((m) => (
+        <SpectrumRow
+          key={m.field}
+          config={m}
+          selected={value[m.field]}
+          onSelect={(v) => handleSelect(m.field, v)}
         />
-      </View>
+      ))}
 
-      {/* Smart Nudge */}
+      <JointPainToggle active={value.jointPain} onToggle={handleToggleJointPain} />
+
       {nudge && (
-        <View style={[styles.nudgeBanner, { backgroundColor: nudge.bg }]}>
-          <Lightbulb size={14} color={nudge.color} strokeWidth={2.5} />
+        <View style={styles.nudgeRow}>
+          <View style={[styles.nudgeAccent, { backgroundColor: nudge.color }]} />
           <Text style={[styles.nudgeText, { color: nudge.color }]}>
             {nudge.text}
           </Text>
@@ -293,82 +285,136 @@ export function SessionFeedbackForm({ value, onChange }: SessionFeedbackFormProp
 
 const styles = StyleSheet.create({
   container: {
-    gap: 18,
+    gap: 24,
   },
   title: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(255,255,255,0.35)',
     letterSpacing: 1.5,
-    marginBottom: 2,
   },
-  section: {
+
+  // Spectrum row
+  spectrumSection: {
     gap: 10,
   },
-  sectionHeader: {
+  spectrumHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  sectionLabel: {
-    fontSize: 13,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.6)',
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
-  optionsRow: {
+  spectrumLabel: {
+    fontSize: 11,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 1.2,
+  },
+
+  // Track
+  trackContainer: {
+    height: 44,
+    justifyContent: 'flex-start',
+    paddingTop: 4,
+  },
+  trackBg: {
+    position: 'absolute',
+    top: 12,
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 1,
+  },
+  trackFill: {
+    position: 'absolute',
+    top: 12,
+    left: 0,
+    height: 2,
+    borderRadius: 1,
+  },
+  nodesRow: {
     flexDirection: 'row',
-    gap: 10,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
-  optionCard: {
-    flex: 1,
+
+  // Node
+  nodeHitArea: {
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
     paddingHorizontal: 8,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    paddingVertical: 0,
+    minWidth: 64,
   },
-  optionIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+  node: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.15)',
   },
-  optionLabel: {
-    fontSize: 12,
+  nodeLabel: {
+    marginTop: 6,
+    fontSize: 11,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(255,255,255,0.3)',
   },
-  jointPainRow: {
+
+  // Joint pain
+  jointSection: {
+    gap: 0,
+  },
+  jointRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    paddingVertical: 6,
   },
-  jointPainLeft: {
+  jointLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  nudgeBanner: {
-    flexDirection: 'row',
+  toggleCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1.5,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toggleCheck: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#050505',
+  },
+  jointUnderline: {
+    height: 2,
+    backgroundColor: '#FBBF24',
+    borderRadius: 1,
+    marginTop: 4,
+    opacity: 0,
+  },
+
+  // Nudge
+  nudgeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
+  },
+  nudgeAccent: {
+    width: 3,
+    minHeight: 18,
+    borderRadius: 1.5,
+    marginTop: 1,
   },
   nudgeText: {
     flex: 1,

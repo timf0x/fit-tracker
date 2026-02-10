@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Colors, Fonts } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 
 interface MesocycleTimelineProps {
   totalWeeks: number;
@@ -103,7 +104,7 @@ export function MesocycleTimeline({
                 (isCurrent && !isSelected) && styles.labelCurrent,
               ]}
             >
-              {isDeload ? 'Deload' : `S${week}`}
+              {isDeload ? i18n.t('common.deload') : `${i18n.t('common.weekAbbr')}${week}`}
             </Text>
           </View>
         );

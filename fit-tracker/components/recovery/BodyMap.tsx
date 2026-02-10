@@ -4,6 +4,7 @@ import Body, { Slug, ExtendedBodyPart } from 'react-native-body-highlighter';
 import * as Haptics from 'expo-haptics';
 import { MuscleRecoveryData, RecoveryBodyPart, RecoveryLevel } from '@/types';
 import { Fonts } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 import { BodyMapScrubOverlay } from './BodyMapScrubOverlay';
 
 interface BodyMapProps {
@@ -135,7 +136,7 @@ export function BodyMap({
             onPress={() => setView('front')}
           >
             <Text style={[styles.toggleText, view === 'front' && styles.toggleTextActive]}>
-              Avant
+              {i18n.t('bodyMap.front')}
             </Text>
           </Pressable>
           <Pressable
@@ -143,7 +144,7 @@ export function BodyMap({
             onPress={() => setView('back')}
           >
             <Text style={[styles.toggleText, view === 'back' && styles.toggleTextActive]}>
-              Arrière
+              {i18n.t('bodyMap.back')}
             </Text>
           </Pressable>
         </View>
@@ -184,15 +185,15 @@ export function BodyMap({
         <View style={styles.legend}>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: '#EF4444', shadowColor: '#EF4444', shadowRadius: 6, shadowOpacity: 0.8 }]} />
-            <Text style={styles.legendText}>Fatigué</Text>
+            <Text style={styles.legendText}>{i18n.t('bodyMap.fatigued')}</Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: '#22C55E', shadowColor: '#22C55E', shadowRadius: 4, shadowOpacity: 0.5 }]} />
-            <Text style={styles.legendText}>Frais</Text>
+            <Text style={styles.legendText}>{i18n.t('bodyMap.fresh')}</Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: '#6B7280' }]} />
-            <Text style={styles.legendText}>Sous-entraîné</Text>
+            <Text style={styles.legendText}>{i18n.t('bodyMap.undertrained')}</Text>
           </View>
         </View>
       )}

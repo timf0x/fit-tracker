@@ -32,7 +32,6 @@ import {
 import { BodyMap } from '@/components/recovery/BodyMap';
 import { ScoreRing } from '@/components/recovery/ScoreRing';
 import { useWorkoutStore } from '@/stores/workoutStore';
-import { mockRecoveryOverview } from '@/lib/mock-data';
 import { MuscleRecoveryData, RecoveryBodyPart } from '@/types';
 import {
   computeRecoveryOverview,
@@ -52,12 +51,7 @@ export default function RecoveryScreen() {
   const router = useRouter();
   const { history } = useWorkoutStore();
 
-  // Compute real recovery data (fallback to mock if no history)
-  const overview = useMemo(() => {
-    const hasData = history.some((s) => s.endTime && s.completedExercises.length > 0);
-    if (!hasData) return mockRecoveryOverview;
-    return computeRecoveryOverview(history);
-  }, [history]);
+  const overview = useMemo(() => computeRecoveryOverview(history), [history]);
 
   const recommendation = useMemo(() => getTrainingRecommendation(overview), [overview]);
 
@@ -439,7 +433,7 @@ export default function RecoveryScreen() {
                   <View style={styles.lastSessionSection}>
                     <Text style={styles.lastSessionTitle}>{i18n.t('recovery.lastSession')}</Text>
                     <View style={styles.lastSessionRow}>
-                      <Text style={styles.lastSessionSets}>{muscleDetail.totalSets} séries</Text>
+                      <Text style={styles.lastSessionSets}>{muscleDetail.totalSets} {i18n.t('common.sets')}</Text>
                       <Text style={styles.lastSessionDot}> · </Text>
                       <Text style={styles.lastSessionExercises} numberOfLines={1}>
                         {muscleDetail.exerciseNames.join(', ')}

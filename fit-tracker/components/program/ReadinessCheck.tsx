@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, Modal } from 'react-native';
 import { Moon, Zap, Activity, X } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 import type { ReadinessCheck as ReadinessCheckType } from '@/types/program';
 
 interface ReadinessCheckProps {
@@ -21,8 +22,8 @@ export function ReadinessCheck({ visible, onSubmit, onSkip, onClose }: Readiness
   const avg = useMemo(() => (sleep + energy + (6 - soreness)) / 3, [sleep, energy, soreness]);
 
   const recommendation = useMemo(() => {
-    if (avg < 2.5) return { text: 'Ton corps a besoin de repos. Seance legere conseillee.', color: '#FBBF24', bg: 'rgba(251,191,36,0.1)' };
-    if (avg >= 4) return { text: 'Tu es en forme ! Pousse un peu plus.', color: '#4ADE80', bg: 'rgba(74,222,128,0.1)' };
+    if (avg < 2.5) return { text: i18n.t('readiness.recLow'), color: '#FBBF24', bg: 'rgba(251,191,36,0.1)' };
+    if (avg >= 4) return { text: i18n.t('readiness.recHigh'), color: '#4ADE80', bg: 'rgba(74,222,128,0.1)' };
     return null;
   }, [avg]);
 
@@ -104,23 +105,23 @@ export function ReadinessCheck({ visible, onSubmit, onSkip, onClose }: Readiness
               <X size={20} color="rgba(255,255,255,0.5)" />
             </Pressable>
           )}
-          <Text style={styles.title}>Comment te sens-tu ?</Text>
+          <Text style={styles.title}>{i18n.t('readiness.title')}</Text>
 
           {renderScale(
             <Moon size={14} color="#3B82F6" />,
-            'Sommeil',
+            i18n.t('readiness.sleep'),
             sleep,
             setSleep,
           )}
           {renderScale(
             <Zap size={14} color={Colors.primary} />,
-            'Energie',
+            i18n.t('readiness.energy'),
             energy,
             setEnergy,
           )}
           {renderScale(
             <Activity size={14} color="#A855F7" />,
-            'Courbatures',
+            i18n.t('readiness.soreness'),
             soreness,
             setSoreness,
             true,
@@ -135,10 +136,10 @@ export function ReadinessCheck({ visible, onSubmit, onSkip, onClose }: Readiness
           )}
 
           <Pressable style={styles.submitButton} onPress={handleSubmit}>
-            <Text style={styles.submitText}>C'est parti</Text>
+            <Text style={styles.submitText}>{i18n.t('readiness.submit')}</Text>
           </Pressable>
           <Pressable style={styles.skipButton} onPress={onSkip}>
-            <Text style={styles.skipText}>Passer</Text>
+            <Text style={styles.skipText}>{i18n.t('common.skip')}</Text>
           </Pressable>
         </View>
       </View>

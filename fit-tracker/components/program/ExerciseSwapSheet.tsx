@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, Modal, ScrollView } from 'react-native';
 import { X, ArrowLeftRight } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/theme';
+import i18n from '@/lib/i18n';
 import { ExerciseIcon } from '@/components/ExerciseIcon';
 import { getExerciseById } from '@/data/exercises';
 import { EXERCISE_POOLS, EQUIPMENT_BY_SETUP } from '@/constants/programTemplates';
@@ -79,7 +80,7 @@ export function ExerciseSwapSheet({
           {/* Header */}
           <View style={styles.header}>
             <ArrowLeftRight size={18} color={Colors.primary} />
-            <Text style={styles.title}>Remplacer l'exercice</Text>
+            <Text style={styles.title}>{i18n.t('exerciseSwap.title')}</Text>
             <Pressable style={styles.closeBtn} onPress={onClose}>
               <X size={18} color="rgba(255,255,255,0.5)" />
             </Pressable>
@@ -99,7 +100,7 @@ export function ExerciseSwapSheet({
                 <Text style={styles.currentName}>{currentEx.nameFr}</Text>
                 <Text style={styles.currentMeta}>{muscleName} · {currentEx.equipment}</Text>
               </View>
-              <Text style={styles.currentLabel}>Actuel</Text>
+              <Text style={styles.currentLabel}>{i18n.t('common.currentLabel')}</Text>
             </View>
           )}
 
@@ -108,7 +109,7 @@ export function ExerciseSwapSheet({
           {/* Alternatives */}
           <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
             {alternatives.length === 0 ? (
-              <Text style={styles.emptyText}>Aucune alternative disponible</Text>
+              <Text style={styles.emptyText}>{i18n.t('exerciseSwap.noAlternatives')}</Text>
             ) : (
               alternatives.map((alt, idx) => (
                 <View key={alt.id}>
@@ -130,7 +131,7 @@ export function ExerciseSwapSheet({
                       <Text style={styles.altName}>{alt.nameFr}</Text>
                       <Text style={styles.altMeta}>{alt.equipment}</Text>
                     </View>
-                    <Text style={styles.swapLabel}>Choisir</Text>
+                    <Text style={styles.swapLabel}>{i18n.t('exerciseSwap.choose')}</Text>
                   </Pressable>
                   {idx < alternatives.length - 1 && <View style={styles.altSep} />}
                 </View>

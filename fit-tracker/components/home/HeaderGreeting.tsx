@@ -1,7 +1,8 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { User } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
-import { mockUser } from '@/lib/mock-data';
+import { useProgramStore } from '@/stores/programStore';
 import i18n from '@/lib/i18n';
 
 function getGreeting(): string {
@@ -13,21 +14,26 @@ function getGreeting(): string {
 
 export function HeaderGreeting() {
   const insets = useSafeAreaInsets();
+  const userProfile = useProgramStore((s) => s.userProfile);
+  const userName = userProfile?.name;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
       <View style={styles.content}>
         <View style={styles.textSection}>
           <Text style={styles.greeting}>{getGreeting()}</Text>
-          <Text style={styles.name}>{mockUser.name}</Text>
+          <Text style={styles.name}>{userName || 'Onset'}</Text>
         </View>
 
-        {/* Avatar positioned inside the gradient area */}
         <View style={styles.avatarContainer}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {mockUser.name.charAt(0).toUpperCase()}
-            </Text>
+            {userName ? (
+              <Text style={styles.avatarText}>
+                {userName.charAt(0).toUpperCase()}
+              </Text>
+            ) : (
+              <User size={22} color={Colors.text} strokeWidth={2} />
+            )}
           </View>
           <View style={styles.onlineDot} />
         </View>

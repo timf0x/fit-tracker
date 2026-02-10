@@ -122,7 +122,7 @@ export function WorkoutListCard({ workout, onPress, onLongPress }: WorkoutListCa
         <Text style={styles.meta} numberOfLines={1}>
           {levelLabel}
           {muscleText ? ` · ${muscleText}` : ''}
-          {` · ${exoCount} exos`}
+          {` · ${exoCount} ${i18n.t('common.exosAbbr')}`}
         </Text>
       </View>
 

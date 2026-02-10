@@ -1,41 +1,7 @@
 import { exercises } from '@/data/exercises';
 import { WorkoutSession } from '@/types';
-
-/**
- * Maps exercise `target` field values → canonical muscle group keys
- * (same mapping as muscleMapping.ts, inlined to avoid circular deps)
- */
-const TARGET_TO_MUSCLE: Record<string, string> = {
-  pecs: 'chest',
-  'upper chest': 'chest',
-  'lower chest': 'chest',
-  lats: 'lats',
-  'upper back': 'upper back',
-  'middle back': 'upper back',
-  'lower back': 'lower back',
-  'rear delts': 'shoulders',
-  delts: 'shoulders',
-  'front delts': 'shoulders',
-  'lateral delts': 'shoulders',
-  traps: 'shoulders',
-  biceps: 'biceps',
-  brachialis: 'biceps',
-  triceps: 'triceps',
-  'forearm flexors': 'forearms',
-  'forearm extensors': 'forearms',
-  brachioradialis: 'forearms',
-  grip: 'forearms',
-  quads: 'quads',
-  hamstrings: 'hamstrings',
-  glutes: 'glutes',
-  calves: 'calves',
-  gastrocnemius: 'calves',
-  soleus: 'calves',
-  abs: 'abs',
-  'lower abs': 'abs',
-  'core stability': 'abs',
-  obliques: 'obliques',
-};
+import { TARGET_TO_MUSCLE } from '@/lib/muscleMapping';
+import i18n from '@/lib/i18n';
 
 const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
 
@@ -60,13 +26,15 @@ export function getWeekBounds(weekOffset: number): { start: Date; end: Date } {
 }
 
 /**
- * Returns a French label like "Sem. du 3 février"
+ * Returns a localized week label like "Sem. du 3 février" / "Week of Feb 3"
  */
 export function getWeekLabel(weekOffset: number): string {
   const { start } = getWeekBounds(weekOffset);
   const day = start.getDate();
-  const month = start.toLocaleDateString('fr-FR', { month: 'long' });
-  return `Sem. du ${day} ${month}`;
+  const locale = i18n.locale === 'fr' ? 'fr-FR' : 'en-US';
+  const month = start.toLocaleDateString(locale, { month: 'long' });
+  const prefix = i18n.locale === 'fr' ? 'Sem. du' : 'Week of';
+  return `${prefix} ${day} ${month}`;
 }
 
 /**

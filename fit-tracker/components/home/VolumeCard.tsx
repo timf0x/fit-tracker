@@ -5,27 +5,26 @@ import { useRouter } from 'expo-router';
 import { ChevronRight } from 'lucide-react-native';
 import { Fonts, Spacing } from '@/constants/theme';
 import { useWorkoutStore } from '@/stores/workoutStore';
-import { getSetsPerMuscle, MUSCLE_LABELS_FR } from '@/lib/muscleMapping';
+import { getMuscleLabel } from '@/lib/muscleMapping';
+import { getSetsForWeek } from '@/lib/weeklyVolume';
 import {
   RP_VOLUME_LANDMARKS,
   getVolumeZone,
   getZoneColor,
 } from '@/constants/volumeLandmarks';
-import { mockWeeklyVolume } from '@/lib/mock-data';
+import i18n from '@/lib/i18n';
 
 export function VolumeCard() {
   const router = useRouter();
   const { history, muscleOrder } = useWorkoutStore();
 
   const muscleVolume = useMemo(() => {
-    const fromHistory = getSetsPerMuscle(history, 7);
-    const hasData = Object.values(fromHistory).some((v) => v > 0);
-    const data = hasData ? fromHistory : mockWeeklyVolume;
+    const data = getSetsForWeek(history, 0);
 
     const all = Object.entries(RP_VOLUME_LANDMARKS)
       .map(([muscle, landmarks]) => ({
         muscle,
-        label: MUSCLE_LABELS_FR[muscle] || muscle,
+        label: getMuscleLabel(muscle),
         sets: data[muscle] || 0,
         landmarks,
       }))
@@ -55,7 +54,7 @@ export function VolumeCard() {
     <View style={styles.container}>
       <PressableScale style={styles.card} onPress={() => router.push('/volume')}>
         <View style={styles.titleRow}>
-          <Text style={styles.title}>VOLUME HEBDO</Text>
+          <Text style={styles.title}>{i18n.t('home.weekly.volumeHebdo')}</Text>
           <ChevronRight size={16} color="rgba(120,120,130,1)" strokeWidth={2} />
         </View>
 

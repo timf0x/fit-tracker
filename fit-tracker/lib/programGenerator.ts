@@ -20,6 +20,7 @@ import {
 import { Equipment } from '@/types';
 import { getEstimatedWeight, roundToIncrement } from '@/lib/weightEstimation';
 import { getExerciseCategory, getTargetRir } from '@/lib/exerciseClassification';
+import i18n from '@/lib/i18n';
 
 // ─── Helpers ───
 
@@ -330,7 +331,8 @@ export function generateProgram(profile: UserProfile): TrainingProgram {
       return {
         dayIndex: dayIdx,
         label: template.label,
-        labelFr: template.labelFr,
+        labelKey: template.labelKey,
+        labelFr: template.label, // legacy compat — resolveDayLabel() uses labelKey first
         focus: template.focus,
         muscleTargets: template.muscles,
         exercises: dayExercises,
@@ -346,17 +348,17 @@ export function generateProgram(profile: UserProfile): TrainingProgram {
     });
   }
 
-  // Program name
-  const splitNamesFr: Record<SplitType, string> = {
+  // Program name — stored as English fallback, resolveProgramName() localizes at render time
+  const splitNames: Record<SplitType, string> = {
     full_body: 'Full Body',
-    upper_lower: 'Haut/Bas',
+    upper_lower: 'Upper/Lower',
     ppl: 'Push/Pull/Legs',
   };
 
   return {
     id: generateId(),
-    name: `${splitNamesFr[splitType]} – ${totalWeeks} weeks`,
-    nameFr: `${splitNamesFr[splitType]} – ${totalWeeks} semaines`,
+    name: `${splitNames[splitType]} – ${totalWeeks} weeks`,
+    nameFr: `${splitNames[splitType]} – ${totalWeeks} weeks`, // legacy field, resolveProgramName() used instead
     splitType,
     totalWeeks,
     weeks,
@@ -416,7 +418,7 @@ export function getOverloadSuggestions(
     if (belowMinCount > completedSets.length * 0.5 && lastWeight > 0) {
       const increment = (ex.equipment === 'barbell' || ex.equipment === 'ez bar' || ex.equipment === 'smith machine' || ex.equipment === 'trap bar')
         ? 2.5 : (ex.equipment === 'dumbbell' || ex.equipment === 'kettlebell') ? 2 : 2.5;
-      suggestions[pex.exerciseId] = `Réduis à ${lastWeight - increment}kg`;
+      suggestions[pex.exerciseId] = i18n.t('programDay.overloadReduce', { weight: lastWeight - increment });
       continue;
     }
 
@@ -428,7 +430,7 @@ export function getOverloadSuggestions(
       if (allAtMax && lastWeight > 0) {
         const increment = (ex.equipment === 'barbell' || ex.equipment === 'ez bar' || ex.equipment === 'smith machine' || ex.equipment === 'trap bar')
           ? 2.5 : (ex.equipment === 'dumbbell' || ex.equipment === 'kettlebell') ? 2 : 2.5;
-        suggestions[pex.exerciseId] = `${lastWeight + increment}kg (reviens à ${minReps} reps)`;
+        suggestions[pex.exerciseId] = i18n.t('programDay.overloadBumpReps', { weight: lastWeight + increment, reps: minReps });
         continue;
       }
     }
@@ -436,7 +438,7 @@ export function getOverloadSuggestions(
     // All sets in range but not at max → nudge +1 rep
     const allInRange = completedSets.every((s) => s.reps >= minReps && s.reps < maxReps);
     if (allInRange) {
-      suggestions[pex.exerciseId] = `+1 rep (objectif : ${maxReps})`;
+      suggestions[pex.exerciseId] = i18n.t('programDay.overloadPlusRep', { reps: maxReps });
     }
   }
 

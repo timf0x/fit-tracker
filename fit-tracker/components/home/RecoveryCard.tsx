@@ -3,7 +3,6 @@ import { View, Text, StyleSheet } from 'react-native';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { useRouter } from 'expo-router';
 import { Fonts } from '@/constants/theme';
-import { mockRecoveryOverview } from '@/lib/mock-data';
 import { ScoreRing } from '@/components/recovery/ScoreRing';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { computeRecoveryOverview } from '@/lib/recoveryHelpers';
@@ -15,7 +14,7 @@ export function RecoveryCard() {
 
   const recoveryScore = useMemo(() => {
     const hasData = history.some((s) => s.endTime && s.completedExercises.length > 0);
-    if (!hasData) return mockRecoveryOverview.overallScore;
+    if (!hasData) return 100; // Fully recovered — no training yet
     return computeRecoveryOverview(history).overallScore;
   }, [history]);
 

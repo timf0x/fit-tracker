@@ -6,15 +6,11 @@ import { Calendar, Flame, ChevronRight, Zap } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { getWeekSummary, getWeekPRs } from '@/lib/statsHelpers';
-import { mockWeekly } from '@/lib/mock-data';
 import i18n from '@/lib/i18n';
-import fr from '@/lib/translations/fr';
-
-const DAYS = fr.home.weekly.days;
 
 function formatVolume(kg: number): string {
   if (kg >= 1000) return `${(kg / 1000).toFixed(1)}t`;
-  return `${kg}kg`;
+  return `${kg}${i18n.t('common.kgUnit')}`;
 }
 
 
@@ -32,13 +28,10 @@ export function WeeklyActivity() {
     [history]
   );
 
-  const hasRealData = history.filter((s) => s.endTime).length > 0;
-
-  const completedDays = hasRealData
-    ? weekSummary.completedDays
-    : mockWeekly.completedDays;
+  const completedDays = weekSummary.completedDays;
   const currentDayIndex = weekSummary.currentDayIndex;
-  const streak = hasRealData ? stats.currentStreak : mockWeekly.streak;
+  const streak = stats.currentStreak;
+  const hasRealData = history.some((s) => s.endTime);
 
   return (
     <PressableScale style={styles.container} onPress={() => router.push('/stats')}>
@@ -58,7 +51,7 @@ export function WeeklyActivity() {
 
         {/* Day circles + labels below */}
         <View style={styles.daysRow}>
-          {DAYS.map((day, index) => {
+          {(i18n.t('home.weekly.days') as unknown as string[]).map((day, index) => {
             const isCompleted = completedDays[index];
             const isToday = index === currentDayIndex;
 
@@ -91,7 +84,7 @@ export function WeeklyActivity() {
             <>
               <View style={styles.chip}>
                 <Text style={styles.chipValue}>{weekSummary.sessions}</Text>
-                <Text style={styles.chipLabel}> séances</Text>
+                <Text style={styles.chipLabel}> {i18n.t('home.weekly.sessions')}</Text>
               </View>
               <View style={styles.chip}>
                 <Text style={styles.chipValue}>
@@ -100,7 +93,7 @@ export function WeeklyActivity() {
               </View>
               {weekPRs.total > 0 && (
                 <View style={[styles.chip, styles.chipPR]}>
-                  <Text style={styles.chipValuePR}>{weekPRs.total} PR</Text>
+                  <Text style={styles.chipValuePR}>{weekPRs.total} {i18n.t('home.weekly.pr')}</Text>
                   <Zap size={10} color="#FF6B35" strokeWidth={2.5} />
                 </View>
               )}

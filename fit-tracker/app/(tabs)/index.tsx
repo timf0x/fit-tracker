@@ -17,7 +17,7 @@ import { AmbientBackground } from '@/components/home/AmbientBackground';
 import { useWorkoutStore } from '@/stores/workoutStore';
 
 // Default card order — these keys match the cards map below
-const DEFAULT_ORDER = ['recovery', 'steps', 'weekly', 'program', 'volume'];
+const DEFAULT_ORDER = ['recovery', 'steps', 'volume', 'program', 'weekly'];
 
 // Card sizes: half cards pair side-by-side, full cards take the whole row
 const CARD_SIZES: Record<string, 'full' | 'half'> = {
@@ -43,13 +43,16 @@ export default function HomeScreen() {
   const [isDragging, setIsDragging] = useState(false);
   const { homeCardOrder, setHomeCardOrder } = useWorkoutStore();
 
-  // Resolve order: use persisted order if valid, otherwise default
+  // Resolve order: migrate persisted order when cards are added/removed
   const cardOrder = useMemo(() => {
-    if (
-      homeCardOrder.length === DEFAULT_ORDER.length &&
-      DEFAULT_ORDER.every((k) => homeCardOrder.includes(k))
-    ) {
-      return homeCardOrder;
+    // Filter persisted order to only include currently valid keys
+    const valid = homeCardOrder.filter((k) => DEFAULT_ORDER.includes(k));
+    // Add any new cards that weren't in the persisted order
+    const missing = DEFAULT_ORDER.filter((k) => !valid.includes(k));
+    const merged = [...valid, ...missing];
+    // Use merged if it covers all cards, otherwise reset
+    if (merged.length === DEFAULT_ORDER.length) {
+      return merged;
     }
     return DEFAULT_ORDER;
   }, [homeCardOrder]);

@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { Dumbbell, ChevronRight } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
-import { mockBrowse } from '@/lib/mock-data';
+import { exercises } from '@/data/exercises';
 import i18n from '@/lib/i18n';
 
 export function BrowseButton() {
@@ -26,7 +26,7 @@ export function BrowseButton() {
           <View style={styles.textSection}>
             <Text style={styles.title}>{i18n.t('home.browse.title')}</Text>
             <Text style={styles.subtitle}>
-              {mockBrowse.totalWorkouts} {i18n.t('home.browse.subtitle')}
+              {exercises.length} {i18n.t('home.browse.subtitle')}
             </Text>
           </View>
 

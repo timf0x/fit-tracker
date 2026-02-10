@@ -9,7 +9,6 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,7 +18,6 @@ import {
   Plus,
   X,
   Search,
-  Check,
   ChevronDown,
   Minus,
   Info,
@@ -33,6 +31,8 @@ import { ExerciseInfoSheet } from '@/components/ExerciseInfoSheet';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { exercises as allExercises } from '@/data/exercises';
 import type { WorkoutExercise, Exercise, BodyPart, Equipment } from '@/types';
+import { DropdownModal } from '@/components/ui/DropdownModal';
+import { getFocusOptions, getEquipmentOptions } from '@/constants/filterOptions';
 
 // ─── Config ───────────────────────────────────────
 
@@ -47,30 +47,8 @@ const WORKOUT_ICONS = [
   { id: 'lower', label: i18n.t('workoutCreate.icons.lower') },
 ];
 
-const FOCUS_OPTIONS: { value: BodyPart | 'all'; label: string }[] = [
-  { value: 'all', label: i18n.t('workoutCreate.focus.all') },
-  { value: 'chest', label: i18n.t('workoutCreate.focus.chest') },
-  { value: 'back', label: i18n.t('workoutCreate.focus.back') },
-  { value: 'shoulders', label: i18n.t('workoutCreate.focus.shoulders') },
-  { value: 'upper legs', label: i18n.t('workoutCreate.focus.legs') },
-  { value: 'upper arms', label: i18n.t('workoutCreate.focus.arms') },
-  { value: 'waist', label: i18n.t('workoutCreate.focus.waist') },
-  { value: 'cardio', label: i18n.t('workoutCreate.focus.cardio') },
-];
-
-const EQUIPMENT_OPTIONS: { value: Equipment | 'all'; label: string }[] = [
-  { value: 'all', label: i18n.t('common.all') },
-  { value: 'dumbbell', label: i18n.t('equipment.dumbbells') },
-  { value: 'barbell', label: i18n.t('equipment.barbell') },
-  { value: 'cable', label: i18n.t('equipment.cable') },
-  { value: 'machine', label: i18n.t('equipment.machine') },
-  { value: 'body weight', label: i18n.t('equipment.bodyweight') },
-  { value: 'kettlebell', label: i18n.t('equipment.kettlebell') },
-  { value: 'resistance band', label: i18n.t('equipment.bands') },
-  { value: 'ez bar', label: i18n.t('equipment.ezBar') },
-  { value: 'smith machine', label: i18n.t('equipment.smithMachine') },
-  { value: 'trap bar', label: i18n.t('equipment.trapBar') },
-];
+const FOCUS_OPTIONS = getFocusOptions();
+const EQUIPMENT_OPTIONS = getEquipmentOptions();
 
 interface SelectedExercise extends WorkoutExercise {
   exercise: Exercise;
@@ -603,53 +581,6 @@ export default function CreateWorkoutScreen() {
   );
 }
 
-// ─── Dropdown Modal Component ─────────────────────
-
-function DropdownModal({
-  visible,
-  title,
-  options,
-  selected,
-  onSelect,
-  onClose,
-}: {
-  visible: boolean;
-  title: string;
-  options: { value: string; label: string }[];
-  selected: string;
-  onSelect: (value: string) => void;
-  onClose: () => void;
-}) {
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={s.modalOverlay} onPress={onClose}>
-        <View style={s.dropdownModal}>
-          <View style={s.dropdownHeader}>
-            <Text style={s.dropdownTitle}>{title}</Text>
-            <Pressable onPress={onClose}>
-              <X size={18} color={Colors.text} strokeWidth={2} />
-            </Pressable>
-          </View>
-          <ScrollView style={{ maxHeight: 300 }}>
-            {options.map((opt) => (
-              <Pressable
-                key={opt.value}
-                style={[s.dropdownOption, selected === opt.value && s.dropdownOptionActive]}
-                onPress={() => onSelect(opt.value)}
-              >
-                <Text style={[s.dropdownOptionText, selected === opt.value && s.dropdownOptionTextActive]}>
-                  {opt.label}
-                </Text>
-                {selected === opt.value && <Check size={16} color={Colors.primary} strokeWidth={2.5} />}
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-      </Pressable>
-    </Modal>
-  );
-}
-
 // ─── Styles ───────────────────────────────────────
 
 const s = StyleSheet.create({
@@ -1085,60 +1016,4 @@ const s = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // ─── Dropdown modal ────────────────────────────
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-  },
-  dropdownModal: {
-    width: '100%',
-    maxWidth: 320,
-    backgroundColor: 'rgba(28,28,32,0.98)',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    overflow: 'hidden',
-  },
-  dropdownHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
-  },
-  dropdownTitle: {
-    color: Colors.text,
-    fontSize: 16,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-  dropdownOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 13,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.04)',
-  },
-  dropdownOptionActive: {
-    backgroundColor: 'rgba(255,107,53,0.06)',
-  },
-  dropdownOptionText: {
-    color: 'rgba(180,180,190,1)',
-    fontSize: 14,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-  dropdownOptionTextActive: {
-    color: Colors.primary,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
 });
