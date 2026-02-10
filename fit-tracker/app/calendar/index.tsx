@@ -12,7 +12,6 @@ import { Colors, Fonts } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { useProgramStore } from '@/stores/programStore';
-import { AmbientBackground } from '@/components/home/AmbientBackground';
 import { WeekStrip } from '@/components/calendar/WeekStrip';
 import { DayContentCard } from '@/components/calendar/DayContentCard';
 import { MonthGrid } from '@/components/calendar/MonthGrid';
@@ -187,7 +186,6 @@ export default function CalendarScreen() {
 
   return (
     <View style={styles.screen}>
-      <AmbientBackground />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         {/* ─── Header ─── */}
@@ -248,12 +246,6 @@ export default function CalendarScreen() {
               {selectedDay ? (
                 <DayContentCard
                   day={selectedDay}
-                  onPressSession={(sessionId) => {
-                    router.push({
-                      pathname: '/workout/session',
-                      params: { sessionId, review: '1' },
-                    });
-                  }}
                   onStartSession={
                     hasTodayScheduled && selectedDay.isToday
                       ? handleStartSession
@@ -322,7 +314,7 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: '#050505',
     position: 'relative',
     overflow: 'hidden',
   },

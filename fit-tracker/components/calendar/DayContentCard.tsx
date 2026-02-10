@@ -4,7 +4,6 @@ import {
   Dumbbell,
   Zap,
   Clock,
-  ChevronRight,
   Moon,
 } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/theme';
@@ -15,7 +14,6 @@ import i18n from '@/lib/i18n';
 
 interface DayContentCardProps {
   day: TimelineDay;
-  onPressSession?: (sessionId: string) => void;
   onStartSession?: () => void;
 }
 
@@ -29,17 +27,14 @@ function formatVolume(kg: number): string {
   return `${kg}${i18n.t('common.kgUnit')}`;
 }
 
-export function DayContentCard({ day, onPressSession, onStartSession }: DayContentCardProps) {
+export function DayContentCard({ day, onStartSession }: DayContentCardProps) {
   const nudge = getTimelineNudge(day);
 
   // ─── Past trained day ───
   if ((day.isPast || day.isToday) && day.sessions.length > 0) {
     const session = day.sessions[0];
     return (
-      <PressableScale
-        style={styles.card}
-        onPress={() => onPressSession?.(session.id)}
-      >
+      <View style={styles.card}>
         <View style={styles.headerRow}>
           <View style={styles.iconBox}>
             <Dumbbell size={16} color={Colors.primary} strokeWidth={2} />
@@ -60,7 +55,6 @@ export function DayContentCard({ day, onPressSession, onStartSession }: DayConte
               <Text style={styles.prText}>{day.prs} {i18n.t('calendar.prs')}</Text>
             </View>
           )}
-          <ChevronRight size={14} color="rgba(100,100,110,1)" />
         </View>
 
         {/* Muscle dots */}
@@ -74,7 +68,7 @@ export function DayContentCard({ day, onPressSession, onStartSession }: DayConte
             )}
           </View>
         )}
-      </PressableScale>
+      </View>
     );
   }
 

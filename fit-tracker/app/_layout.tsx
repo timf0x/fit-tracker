@@ -59,6 +59,7 @@ export default function RootLayout() {
           <Stack.Screen name="volume" options={{ headerShown: false }} />
           <Stack.Screen name="exercise" options={{ headerShown: false }} />
           <Stack.Screen name="program" options={{ headerShown: false }} />
+          <Stack.Screen name="calendar" options={{ headerShown: false }} />
         </Stack>
         <StatusBar style="light" />
       </ThemeProvider>

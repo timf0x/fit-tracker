@@ -6,7 +6,6 @@ import {
   ScrollView,
   Pressable,
   FlatList,
-  LayoutAnimation,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -17,16 +16,13 @@ import Svg, {
   Circle,
 } from 'react-native-svg';
 import {
-  ChevronRight,
-  ChevronDown,
   BarChart3,
   Dumbbell,
   Trophy,
-  Sparkles,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Fonts } from '@/constants/theme';
-import i18n, { getLocale } from '@/lib/i18n';
+import i18n from '@/lib/i18n';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { RP_VOLUME_LANDMARKS } from '@/constants/volumeLandmarks';
 import { getExerciseById } from '@/data/exercises';
@@ -38,11 +34,6 @@ import {
   getMuscleFrequency,
 } from '@/lib/statsHelpers';
 import { getSetsForWeek, getWeekBounds, getWeekLabel } from '@/lib/weeklyVolume';
-import { BadgeIcon } from '@/components/badges/BadgeIcon';
-import { getDisplayableBadges, TIER_CONFIG } from '@/data/badges';
-import { evaluateAllBadges } from '@/lib/badgeEvaluation';
-import { useBadgeStore } from '@/stores/badgeStore';
-import type { BadgeProgress } from '@/types';
 
 const WEEKS_AVAILABLE = 12;
 
@@ -94,17 +85,6 @@ function formatVolume(kg: number): string {
   return `${kg}kg`;
 }
 
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  const locale = i18n.locale === 'fr' ? 'fr-FR' : 'en-US';
-  return d.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
-}
-
-function formatSessionDuration(seconds: number): string {
-  const m = Math.round(seconds / 60);
-  return `${m} min`;
-}
-
 function getShortWeekLabel(offset: number): string {
   const { start } = getWeekBounds(offset);
   const day = start.getDate();
@@ -116,9 +96,6 @@ function getShortWeekLabel(offset: number): string {
 }
 
 export default function StatsScreen() {
-  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(
-    null
-  );
   const [weekOffset, setWeekOffset] = useState(0);
   const router = useRouter();
   const { history } = useWorkoutStore();
@@ -159,13 +136,6 @@ export default function StatsScreen() {
 
   // Radar uses the selected week's data
   const muscleData = useMemo(() => weekSetsData, [weekSetsData]);
-
-  // Volume shortcut data
-  const volumeShortcut = useMemo(() => {
-    const totalSets = Object.values(weekSetsData).reduce((a, b) => a + b, 0);
-    const muscleCount = Object.values(weekSetsData).filter((v) => v > 0).length;
-    return { totalSets, muscleCount };
-  }, [weekSetsData]);
 
   // Radar chart data
   const radarData = useMemo(() => {
@@ -212,45 +182,11 @@ export default function StatsScreen() {
     })
     .join(' ');
 
-  // Recent sessions filtered to selected week
-  const recentSessions = useMemo(() => {
-    const { start, end } = getWeekBounds(weekOffset);
-    const startMs = start.getTime();
-    const endMs = end.getTime();
-    return history.filter((s) => {
-      if (!s.endTime) return false;
-      const ms = new Date(s.startTime).getTime();
-      return ms >= startMs && ms <= endMs;
-    });
-  }, [history, weekOffset]);
-
   const isEmpty = history.filter((s) => s.endTime).length === 0;
-
-  // Badge progress — closest to unlock
-  const unlockedBadges = useBadgeStore((s) => s.unlockedBadges);
-  const closestBadges = useMemo(() => {
-    const displayable = getDisplayableBadges();
-    const allProgress = evaluateAllBadges(history, unlockedBadges);
-    const displayableIds = new Set(displayable.map((b) => b.id));
-    const progress = allProgress.filter((p) => displayableIds.has(p.badge.id));
-    return progress
-      .filter((p) => !p.isUnlocked && p.progressPercent > 0)
-      .sort((a, b) => b.progressPercent - a.progressPercent)
-      .slice(0, 2);
-  }, [history, unlockedBadges]);
-
-
-  const toggleSession = (sessionId: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpandedSessionId((prev) =>
-      prev === sessionId ? null : sessionId
-    );
-  };
 
   const selectWeek = useCallback((offset: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setWeekOffset(offset);
-    setExpandedSessionId(null);
   }, []);
 
   const renderWeekChip = useCallback(
@@ -641,167 +577,7 @@ export default function StatsScreen() {
                 </View>
               )}
 
-              {/* ── Volume Hebdo Shortcut ── */}
-              <Pressable
-                style={styles.volumeShortcut}
-                onPress={() => router.push('/volume')}
-              >
-                <View style={styles.volumeShortcutIcon}>
-                  <Dumbbell
-                    size={18}
-                    color="#FF6B35"
-                    strokeWidth={2.2}
-                  />
-                </View>
-                <View style={styles.volumeShortcutInfo}>
-                  <Text style={styles.volumeShortcutTitle}>
-                    {i18n.t('stats.weeklyVolume')}
-                  </Text>
-                  <Text style={styles.volumeShortcutSub}>
-                    {volumeShortcut.totalSets} {i18n.t('volume.totalSets')} ·{' '}
-                    {volumeShortcut.muscleCount} {i18n.t('volume.activeMuscles')}
-                  </Text>
-                </View>
-                <ChevronRight
-                  size={18}
-                  color="rgba(120,120,130,1)"
-                  strokeWidth={2}
-                />
-              </Pressable>
 
-              {/* ── Badge Progress ── */}
-              {closestBadges.length > 0 && (
-                <Pressable
-                  style={styles.badgeProgressCard}
-                  onPress={() => router.push('/trophies')}
-                >
-                  <View style={styles.badgeProgressHeader}>
-                    <Sparkles size={14} color="#f97316" strokeWidth={2.2} />
-                    <Text style={styles.badgeProgressTitle}>
-                      {i18n.t('trophies.nextGoals')}
-                    </Text>
-                    <ChevronRight size={16} color="rgba(120,120,130,1)" strokeWidth={2} />
-                  </View>
-                  {closestBadges.map((bp) => {
-                    const tierColor = TIER_CONFIG[bp.badge.tier].color;
-                    const name = getLocale() === 'fr' ? bp.badge.nameFr : bp.badge.name;
-                    return (
-                      <View key={bp.badge.id} style={styles.badgeProgressRow}>
-                        <BadgeIcon badge={bp.badge} size={32} isUnlocked={false} showProgress={bp.progressPercent / 100} />
-                        <Text style={styles.badgeProgressName} numberOfLines={1}>{name}</Text>
-                        <View style={styles.badgeProgressBarBg}>
-                          <View style={[styles.badgeProgressBarFill, { width: `${Math.min(bp.progressPercent, 100)}%`, backgroundColor: tierColor }]} />
-                        </View>
-                        <Text style={[styles.badgeProgressPct, { color: tierColor }]}>{Math.round(bp.progressPercent)}%</Text>
-                      </View>
-                    );
-                  })}
-                </Pressable>
-              )}
-
-              {/* ── Recent Sessions (expandable) ── */}
-              {recentSessions.length > 0 && (
-                <View style={styles.recentSection}>
-                  <Text style={styles.sectionTitle}>
-                    {i18n.t('stats.recentSessions')}
-                  </Text>
-                  {recentSessions.map((session) => {
-                    const isExpanded =
-                      expandedSessionId === session.id;
-                    return (
-                      <Pressable
-                        key={session.id}
-                        style={styles.recentCard}
-                        onPress={() => toggleSession(session.id)}
-                      >
-                        <View style={styles.recentTop}>
-                          <View style={styles.recentInfo}>
-                            <Text
-                              style={styles.recentName}
-                              numberOfLines={1}
-                            >
-                              {session.workoutName}
-                            </Text>
-                            <Text style={styles.recentMeta}>
-                              {formatDate(session.startTime)} ·{' '}
-                              {formatSessionDuration(
-                                session.durationSeconds
-                              )}{' '}
-                              ·{' '}
-                              {session.completedExercises.length}{' '}
-                              {i18n.t('common.exosAbbr')}
-                            </Text>
-                          </View>
-                          {isExpanded ? (
-                            <ChevronDown
-                              size={18}
-                              color="rgba(120,120,130,1)"
-                              strokeWidth={2}
-                            />
-                          ) : (
-                            <ChevronRight
-                              size={18}
-                              color="rgba(120,120,130,1)"
-                              strokeWidth={2}
-                            />
-                          )}
-                        </View>
-                        {isExpanded && (
-                          <View style={styles.recentExercises}>
-                            {session.completedExercises.map(
-                              (compEx, idx) => {
-                                const exercise = getExerciseById(
-                                  compEx.exerciseId
-                                );
-                                const completedSets =
-                                  compEx.sets.filter(
-                                    (s) => s.completed
-                                  );
-                                if (completedSets.length === 0)
-                                  return null;
-                                return (
-                                  <View
-                                    key={idx}
-                                    style={styles.recentExRow}
-                                  >
-                                    <Text
-                                      style={styles.recentExName}
-                                      numberOfLines={1}
-                                    >
-                                      {exercise?.nameFr ||
-                                        exercise?.name ||
-                                        compEx.exerciseId}
-                                    </Text>
-                                    <View
-                                      style={styles.recentSetsList}
-                                    >
-                                      {completedSets.map(
-                                        (set, si) => (
-                                          <Text
-                                            key={si}
-                                            style={
-                                              styles.recentSetText
-                                            }
-                                          >
-                                            {set.weight
-                                              ? `${set.weight}kg`
-                                              : i18n.t('stats.bodyweight')}{' '}
-                                            × {set.reps}
-                                          </Text>
-                                        )
-                                      )}
-                                    </View>
-                                  </View>
-                                );
-                              }
-                            )}
-                          </View>
-                        )}
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              )}
             </>
           )}
 
@@ -1170,172 +946,11 @@ const styles = StyleSheet.create({
     color: '#FBBF24',
   },
 
-  // Volume Shortcut
-  volumeShortcut: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 20,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 12,
-    marginBottom: 16,
-  },
-  volumeShortcutIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,107,53,0.12)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  volumeShortcutInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  volumeShortcutTitle: {
-    color: '#fff',
-    fontSize: 15,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-  },
-  volumeShortcutSub: {
-    color: 'rgba(120,120,130,1)',
-    fontSize: 13,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-
   sectionTitle: {
     color: '#fff',
     fontSize: 16,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-  },
-
-  // Badge Progress
-  badgeProgressCard: {
-    marginHorizontal: 20,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    padding: 14,
-    gap: 12,
-    marginBottom: 16,
-  },
-  badgeProgressHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  badgeProgressTitle: {
-    flex: 1,
-    color: 'rgba(160,150,140,1)',
-    fontSize: 11,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
-  badgeProgressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  badgeProgressName: {
-    flex: 1,
-    color: '#fff',
-    fontSize: 13,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-  },
-  badgeProgressBarBg: {
-    width: 60,
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  badgeProgressBarFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  badgeProgressPct: {
-    fontSize: 12,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    minWidth: 32,
-    textAlign: 'right',
-  },
-
-  // Recent sessions
-  recentSection: {
-    marginHorizontal: 20,
-    gap: 12,
-  },
-  recentCard: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  recentTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  recentInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  recentName: {
-    color: '#fff',
-    fontSize: 15,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-  },
-  recentMeta: {
-    color: 'rgba(120,120,130,1)',
-    fontSize: 13,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-  recentExercises: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
-    gap: 10,
-  },
-  recentExRow: {
-    gap: 4,
-  },
-  recentExName: {
-    color: 'rgba(200,200,210,1)',
-    fontSize: 13,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-  },
-  recentSetsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  recentSetText: {
-    color: 'rgba(140,140,150,1)',
-    fontSize: 11,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    overflow: 'hidden',
   },
 
   // Empty
