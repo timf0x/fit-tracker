@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { User } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
@@ -16,6 +16,7 @@ export function HeaderGreeting() {
   const insets = useSafeAreaInsets();
   const userProfile = useProgramStore((s) => s.userProfile);
   const userName = userProfile?.name;
+  const profileImageUri = userProfile?.profileImageUri;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
@@ -26,15 +27,19 @@ export function HeaderGreeting() {
         </View>
 
         <View style={styles.avatarContainer}>
-          <View style={styles.avatar}>
-            {userName ? (
-              <Text style={styles.avatarText}>
-                {userName.charAt(0).toUpperCase()}
-              </Text>
-            ) : (
-              <User size={22} color={Colors.text} strokeWidth={2} />
-            )}
-          </View>
+          {profileImageUri ? (
+            <Image source={{ uri: profileImageUri }} style={styles.avatarImage} />
+          ) : (
+            <View style={styles.avatar}>
+              {userName ? (
+                <Text style={styles.avatarText}>
+                  {userName.charAt(0).toUpperCase()}
+                </Text>
+              ) : (
+                <User size={22} color={Colors.text} strokeWidth={2} />
+              )}
+            </View>
+          )}
           <View style={styles.onlineDot} />
         </View>
       </View>
@@ -85,6 +90,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'rgba(139, 69, 19, 0.3)',
+  },
+  avatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: 'rgba(255,107,53,0.3)',
   },
   avatarText: {
     color: Colors.text,

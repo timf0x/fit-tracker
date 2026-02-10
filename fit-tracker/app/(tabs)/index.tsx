@@ -18,7 +18,7 @@ import { AmbientBackground } from '@/components/home/AmbientBackground';
 import { useWorkoutStore } from '@/stores/workoutStore';
 
 // Default card order — these keys match the cards map below
-const DEFAULT_ORDER = ['recovery', 'steps', 'achievement', 'volume', 'program', 'weekly'];
+const DEFAULT_ORDER = ['weekly', 'program', 'volume', 'recovery', 'achievement', 'steps'];
 
 // Card sizes: half cards pair side-by-side, full cards take the whole row
 const CARD_SIZES: Record<string, 'full' | 'half'> = {

@@ -12,7 +12,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.chrislin-mpika.fittracker",
       "infoPlist": {
-        "NSMotionUsageDescription": "Onset Fitness utilise les données de mouvement pour compter vos pas quotidiens."
+        "NSMotionUsageDescription": "Onset Fitness utilise les données de mouvement pour compter vos pas quotidiens.",
+        "NSPhotoLibraryUsageDescription": "Onset Fitness utilise ta photothèque pour ta photo de profil.",
+        "NSCameraUsageDescription": "Onset Fitness utilise l'appareil photo pour ta photo de profil."
       }
     },
     "android": {

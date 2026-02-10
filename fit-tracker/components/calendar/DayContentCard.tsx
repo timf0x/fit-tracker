@@ -18,6 +18,7 @@ import { exercises } from '@/data/exercises';
 import { detectPRs } from '@/lib/progressiveOverload';
 import { WorkoutSession } from '@/types';
 import i18n from '@/lib/i18n';
+import { formatWeight, getWeightUnitLabel } from '@/stores/settingsStore';
 
 const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
 
@@ -35,7 +36,7 @@ function formatDuration(seconds: number): string {
 
 function formatVolume(kg: number): string {
   if (kg >= 1000) return `${(kg / 1000).toFixed(1)}t`;
-  return `${kg}${i18n.t('common.kgUnit')}`;
+  return `${formatWeight(kg)}${getWeightUnitLabel()}`;
 }
 
 /** Group a session's completed exercises by muscle, returning set counts per muscle */
@@ -148,7 +149,7 @@ export function DayContentCard({
             {prDetails.slice(0, 2).map((pr, idx) => {
               const diff = pr.prev > 0
                 ? pr.type === 'weight'
-                  ? `+${(pr.value - pr.prev).toFixed(1)}${i18n.t('common.kgUnit')}`
+                  ? `+${formatWeight(pr.value - pr.prev)}${getWeightUnitLabel()}`
                   : `+${pr.value - pr.prev}`
                 : '';
               return (

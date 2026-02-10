@@ -866,7 +866,74 @@ export default {
     bodyweight: 'BW',
   },
 
-  // ─── Prefs / Settings Screen ───
+  // ─── Settings Screen ───
+  settings: {
+    header: 'SETTINGS',
+    title: 'Settings',
+    editProfile: 'Edit',
+    configureProfile: 'Set up profile',
+    memberSince: 'Since %{date}',
+    daysPerWeekShort: '%{n}d/week',
+
+    // Sound & Voice
+    soundSection: 'Sound & Voice',
+    soundEffects: 'Sound effects',
+    soundEffectsDesc: 'Beeps, ticks, alerts',
+    voiceAnnouncements: 'Voice announcements',
+    voiceAnnouncementsDesc: 'Phases, exercises, countdown',
+    volumeLabel: 'VOLUME',
+
+    // Preferences
+    prefsSection: 'Preferences',
+    units: 'Units',
+    unitsKg: 'kg',
+    unitsLbs: 'lbs',
+    language: 'Language',
+    languageFr: 'Français',
+    languageEn: 'English',
+    keepAwake: 'Keep screen on',
+    keepAwakeDesc: 'Screen stays on during workouts',
+
+    // About
+    aboutSection: 'About',
+    version: 'Version',
+    contact: 'Contact us',
+
+    // Profile edit screen
+    profileTitle: 'My Profile',
+    profileChangePhoto: 'Change photo',
+    profileName: 'First name',
+    profileNamePlaceholder: 'Your first name',
+    profileUsername: 'Username',
+    profileUsernamePlaceholder: '@username',
+    profileEmail: 'Email',
+    profileEmailPlaceholder: 'you@email.com',
+    profileEmailInvalid: 'Invalid email address',
+    profileSex: 'Sex',
+    profileWeight: 'Weight',
+    profileHeight: 'Height',
+    profileAge: 'Age',
+    profileExperience: 'Level',
+    profileGoal: 'Goal',
+    profileEquipment: 'Equipment',
+    profileDays: 'Days per week',
+    profileLimitations: 'Limitations',
+    profilePriority: 'Priority muscles',
+    profileSave: 'Save',
+    profileWarning: 'Changing these settings may affect your active program',
+    profileIdentity: 'IDENTITY',
+    profileBody: 'BODY',
+    profileTraining: 'TRAINING',
+    profileStatsSessions: 'sessions',
+    profileStatsVolume: 'tons',
+    profileStatsStreak: 'wk streak',
+    male: 'Male',
+    female: 'Female',
+    cm: 'cm',
+    years: 'yrs',
+  },
+
+  // ─── Prefs (legacy compat) ───
   prefs: {
     header: 'SETTINGS',
     title: 'Settings',

@@ -10,10 +10,11 @@ import { getWeekSummary, getWeekPRs } from '@/lib/statsHelpers';
 import { buildWeekTimeline } from '@/lib/timelineEngine';
 import { getHomeCalendarNudge } from '@/lib/timelineNudges';
 import i18n from '@/lib/i18n';
+import { formatWeight, getWeightUnitLabel } from '@/stores/settingsStore';
 
 function formatVolume(kg: number): string {
   if (kg >= 1000) return `${(kg / 1000).toFixed(1)}t`;
-  return `${kg}${i18n.t('common.kgUnit')}`;
+  return `${formatWeight(kg)}${getWeightUnitLabel()}`;
 }
 
 export function CalendarCard() {

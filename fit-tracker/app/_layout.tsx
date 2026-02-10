@@ -1,7 +1,8 @@
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import {
   useFonts,
@@ -11,7 +12,14 @@ import {
   PlusJakartaSans_700Bold,
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  runOnJS,
+  Easing,
+} from 'react-native-reanimated';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -36,33 +44,98 @@ export default function RootLayout() {
     'PlusJakartaSans-Bold': PlusJakartaSans_700Bold,
   });
 
+  const [settingsReady, setSettingsReady] = useState(false);
+
   useEffect(() => {
     if (fontsLoaded) {
-      SplashScreen.hideAsync();
+      const unsub = useSettingsStore.persist.onFinishHydration(() => {
+        useSettingsStore.getState().applyAudioSettings();
+        setSettingsReady(true);
+      });
+      if (useSettingsStore.persist.hasHydrated()) {
+        useSettingsStore.getState().applyAudioSettings();
+        setSettingsReady(true);
+      }
+      return () => { unsub(); };
     }
   }, [fontsLoaded]);
 
-  if (!fontsLoaded) {
+  useEffect(() => {
+    if (fontsLoaded && settingsReady) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, settingsReady]);
+
+  // Subscribe to language + unit so the entire tree re-renders on change
+  const language = useSettingsStore((s) => s.language);
+  const weightUnit = useSettingsStore((s) => s.weightUnit);
+
+  // ─── Transition overlay ───
+  const settingsKey = `${language}-${weightUnit}`;
+  const prevKeyRef = useRef(settingsKey);
+  const [showOverlay, setShowOverlay] = useState(false);
+  const overlayOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    if (!settingsReady) return;
+    if (prevKeyRef.current !== settingsKey) {
+      prevKeyRef.current = settingsKey;
+      // Flash overlay: fade in, wait for remount, fade out
+      setShowOverlay(true);
+      overlayOpacity.value = 1;
+      overlayOpacity.value = withTiming(0, {
+        duration: 400,
+        easing: Easing.out(Easing.ease),
+      }, () => {
+        runOnJS(setShowOverlay)(false);
+      });
+    }
+  }, [settingsKey, settingsReady]);
+
+  const overlayStyle = useAnimatedStyle(() => ({
+    opacity: overlayOpacity.value,
+  }));
+
+  if (!fontsLoaded || !settingsReady) {
     return null;
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider value={OnsetDarkTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="recovery" options={{ headerShown: false }} />
-          <Stack.Screen name="steps" options={{ headerShown: false }} />
-          <Stack.Screen name="workout" options={{ headerShown: false, gestureEnabled: false, presentation: 'fullScreenModal' }} />
-          <Stack.Screen name="trophies" options={{ headerShown: false }} />
-          <Stack.Screen name="stats" options={{ headerShown: false }} />
-          <Stack.Screen name="volume" options={{ headerShown: false }} />
-          <Stack.Screen name="exercise" options={{ headerShown: false }} />
-          <Stack.Screen name="program" options={{ headerShown: false }} />
-          <Stack.Screen name="calendar" options={{ headerShown: false }} />
-        </Stack>
-        <StatusBar style="light" />
-      </ThemeProvider>
-    </GestureHandlerRootView>
+    <View style={styles.root}>
+      <GestureHandlerRootView style={styles.root} key={settingsKey}>
+        <ThemeProvider value={OnsetDarkTheme}>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="recovery" options={{ headerShown: false }} />
+            <Stack.Screen name="steps" options={{ headerShown: false }} />
+            <Stack.Screen name="workout" options={{ headerShown: false, gestureEnabled: false, presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="trophies" options={{ headerShown: false }} />
+            <Stack.Screen name="stats" options={{ headerShown: false }} />
+            <Stack.Screen name="volume" options={{ headerShown: false }} />
+            <Stack.Screen name="exercise" options={{ headerShown: false }} />
+            <Stack.Screen name="program" options={{ headerShown: false }} />
+            <Stack.Screen name="calendar" options={{ headerShown: false }} />
+            <Stack.Screen name="settings" options={{ headerShown: false }} />
+          </Stack>
+          <StatusBar style="light" />
+        </ThemeProvider>
+      </GestureHandlerRootView>
+
+      {/* Transition overlay — lives outside the keyed tree so it survives remount */}
+      {showOverlay && (
+        <Animated.View style={[styles.overlay, overlayStyle]} pointerEvents="none" />
+      )}
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#0C0C0C',
+    zIndex: 999,
+  },
+});

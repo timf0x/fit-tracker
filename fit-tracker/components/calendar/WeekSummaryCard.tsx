@@ -10,6 +10,7 @@ import {
 } from '@/constants/volumeLandmarks';
 import { WeekSummary, WeekPRs } from '@/lib/statsHelpers';
 import i18n from '@/lib/i18n';
+import { formatWeight, getWeightUnitLabel } from '@/stores/settingsStore';
 
 interface WeekSummaryCardProps {
   summary: WeekSummary;
@@ -21,7 +22,7 @@ interface WeekSummaryCardProps {
 
 function formatVolume(kg: number): string {
   if (kg >= 1000) return `${(kg / 1000).toFixed(1)}t`;
-  return `${kg}${i18n.t('common.kgUnit')}`;
+  return `${formatWeight(kg)}${getWeightUnitLabel()}`;
 }
 
 export function WeekSummaryCard({

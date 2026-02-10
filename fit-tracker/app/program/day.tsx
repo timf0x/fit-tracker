@@ -23,6 +23,7 @@ import {
 } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/theme';
 import i18n from '@/lib/i18n';
+import { formatWeight, getWeightUnitLabel } from '@/stores/settingsStore';
 import { useProgramStore } from '@/stores/programStore';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { getExerciseById } from '@/data/exercises';
@@ -355,7 +356,7 @@ export default function ProgramDayScreen() {
 
             {lastPerf && (
               <Text style={styles.lastPerfText}>
-                {i18n.t('programDay.lastTime')} : {lastPerf.weight > 0 ? `${lastPerf.weight}${i18n.t('common.kgUnit')} x ` : ''}{lastPerf.reps} {i18n.t('common.reps')}
+                {i18n.t('programDay.lastTime')} : {lastPerf.weight > 0 ? `${formatWeight(lastPerf.weight)}${getWeightUnitLabel()} x ` : ''}{lastPerf.reps} {i18n.t('common.reps')}
               </Text>
             )}
 
@@ -372,7 +373,7 @@ export default function ProgramDayScreen() {
                 <View style={[styles.exMetaPill, styles.exWeightPill]}>
                   <Weight size={10} color={Colors.primary} />
                   <Text style={[styles.exMetaText, styles.exWeightText]}>
-                    {displayWeight}{i18n.t('common.kgUnit')}
+                    {formatWeight(displayWeight)}{getWeightUnitLabel()}
                   </Text>
                 </View>
               )}

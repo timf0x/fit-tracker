@@ -866,7 +866,74 @@ export default {
     bodyweight: 'PDC',
   },
 
-  // ─── Prefs / Settings Screen ───
+  // ─── Settings Screen ───
+  settings: {
+    header: 'RÉGLAGES',
+    title: 'Réglages',
+    editProfile: 'Modifier',
+    configureProfile: 'Configurer le profil',
+    memberSince: 'Depuis le %{date}',
+    daysPerWeekShort: '%{n}j/sem',
+
+    // Sound & Voice
+    soundSection: 'Son & Voix',
+    soundEffects: 'Effets sonores',
+    soundEffectsDesc: 'Bips, ticks, alertes',
+    voiceAnnouncements: 'Annonces vocales',
+    voiceAnnouncementsDesc: 'Phases, exercices, décompte',
+    volumeLabel: 'VOLUME',
+
+    // Preferences
+    prefsSection: 'Préférences',
+    units: 'Unités',
+    unitsKg: 'kg',
+    unitsLbs: 'lbs',
+    language: 'Langue',
+    languageFr: 'Français',
+    languageEn: 'English',
+    keepAwake: 'Écran actif en séance',
+    keepAwakeDesc: "L'écran reste allumé pendant l'entraînement",
+
+    // About
+    aboutSection: 'À propos',
+    version: 'Version',
+    contact: 'Nous contacter',
+
+    // Profile edit screen
+    profileTitle: 'Mon Profil',
+    profileChangePhoto: 'Changer la photo',
+    profileName: 'Prénom',
+    profileNamePlaceholder: 'Ton prénom',
+    profileUsername: 'Pseudo',
+    profileUsernamePlaceholder: '@pseudo',
+    profileEmail: 'E-mail',
+    profileEmailPlaceholder: 'ton@email.com',
+    profileEmailInvalid: 'Adresse e-mail invalide',
+    profileSex: 'Sexe',
+    profileWeight: 'Poids',
+    profileHeight: 'Taille',
+    profileAge: 'Âge',
+    profileExperience: 'Niveau',
+    profileGoal: 'Objectif',
+    profileEquipment: 'Équipement',
+    profileDays: 'Jours par semaine',
+    profileLimitations: 'Limitations',
+    profilePriority: 'Muscles prioritaires',
+    profileSave: 'Enregistrer',
+    profileWarning: 'Modifier ces paramètres peut affecter ton programme actif',
+    profileIdentity: 'IDENTITÉ',
+    profileBody: 'MENSURATIONS',
+    profileTraining: 'ENTRAÎNEMENT',
+    profileStatsSessions: 'séances',
+    profileStatsVolume: 'tonnes',
+    profileStatsStreak: 'sem. streak',
+    male: 'Homme',
+    female: 'Femme',
+    cm: 'cm',
+    years: 'ans',
+  },
+
+  // ─── Prefs (legacy compat) ───
   prefs: {
     header: 'RÉGLAGES',
     title: 'Préférences',

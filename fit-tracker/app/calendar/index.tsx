@@ -11,18 +11,18 @@ import {
 } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/theme';
 import i18n from '@/lib/i18n';
+import { formatWeight, getWeightUnitLabel } from '@/stores/settingsStore';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { useProgramStore } from '@/stores/programStore';
 import { WeekStrip } from '@/components/calendar/WeekStrip';
 import { DayContentCard } from '@/components/calendar/DayContentCard';
-import { WeekSummaryCard } from '@/components/calendar/WeekSummaryCard';
 import { MonthGrid } from '@/components/calendar/MonthGrid';
 import {
   buildWeekTimeline,
   buildMonthSummary,
 } from '@/lib/timelineEngine';
 import { getWeekBounds, getSetsForWeek } from '@/lib/weeklyVolume';
-import { getWeekSummary, getWeekPRs, getPeriodPRs } from '@/lib/statsHelpers';
+import { getPeriodPRs } from '@/lib/statsHelpers';
 import { buildProgramExercisesParam } from '@/lib/programSession';
 import { getProgressiveWeight } from '@/lib/weightEstimation';
 import { getMuscleLabel, MUSCLE_TO_BODYPART, TARGET_TO_MUSCLE } from '@/lib/muscleMapping';
@@ -88,17 +88,6 @@ export default function CalendarScreen() {
   const selectedDay = useMemo(
     () => weekDays.find((d) => d.date === selectedDate) || null,
     [weekDays, selectedDate],
-  );
-
-  // Week summary data
-  const weekSummary = useMemo(
-    () => getWeekSummary(history, weekOffset),
-    [history, weekOffset],
-  );
-
-  const weekPRs = useMemo(
-    () => getWeekPRs(history, weekOffset),
-    [history, weekOffset],
   );
 
   const weeklySets = useMemo(
@@ -293,17 +282,6 @@ export default function CalendarScreen() {
               }}
             />
 
-            {/* Week summary card */}
-            <View style={styles.summarySection}>
-              <WeekSummaryCard
-                summary={weekSummary}
-                prs={weekPRs}
-                setsPerMuscle={weeklySets}
-                currentWeek={activeState?.currentWeek}
-                totalWeeks={program?.totalWeeks}
-              />
-            </View>
-
             {/* Day content */}
             <View style={styles.dayContent}>
               {selectedDay ? (
@@ -361,7 +339,7 @@ export default function CalendarScreen() {
                     <Text style={styles.monthStatValue}>
                       {monthStats.totalVolume >= 1000
                         ? `${(monthStats.totalVolume / 1000).toFixed(1)}t`
-                        : `${monthStats.totalVolume}${i18n.t('common.kgUnit')}`}
+                        : `${formatWeight(monthStats.totalVolume)}${getWeightUnitLabel()}`}
                     </Text>
                     <Text style={styles.monthStatLabel}>{i18n.t('calendar.volume')}</Text>
                   </View>
@@ -503,11 +481,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-  },
-
-  summarySection: {
-    paddingHorizontal: 20,
-    paddingTop: 4,
   },
 
   dayContent: {

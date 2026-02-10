@@ -30,6 +30,9 @@ export type JointKey = 'shoulder' | 'knee' | 'lower_back' | 'hip' | 'elbow' | 'w
 
 export interface UserProfile {
   name?: string; // display name for greeting
+  username?: string; // @handle
+  email?: string;
+  profileImageUri?: string; // local URI from image picker
   goal: TrainingGoal;
   experience: ExperienceLevel;
   daysPerWeek: 3 | 4 | 5 | 6;

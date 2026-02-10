@@ -13,11 +13,10 @@ import {
   TextInput,
   Animated,
   PanResponder,
-  Switch,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useKeepAwake } from 'expo-keep-awake';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as Haptics from 'expo-haptics';
 import {
   Square,
@@ -33,7 +32,6 @@ import {
   Circle,
   Trophy,
   Volume2,
-  Volume1,
   VolumeX,
   Mic,
   MicOff,
@@ -54,9 +52,6 @@ import { getExerciseById } from '@/data/exercises';
 import {
   initAudio,
   cleanupAudio,
-  setSoundEnabled as setAudioSoundEnabled,
-  setVoiceEnabled as setAudioVoiceEnabled,
-  setSoundVolume as setAudioVolume,
   announcePhase,
   announceCountdown,
   announceSetComplete,
@@ -78,6 +73,8 @@ import { ExerciseSwapSheet } from '@/components/program/ExerciseSwapSheet';
 import { SessionFeedbackForm } from '@/components/session/SessionFeedbackForm';
 import { BadgeCelebration } from '@/components/badges/BadgeCelebration';
 import { useBadgeStore } from '@/stores/badgeStore';
+import { useSettingsStore, formatWeight, getWeightUnitLabel } from '@/stores/settingsStore';
+import { AnimatedToggle } from '@/components/ui/AnimatedToggle';
 import { getExerciseName, getExerciseDescription, getExerciseInstructions, getTargetLabel, getSecondaryMusclesLabel } from '@/lib/exerciseLocale';
 import type { CompletedSet, CompletedExercise, BodyPart } from '@/types';
 import { DEFAULT_SET_TIME } from '@/types';
@@ -175,7 +172,13 @@ function getRirColor(rir: number): string {
 // ─── Main Screen ───
 
 export default function WorkoutSessionScreen() {
-  useKeepAwake();
+  const keepAwake = useSettingsStore((s) => s.keepScreenAwake);
+  useEffect(() => {
+    if (keepAwake) {
+      activateKeepAwakeAsync('session');
+    }
+    return () => { deactivateKeepAwake('session'); };
+  }, [keepAwake]);
   const router = useRouter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -208,12 +211,15 @@ export default function WorkoutSessionScreen() {
   const [showExerciseInfo, setShowExerciseInfo] = useState(false);
   const [infoTab, setInfoTab] = useState<'about' | 'guide'>('about');
   const [completedSets, setCompletedSets] = useState<Record<number, CompletedSet[]>>({});
-  const [sfxEnabled, setSfxEnabled] = useState(true);
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
-  const [volume, setVolume] = useState(0.8);
+  const sfxEnabled = useSettingsStore((s) => s.soundEnabled);
+  const setSfxEnabled = useSettingsStore((s) => s.setSoundEnabled);
+  const voiceEnabled = useSettingsStore((s) => s.voiceEnabled);
+  const setVoiceEnabled = useSettingsStore((s) => s.setVoiceEnabled);
+  const volume = useSettingsStore((s) => s.soundVolume);
+  const setVolume = useSettingsStore((s) => s.setSoundVolume);
   const [showSoundSettings, setShowSoundSettings] = useState(false);
   const sliderWidthRef = useRef(0);
-  const volumeRef = useRef(0.8);
+  const volumeRef = useRef(useSettingsStore.getState().soundVolume);
 
   const volumeSliderPan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -336,7 +342,10 @@ export default function WorkoutSessionScreen() {
 
   // ─── Start session on mount ───
   useEffect(() => {
-    initAudio();
+    initAudio().then(() => {
+      // Apply persisted audio settings to cached sounds after they're loaded
+      useSettingsStore.getState().applyAudioSettings();
+    });
     if (workoutId && workoutName) {
       // If a sessionId was passed (e.g. from program day), reuse it instead of creating a new one
       if (sessionIdParam) {
@@ -358,12 +367,7 @@ export default function WorkoutSessionScreen() {
     return () => { clearTimeout(t); cleanupAudio(); };
   }, []);
 
-  // Sync audio settings with service
-  useEffect(() => {
-    setAudioSoundEnabled(sfxEnabled);
-    setAudioVoiceEnabled(voiceEnabled);
-    setAudioVolume(volume);
-  }, [sfxEnabled, voiceEnabled, volume]);
+  // Audio settings are synced via settingsStore setters (no manual sync needed)
 
   // ─── Block ALL back navigation (gesture, hardware, swipe) ───
   // Only allow when explicitly flagged via allowNavRef
@@ -1136,7 +1140,7 @@ export default function WorkoutSessionScreen() {
             <View style={s.summaryDivider} />
             <View style={s.summaryRow}>
               <Text style={s.summaryLabel}>{i18n.t('workoutSession.totalVolume')}</Text>
-              <Text style={s.summaryValue}>{totalVolume.toLocaleString()} {i18n.t('common.kgUnit')}</Text>
+              <Text style={s.summaryValue}>{totalVolume.toLocaleString()} {getWeightUnitLabel()}</Text>
             </View>
             <View style={s.summaryDivider} />
             <View style={s.summaryRow}>
@@ -1299,7 +1303,7 @@ export default function WorkoutSessionScreen() {
                       )}
                     </View>
                     <Text style={s.reviewCardDetail}>
-                      {completedCount}/{totalSetsNeeded} {i18n.t('common.sets')} · {ex.minReps && ex.minReps !== (ex.maxReps || ex.reps) ? `${ex.minReps}-${ex.maxReps}` : ex.maxReps || ex.reps} {i18n.t('common.reps')}{ex.weight > 0 ? ` · ${ex.weight} ${i18n.t('common.kgUnit')}` : ''}
+                      {completedCount}/{totalSetsNeeded} {i18n.t('common.sets')} · {ex.minReps && ex.minReps !== (ex.maxReps || ex.reps) ? `${ex.minReps}-${ex.maxReps}` : ex.maxReps || ex.reps} {i18n.t('common.reps')}{ex.weight > 0 ? ` · ${ex.weight} ${getWeightUnitLabel()}` : ''}
                     </Text>
                   </View>
                   <View style={[s.expandChevron, isExpanded && s.expandChevronOpen]}>
@@ -1663,7 +1667,7 @@ export default function WorkoutSessionScreen() {
                         )}
                       </View>
                       <Text style={s.listCardDetail}>
-                        {completedCount}/{totalSetsNeeded} {i18n.t('common.sets')} · {ex.minReps && ex.minReps !== (ex.maxReps || ex.reps) ? `${ex.minReps}-${ex.maxReps}` : ex.maxReps || ex.reps} {i18n.t('common.reps')}{ex.weight > 0 ? ` · ${ex.weight} ${i18n.t('common.kgUnit')}` : ''}
+                        {completedCount}/{totalSetsNeeded} {i18n.t('common.sets')} · {ex.minReps && ex.minReps !== (ex.maxReps || ex.reps) ? `${ex.minReps}-${ex.maxReps}` : ex.maxReps || ex.reps} {i18n.t('common.reps')}{ex.weight > 0 ? ` · ${ex.weight} ${getWeightUnitLabel()}` : ''}
                       </Text>
                     </View>
                     {!isCompleted && (
@@ -1896,11 +1900,10 @@ export default function WorkoutSessionScreen() {
                   <Text style={s.soundModalRowDesc}>{i18n.t('workoutSession.soundEffectsDesc')}</Text>
                 </View>
               </View>
-              <Switch
+              <AnimatedToggle
                 value={sfxEnabled}
-                onValueChange={(val) => { setSfxEnabled(val); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-                trackColor={{ false: 'rgba(255,255,255,0.08)', true: 'rgba(255,107,53,0.4)' }}
-                thumbColor={sfxEnabled ? Colors.primary : 'rgba(255,255,255,0.3)'}
+                onValueChange={setSfxEnabled}
+                activeColor={Colors.primary}
               />
             </View>
 
@@ -1919,11 +1922,10 @@ export default function WorkoutSessionScreen() {
                   <Text style={s.soundModalRowDesc}>{i18n.t('workoutSession.voiceAnnouncementsDesc')}</Text>
                 </View>
               </View>
-              <Switch
+              <AnimatedToggle
                 value={voiceEnabled}
-                onValueChange={(val) => { setVoiceEnabled(val); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-                trackColor={{ false: 'rgba(255,255,255,0.08)', true: 'rgba(59,130,246,0.4)' }}
-                thumbColor={voiceEnabled ? '#4A90E2' : 'rgba(255,255,255,0.3)'}
+                onValueChange={setVoiceEnabled}
+                activeColor="#4A90E2"
               />
             </View>
 

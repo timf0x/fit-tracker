@@ -39,6 +39,13 @@ const soundCache: { [key: string]: Audio.Sound } = {};
 
 // ─── Init ───
 
+/** Apply persisted settings from settingsStore (call after store hydration) */
+export function applyPersistedSettings(settings: { soundEnabled: boolean; voiceEnabled: boolean; soundVolume: number }) {
+  _soundEnabled = settings.soundEnabled;
+  _voiceEnabled = settings.voiceEnabled;
+  _soundVolume = settings.soundVolume;
+}
+
 export async function initAudio() {
   _killed = false;
   try {
