@@ -56,12 +56,12 @@ export function MonthGrid({ year, month, monthData, onSelectDate }: MonthGridPro
         ))}
       </View>
 
-      {/* Grid rows */}
+      {/* Grid rows — no gap, cells use flex:1 for even spacing */}
       {rows.map((row, rowIdx) => (
         <View key={rowIdx} style={styles.gridRow}>
           {row.map((cell, colIdx) => {
             if (!cell) {
-              return <View key={colIdx} style={styles.gridCellOuter} />;
+              return <View key={colIdx} style={styles.dayCell} />;
             }
 
             const dateNum = parseInt(cell.date.split('-')[2], 10);
@@ -73,15 +73,15 @@ export function MonthGrid({ year, month, monthData, onSelectDate }: MonthGridPro
             return (
               <Pressable
                 key={colIdx}
-                style={styles.gridCellOuter}
+                style={styles.dayCell}
                 onPress={() => onSelectDate(cell.date)}
               >
                 <View
                   style={[
-                    styles.gridCell,
+                    styles.circle,
                     { backgroundColor: heatBg },
-                    isToday && styles.gridCellToday,
-                    isScheduled && styles.gridCellScheduled,
+                    isToday && styles.circleToday,
+                    isScheduled && styles.circleScheduled,
                   ]}
                 >
                   <Text
@@ -94,10 +94,6 @@ export function MonthGrid({ year, month, monthData, onSelectDate }: MonthGridPro
                   >
                     {dateNum}
                   </Text>
-                  {/* Small dot below number for trained days */}
-                  {isTrained && <View style={styles.dot} />}
-                  {isScheduled && <View style={styles.dotHollow} />}
-                  {isToday && !isTrained && <View style={styles.dotToday} />}
                 </View>
               </Pressable>
             );
@@ -108,14 +104,15 @@ export function MonthGrid({ year, month, monthData, onSelectDate }: MonthGridPro
   );
 }
 
+const CIRCLE_SIZE = 38;
+
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 16,
-    gap: 2,
+    paddingHorizontal: 12,
   },
   headerRow: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   headerCell: {
     flex: 1,
@@ -129,33 +126,31 @@ const styles = StyleSheet.create({
   },
   gridRow: {
     flexDirection: 'row',
-    gap: 3,
   },
-  gridCellOuter: {
+  dayCell: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: 2,
   },
-  gridCell: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
+  circle: {
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+    borderRadius: CIRCLE_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
   },
-  gridCellToday: {
-    borderWidth: 1.5,
+  circleToday: {
+    borderWidth: 2,
     borderColor: '#4ADE80',
   },
-  gridCellScheduled: {
+  circleScheduled: {
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: 'rgba(255,107,53,0.25)',
   },
   dateText: {
     color: 'rgba(255,255,255,0.3)',
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
   },
@@ -173,25 +168,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: Fonts?.bold,
     fontWeight: '700',
-  },
-  dot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.primary,
-  },
-  dotHollow: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-    backgroundColor: 'transparent',
-  },
-  dotToday: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#4ADE80',
   },
 });

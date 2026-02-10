@@ -198,8 +198,8 @@ export default {
       viewAll: 'Voir tout',
     },
     browse: {
-      title: 'Parcourir les entraînements',
-      subtitle: 'disponibles',
+      title: 'Parcourir les exercices',
+      subtitle: 'exercices disponibles',
     },
     workoutCard: {
       mins: 'mins',

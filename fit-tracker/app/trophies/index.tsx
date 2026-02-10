@@ -530,7 +530,6 @@ export default function TrophiesScreen() {
             <Pressable style={styles.backButton} onPress={() => router.back()}>
               <ArrowLeft size={22} color="#fff" strokeWidth={2} />
             </Pressable>
-            <Trophy size={22} color="#f97316" strokeWidth={2.5} />
             <Text style={styles.headerTitle}>{i18n.t('trophies.title')}</Text>
             <View style={{ width: 40 }} />
           </View>
@@ -818,10 +817,9 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
+    gap: 12,
     paddingTop: 12,
-    paddingBottom: 16,
+    paddingBottom: 8,
     paddingHorizontal: 20,
   },
   backButton: {
@@ -834,10 +832,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    color: '#fff',
-    fontSize: 20,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
+    color: 'rgba(200,200,210,1)',
+    fontSize: 12,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
 
   // ── Forge Identity (Immersive Level) ──

@@ -511,9 +511,10 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: 8,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+    gap: 12,
   },
   backButton: {
     width: 40,
@@ -524,10 +525,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    flex: 1,
+    color: 'rgba(200,200,210,1)',
+    fontSize: 12,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    color: '#FFFFFF',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
   headerSpacer: { width: 40 },
 

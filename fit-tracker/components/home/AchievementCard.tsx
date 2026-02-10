@@ -93,7 +93,7 @@ export function AchievementCard() {
   useEffect(() => {
     if (isUrgent) {
       pulse.value = withRepeat(
-        withTiming(1, { duration: 2500, easing: Easing.inOut(Easing.sin) }),
+        withTiming(1, { duration: 4000, easing: Easing.inOut(Easing.sin) }),
         -1,
         true,
       );
@@ -102,9 +102,8 @@ export function AchievementCard() {
     }
   }, [isUrgent]);
 
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(pulse.value, [0, 1], [0, 0.6]),
-    transform: [{ scale: interpolate(pulse.value, [0, 1], [0.9, 1.15]) }],
+  const ringGlowStyle = useAnimatedStyle(() => ({
+    shadowOpacity: interpolate(pulse.value, [0, 1], [0, 0.7]),
   }));
 
   const tierColor = nextBadge ? TIER_CONFIG[nextBadge.badge.tier].color : '#FFD700';
@@ -153,18 +152,13 @@ export function AchievementCard() {
         {nextBadge ? (
           <View style={styles.spotlightRow}>
             {/* Badge with circular progress ring */}
-            <View style={styles.ringContainer}>
-              {/* Urgency glow */}
-              {isUrgent && (
-                <Animated.View
-                  style={[
-                    styles.urgencyGlow,
-                    { backgroundColor: tierColor },
-                    glowStyle,
-                  ]}
-                  pointerEvents="none"
-                />
-              )}
+            <Animated.View
+              style={[
+                styles.ringContainer,
+                { shadowColor: tierColor },
+                isUrgent ? ringGlowStyle : undefined,
+              ]}
+            >
               <CircularProgress
                 size={76}
                 strokeWidth={3}
@@ -179,7 +173,7 @@ export function AchievementCard() {
                   showProgress={nextBadge.progressPercent / 100}
                 />
               </View>
-            </View>
+            </Animated.View>
 
             {/* Info */}
             <View style={styles.spotlightInfo}>
@@ -296,14 +290,12 @@ const styles = StyleSheet.create({
   ringContainer: {
     width: 76,
     height: 76,
+    borderRadius: 38,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  urgencyGlow: {
-    position: 'absolute',
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    backgroundColor: '#0C0C0C',
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 18,
   },
   badgeOverlay: {
     position: 'absolute',

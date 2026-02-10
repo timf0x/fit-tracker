@@ -48,7 +48,7 @@ export function VolumeCard() {
 
   if (muscleVolume.length === 0) return null;
 
-  const visible = muscleVolume.slice(0, 3);
+  const visible = muscleVolume.slice(0, 2);
 
   return (
     <View style={styles.container}>

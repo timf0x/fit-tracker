@@ -496,10 +496,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    color: '#fff',
-    fontSize: 22,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
+    color: 'rgba(200,200,210,1)',
+    fontSize: 12,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
 
   scrollContent: {

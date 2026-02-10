@@ -12,13 +12,17 @@ import { TimelineDay } from '@/lib/timelineEngine';
 import { getTimelineNudge } from '@/lib/timelineNudges';
 import { resolveDayLabel } from '@/lib/programLabels';
 import { getMuscleLabel, TARGET_TO_MUSCLE } from '@/lib/muscleMapping';
-import { MuscleZoneChip } from '@/components/calendar/MuscleZoneChip';
 import { RECOVERY_COLORS } from '@/constants/recovery';
 import { exercises } from '@/data/exercises';
 import { detectPRs } from '@/lib/progressiveOverload';
 import { WorkoutSession } from '@/types';
 import i18n from '@/lib/i18n';
 import { formatWeight, getWeightUnitLabel } from '@/stores/settingsStore';
+import {
+  RP_VOLUME_LANDMARKS,
+  getVolumeZone,
+  getZoneColor,
+} from '@/constants/volumeLandmarks';
 
 const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
 
@@ -48,7 +52,12 @@ function getSessionMuscleSets(session: WorkoutSession): Record<string, number> {
     const muscle = TARGET_TO_MUSCLE[ex.target];
     if (!muscle) continue;
     const completedSets = compEx.sets.filter((s) => s.completed).length;
-    result[muscle] = (result[muscle] || 0) + completedSets;
+    // Fallback: if no sets have completed flag but sets have reps, count all sets with reps > 0
+    // This handles older sessions where the completed flag may be missing
+    const effectiveSets = completedSets > 0
+      ? completedSets
+      : compEx.sets.filter((s) => s.reps > 0).length;
+    result[muscle] = (result[muscle] || 0) + effectiveSets;
   }
   return result;
 }
@@ -94,7 +103,21 @@ export function DayContentCard({
     // Per-muscle set breakdown
     const muscleSets = getSessionMuscleSets(session);
     const sortedMuscles = Object.entries(muscleSets)
+      .filter(([, sets]) => sets > 0)
       .sort((a, b) => b[1] - a[1]);
+
+    // Compute duration: use session durationSeconds, fallback to endTime - startTime
+    let durationSec = session.durationSeconds || 0;
+    if (durationSec === 0 && session.endTime && session.startTime) {
+      durationSec = Math.round(
+        (new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) / 1000,
+      );
+    }
+
+    // Compute total sets: prefer day.totalSets, fallback to sum of muscle sets
+    const totalSets = day.totalSets > 0
+      ? day.totalSets
+      : Object.values(muscleSets).reduce((sum, s) => sum + s, 0);
 
     // PR details
     const prDetails = weekHistory
@@ -102,20 +125,12 @@ export function DayContentCard({
       : [];
 
     return (
-      <View style={styles.card}>
-        {/* Header */}
-        <View style={styles.headerRow}>
-          <View style={styles.iconBox}>
-            <Dumbbell size={16} color={Colors.primary} strokeWidth={2} />
-          </View>
-          <View style={styles.headerContent}>
-            <Text style={styles.title} numberOfLines={1}>{label}</Text>
-            <Text style={styles.meta}>
-              {formatDuration(session.durationSeconds || 0)}
-              {' · '}{day.totalSets} {i18n.t('common.sets')}
-              {day.totalVolume > 0 && ` · ${formatVolume(day.totalVolume)}`}
-            </Text>
-          </View>
+      <View style={styles.cardPast}>
+        {/* Header: title + PR badge */}
+        <View style={styles.pastHeaderRow}>
+          <Text style={[styles.title, { flex: 1 }]} numberOfLines={1}>
+            {label}
+          </Text>
           {day.prs > 0 && (
             <View style={styles.prBadge}>
               <Zap size={10} color={Colors.primary} strokeWidth={2.5} />
@@ -124,22 +139,33 @@ export function DayContentCard({
           )}
         </View>
 
-        {/* Muscle chips section */}
+        {/* Meta line */}
+        <Text style={styles.meta}>
+          {formatDuration(durationSec)}
+          {' · '}{totalSets} {i18n.t('common.sets')}
+          {day.totalVolume > 0 && ` · ${formatVolume(day.totalVolume)}`}
+        </Text>
+
+        {/* Compact muscle dots — 2-column wrap */}
         {sortedMuscles.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>
-              {i18n.t('calendar.musclesTrained')}
-            </Text>
-            <View style={styles.muscleGrid}>
-              {sortedMuscles.slice(0, 6).map(([muscle, sets]) => (
-                <MuscleZoneChip
-                  key={muscle}
-                  muscle={muscle}
-                  sets={sets}
-                  weeklyTotal={weeklySets?.[muscle]}
-                />
-              ))}
-            </View>
+          <View style={styles.muscleDotGrid}>
+            {sortedMuscles.slice(0, 6).map(([muscle, sets]) => {
+              const weekTotal = weeklySets?.[muscle] || sets;
+              const landmarks = RP_VOLUME_LANDMARKS[muscle];
+              const zone = landmarks
+                ? getVolumeZone(weekTotal, landmarks)
+                : 'mev_mav';
+              const dotColor = getZoneColor(zone);
+              return (
+                <View key={muscle} style={styles.muscleDotItem}>
+                  <View style={[styles.muscleDot, { backgroundColor: dotColor }]} />
+                  <Text style={styles.muscleDotName} numberOfLines={1}>
+                    {getMuscleLabel(muscle)}
+                  </Text>
+                  <Text style={styles.muscleDotSets}>{sets}</Text>
+                </View>
+              );
+            })}
           </View>
         )}
 
@@ -402,6 +428,14 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 14,
   },
+  cardPast: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    padding: 16,
+    gap: 12,
+  },
   cardToday: {
     borderColor: 'rgba(255,107,53,0.15)',
   },
@@ -416,6 +450,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
+  pastHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -486,11 +525,37 @@ const styles = StyleSheet.create({
     paddingLeft: 2,
   },
 
-  // Muscle chips grid (for trained days)
-  muscleGrid: {
+  // Compact muscle dot grid (for trained days)
+  muscleDotGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    marginTop: 4,
+  },
+  muscleDotItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '50%',
+    gap: 6,
+    paddingVertical: 4,
+  },
+  muscleDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  muscleDotName: {
+    flex: 1,
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+  },
+  muscleDotSets: {
+    color: 'rgba(255,255,255,0.35)',
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    marginRight: 8,
   },
 
   // PR detail row

@@ -207,14 +207,29 @@ export default function CalendarScreen() {
   }, []);
 
   const handleMonthDateSelect = useCallback((date: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const [y, m, d] = date.split('-').map(Number);
     const selected = new Date(y, m - 1, d);
-    const today = new Date();
-    const diffMs = selected.getTime() - today.getTime();
-    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-    const newWeekOffset = Math.floor(diffDays / 7);
 
-    setWeekOffset(newWeekOffset);
+    // Find Monday of selected date's week
+    const selDay = selected.getDay();
+    const selMonday = new Date(selected);
+    selMonday.setDate(selected.getDate() - (selDay === 0 ? 6 : selDay - 1));
+    selMonday.setHours(0, 0, 0, 0);
+
+    // Find Monday of current week
+    const today = new Date();
+    const todayDay = today.getDay();
+    const todayMonday = new Date(today);
+    todayMonday.setDate(today.getDate() - (todayDay === 0 ? 6 : todayDay - 1));
+    todayMonday.setHours(0, 0, 0, 0);
+
+    // Week offset = difference in Mondays / 7
+    const diffWeeks = Math.round(
+      (selMonday.getTime() - todayMonday.getTime()) / (7 * 24 * 60 * 60 * 1000),
+    );
+
+    setWeekOffset(diffWeeks);
     setSelectedDate(date);
     setViewMode('week');
   }, []);
@@ -437,6 +452,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
     letterSpacing: 1.5,
+    textTransform: 'uppercase',
     flex: 1,
   },
   viewToggle: {

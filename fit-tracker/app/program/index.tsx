@@ -573,10 +573,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    color: '#fff',
-    fontSize: 20,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
+    color: 'rgba(200,200,210,1)',
+    fontSize: 12,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
   headerSub: {
     color: 'rgba(120,120,130,1)',

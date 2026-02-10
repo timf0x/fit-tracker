@@ -198,8 +198,8 @@ export default {
       viewAll: 'View all',
     },
     browse: {
-      title: 'Browse workouts',
-      subtitle: 'available',
+      title: 'Browse exercises',
+      subtitle: 'exercises available',
     },
     workoutCard: {
       mins: 'mins',

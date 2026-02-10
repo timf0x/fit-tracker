@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
   dayColumn: {
     alignItems: 'center',
     flex: 1,
-    gap: 3,
+    gap: 8,
     paddingVertical: 4,
   },
   dayLabel: {
