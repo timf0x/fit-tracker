@@ -4,6 +4,8 @@ export type TrainingGoal = 'hypertrophy' | 'strength' | 'recomposition';
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
 export type EquipmentSetup = 'full_gym' | 'home_dumbbell' | 'bodyweight';
 
+export type JointKey = 'shoulder' | 'knee' | 'lower_back' | 'hip' | 'elbow' | 'wrist';
+
 export interface UserProfile {
   name?: string; // display name for greeting
   goal: TrainingGoal;
@@ -13,7 +15,9 @@ export interface UserProfile {
   weight: number; // kg — required for weight estimation
   height?: number; // cm
   age?: number;
+  trainingYears?: number; // years of consistent training (finer than experience level)
   equipment: EquipmentSetup;
+  limitations?: JointKey[]; // joint areas with injuries/limitations
   priorityMuscles: string[]; // 0-2 muscle keys from MUSCLE_LABELS_FR
   createdAt: string;
   updatedAt: string;
@@ -96,8 +100,9 @@ export interface SessionFeedback {
 // ─── Readiness Check (pre-session) ───
 
 export interface ReadinessCheck {
-  sleep: 1 | 2 | 3 | 4 | 5;
-  energy: 1 | 2 | 3 | 4 | 5;
-  soreness: 1 | 2 | 3 | 4 | 5;
+  sleep: 1 | 2 | 3;
+  energy: 1 | 2 | 3;
+  stress: 1 | 2 | 3;
+  soreness: 1 | 2 | 3;
   timestamp: string;
 }

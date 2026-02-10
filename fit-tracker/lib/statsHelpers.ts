@@ -25,7 +25,7 @@ export interface EnrichedPR extends ExercisePR {
 export interface WeekPRs {
   total: number;
   prs: EnrichedPR[];
-  byType: { weight: number; volume: number };
+  byType: { weight: number; reps: number; volume: number };
 }
 
 export interface DayMuscleData {
@@ -156,6 +156,7 @@ export function getWeekPRs(
     prs: dedupedPrs,
     byType: {
       weight: dedupedPrs.filter((p) => p.type === 'weight').length,
+      reps: dedupedPrs.filter((p) => p.type === 'reps').length,
       volume: dedupedPrs.filter((p) => p.type === 'volume').length,
     },
   };
@@ -211,6 +212,7 @@ export function getPeriodPRs(
     prs: dedupedPrs,
     byType: {
       weight: dedupedPrs.filter((p) => p.type === 'weight').length,
+      reps: dedupedPrs.filter((p) => p.type === 'reps').length,
       volume: dedupedPrs.filter((p) => p.type === 'volume').length,
     },
   };

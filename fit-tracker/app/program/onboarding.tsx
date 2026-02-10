@@ -23,6 +23,12 @@ import {
   Sparkles,
   ChevronRight,
   Check,
+  Target,
+  Mountain,
+  Diamond,
+  Watch,
+  Plus,
+  Minus,
 } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import i18n from '@/lib/i18n';
@@ -44,9 +50,19 @@ import type {
   ExperienceLevel,
   EquipmentSetup,
   UserProfile,
+  JointKey,
 } from '@/types/program';
 
-const TOTAL_STEPS = 7;
+const JOINT_ITEMS: { key: JointKey; Icon: any; labelKey: string }[] = [
+  { key: 'shoulder', Icon: Target, labelKey: 'shoulder' },
+  { key: 'knee', Icon: Zap, labelKey: 'knee' },
+  { key: 'lower_back', Icon: Mountain, labelKey: 'lowerBack' },
+  { key: 'hip', Icon: Diamond, labelKey: 'hip' },
+  { key: 'elbow', Icon: Dumbbell, labelKey: 'elbow' },
+  { key: 'wrist', Icon: Watch, labelKey: 'wrist' },
+];
+
+const TOTAL_STEPS = 8;
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -64,6 +80,8 @@ export default function OnboardingScreen() {
   const [age, setAge] = useState('');
   const [sex, setSex] = useState<'male' | 'female' | null>(null);
   const [priorityMuscles, setPriorityMuscles] = useState<string[]>([]);
+  const [trainingYears, setTrainingYears] = useState<number | null>(null);
+  const [limitations, setLimitations] = useState<JointKey[]>([]);
 
   const canAdvance = useCallback(() => {
     switch (step) {
@@ -71,9 +89,10 @@ export default function OnboardingScreen() {
       case 1: return !!experience;
       case 2: return !!daysPerWeek;
       case 3: return !!equipment;
-      case 4: return !!sex && !!weight && parseFloat(weight) > 0;
-      case 5: return true;
+      case 4: return true; // limitations (optional)
+      case 5: return !!sex && !!weight && parseFloat(weight) > 0;
       case 6: return true;
+      case 7: return true;
       default: return false;
     }
   }, [step, goal, experience, daysPerWeek, equipment, sex, weight]);
@@ -106,6 +125,8 @@ export default function OnboardingScreen() {
       equipment,
       height: height ? parseFloat(height) : undefined,
       age: age ? parseInt(age, 10) : undefined,
+      trainingYears: trainingYears ?? undefined,
+      limitations: limitations.length > 0 ? limitations : undefined,
       priorityMuscles,
       createdAt: now,
       updatedAt: now,
@@ -126,6 +147,20 @@ export default function OnboardingScreen() {
     });
   };
 
+  const toggleLimitation = (key: JointKey) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setLimitations((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  };
+
+  const selectExperience = (level: ExperienceLevel) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setExperience(level);
+    const defaults: Record<ExperienceLevel, number> = { beginner: 0, intermediate: 2, advanced: 5 };
+    if (trainingYears === null) setTrainingYears(defaults[level]);
+  };
+
   // ─── Render Steps ───
 
   const renderStep = () => {
@@ -134,9 +169,10 @@ export default function OnboardingScreen() {
       case 1: return renderExperience();
       case 2: return renderFrequency();
       case 3: return renderEquipment();
-      case 4: return renderMeasurements();
-      case 5: return renderPriorityMuscles();
-      case 6: return renderConfirmation();
+      case 4: return renderLimitations();
+      case 5: return renderMeasurements();
+      case 6: return renderPriorityMuscles();
+      case 7: return renderConfirmation();
       default: return null;
     }
   };
@@ -182,20 +218,51 @@ export default function OnboardingScreen() {
           title={i18n.t('programOnboarding.experience.beginner')}
           subtitle={i18n.t('programOnboarding.experience.beginnerDesc')}
           selected={experience === 'beginner'}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setExperience('beginner'); }}
+          onPress={() => selectExperience('beginner')}
         />
         <SelectionCard
           title={i18n.t('programOnboarding.experience.intermediate')}
           subtitle={i18n.t('programOnboarding.experience.intermediateDesc')}
           selected={experience === 'intermediate'}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setExperience('intermediate'); }}
+          onPress={() => selectExperience('intermediate')}
         />
         <SelectionCard
           title={i18n.t('programOnboarding.experience.advanced')}
           subtitle={i18n.t('programOnboarding.experience.advancedDesc')}
           selected={experience === 'advanced'}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setExperience('advanced'); }}
+          onPress={() => selectExperience('advanced')}
         />
+      </View>
+
+      {/* Training years refinement */}
+      <View style={styles.yearsDivider} />
+      <View style={styles.yearsRow}>
+        <Text style={styles.yearsLabel}>
+          {i18n.t('programOnboarding.experience.trainingYearsLabel')}
+        </Text>
+        <View style={styles.stepper}>
+          <Pressable
+            style={styles.stepperBtn}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setTrainingYears(Math.max(0, (trainingYears ?? 1) - 1));
+            }}
+          >
+            <Minus size={16} color="#fff" strokeWidth={2.5} />
+          </Pressable>
+          <Text style={styles.stepperValue}>
+            {trainingYears != null ? String(trainingYears) : '—'}
+          </Text>
+          <Pressable
+            style={styles.stepperBtn}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setTrainingYears(Math.min(30, (trainingYears ?? 0) + 1));
+            }}
+          >
+            <Plus size={16} color="#fff" strokeWidth={2.5} />
+          </Pressable>
+        </View>
       </View>
     </OnboardingStep>
   );
@@ -279,6 +346,41 @@ export default function OnboardingScreen() {
     </OnboardingStep>
   );
 
+  const renderLimitations = () => (
+    <OnboardingStep
+      title={i18n.t('programOnboarding.limitations.title')}
+      subtitle={i18n.t('programOnboarding.limitations.subtitle')}
+      isOptional
+      onSkip={next}
+    >
+      <View style={styles.jointGrid}>
+        {[JOINT_ITEMS.slice(0, 2), JOINT_ITEMS.slice(2, 4), JOINT_ITEMS.slice(4, 6)].map((row, ri) => (
+          <View key={ri} style={styles.jointRow}>
+            {row.map(({ key, Icon, labelKey }) => {
+              const selected = limitations.includes(key);
+              return (
+                <Pressable
+                  key={key}
+                  style={[styles.jointCard, selected && styles.jointCardSelected]}
+                  onPress={() => toggleLimitation(key)}
+                >
+                  <Icon
+                    size={24}
+                    color={selected ? '#0C0C0C' : 'rgba(255,255,255,0.5)'}
+                    strokeWidth={2}
+                  />
+                  <Text style={[styles.jointLabel, selected && styles.jointLabelSelected]}>
+                    {i18n.t(`programOnboarding.limitations.${labelKey}`)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
+      </View>
+    </OnboardingStep>
+  );
+
   const renderMeasurements = () => (
     <OnboardingStep
       title={i18n.t('programOnboarding.measurements.title')}
@@ -331,6 +433,7 @@ export default function OnboardingScreen() {
               placeholder="75"
               placeholderTextColor="rgba(255,255,255,0.2)"
             />
+            <Text style={styles.inputHint}>{i18n.t('programOnboarding.measurements.weightHint')}</Text>
           </View>
           <View style={styles.inputRow}>
             <Text style={styles.inputLabel}>{i18n.t('programOnboarding.measurements.height')}</Text>
@@ -342,6 +445,7 @@ export default function OnboardingScreen() {
               placeholder="178"
               placeholderTextColor="rgba(255,255,255,0.2)"
             />
+            <Text style={styles.inputHint}>{i18n.t('programOnboarding.measurements.heightHint')}</Text>
           </View>
           <View style={styles.inputRow}>
             <Text style={styles.inputLabel}>{i18n.t('programOnboarding.measurements.age')}</Text>
@@ -353,6 +457,7 @@ export default function OnboardingScreen() {
               placeholder="25"
               placeholderTextColor="rgba(255,255,255,0.2)"
             />
+            <Text style={styles.inputHint}>{i18n.t('programOnboarding.measurements.ageHint')}</Text>
           </View>
         </View>
         <Text style={styles.requiredNote}>{i18n.t('programOnboarding.measurements.required')}</Text>
@@ -407,11 +512,24 @@ export default function OnboardingScreen() {
     bodyweight: i18n.t('programOnboarding.equipment.bodyweight'),
   };
 
+  const limitationLabels: Record<JointKey, string> = {
+    shoulder: i18n.t('programOnboarding.limitations.shoulder'),
+    knee: i18n.t('programOnboarding.limitations.knee'),
+    lower_back: i18n.t('programOnboarding.limitations.lowerBack'),
+    hip: i18n.t('programOnboarding.limitations.hip'),
+    elbow: i18n.t('programOnboarding.limitations.elbow'),
+    wrist: i18n.t('programOnboarding.limitations.wrist'),
+  };
+
   const confirmItems = [
     { label: i18n.t('programOnboarding.confirmation.objective'), value: goal ? goalLabels[goal] : '—' },
     { label: i18n.t('programOnboarding.confirmation.experience'), value: experience ? expLabels[experience] : '—' },
+    ...(trainingYears != null
+      ? [{ label: i18n.t('programOnboarding.confirmation.trainingYears'), value: i18n.t('programOnboarding.confirmation.yearsCount', { count: trainingYears }) }]
+      : []),
     { label: i18n.t('programOnboarding.confirmation.frequency'), value: daysPerWeek ? i18n.t('programOnboarding.confirmation.daysPerWeek', { count: daysPerWeek }) : '—' },
     { label: i18n.t('programOnboarding.confirmation.equipment'), value: equipment ? equipLabels[equipment] : '—' },
+    { label: i18n.t('programOnboarding.confirmation.limitations'), value: limitations.length > 0 ? limitations.map((k) => limitationLabels[k]).join(', ') : i18n.t('programOnboarding.confirmation.noLimitation') },
     { label: i18n.t('programOnboarding.confirmation.sex'), value: sex === 'male' ? i18n.t('programOnboarding.measurements.male') : sex === 'female' ? i18n.t('programOnboarding.measurements.female') : '—' },
     { label: i18n.t('programOnboarding.confirmation.weight'), value: weight ? `${weight} kg` : '—' },
     ...(priorityMuscles.length > 0
@@ -810,6 +928,90 @@ const styles = StyleSheet.create({
     fontFamily: Fonts?.medium,
     fontWeight: '500',
     marginTop: 16,
+  },
+
+  // Input hint (micro-pedagogy)
+  inputHint: {
+    color: 'rgba(255,255,255,0.25)',
+    fontSize: 11,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+
+  // Training years stepper
+  yearsDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    marginTop: 20,
+    marginBottom: 16,
+  },
+  yearsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  yearsLabel: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    flex: 1,
+  },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  stepperBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperValue: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    minWidth: 36,
+    textAlign: 'center',
+  },
+
+  // Joint limitation grid
+  jointGrid: {
+    gap: 12,
+  },
+  jointRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  jointCard: {
+    flex: 1,
+    paddingVertical: 24,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  jointCardSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  jointLabel: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 13,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+  },
+  jointLabelSelected: {
+    color: '#0C0C0C',
   },
 
   // Muscle grid

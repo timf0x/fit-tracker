@@ -28,6 +28,7 @@ export function buildProgramExercisesParam(
         targetRir: pex.targetRir ?? 2,
         weight,
         restTime: pex.restTime,
+        setTime: pex.setTime, // exercise-specific set duration
         exerciseName: ex?.nameFr || ex?.name || '',
         exerciseNameEn: ex?.name || '',
         bodyPart: ex?.bodyPart || 'chest',

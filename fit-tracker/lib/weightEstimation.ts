@@ -1,5 +1,6 @@
 import { ExperienceLevel } from '@/types/program';
 import { Equipment } from '@/types';
+import { TARGET_TO_MUSCLE } from '@/lib/muscleMapping';
 
 /**
  * Weight Estimation Engine
@@ -196,7 +197,8 @@ export function getEstimatedWeight(
   bodyweight: number,
   sex: 'male' | 'female',
   experience: ExperienceLevel,
-  hasHistory?: boolean
+  hasHistory?: boolean,
+  height?: number,
 ): number {
   // Bodyweight exercises → no external weight
   if (equipment === 'body weight' || equipment === 'resistance band') {
@@ -208,8 +210,7 @@ export function getEstimatedWeight(
 
   // 2. Fallback to muscle:equipment
   if (!ratio) {
-    // Normalize muscle name for lookup
-    const muscleKey = normalizeMuscle(targetMuscle);
+    const muscleKey = TARGET_TO_MUSCLE[targetMuscle] || targetMuscle;
     ratio = FALLBACK_RATIOS[`${muscleKey}:${equipment}`]
       || FALLBACK_RATIOS[`*:${equipment}`];
   }
@@ -222,17 +223,25 @@ export function getEstimatedWeight(
 
   // 4. Apply sex modifier
   if (sex === 'female') {
-    const muscleKey = normalizeMuscle(targetMuscle);
+    const muscleKey = TARGET_TO_MUSCLE[targetMuscle] || targetMuscle;
     const isLower = LOWER_BODY_MUSCLES.has(muscleKey);
     weight *= isLower ? SEX_MODIFIER.female_lower : SEX_MODIFIER.female_upper;
   }
 
-  // 5. Conservative first-meso: reduce by 15% if no training history
+  // 5. Height-based frame adjustment (when available)
+  // BMI proxy: very lean frame → lighter estimates, stocky → slight boost
+  if (height && height > 0) {
+    const bmi = bodyweight / ((height / 100) ** 2);
+    if (bmi < 20) weight *= 0.90;
+    else if (bmi > 28) weight *= 1.05;
+  }
+
+  // 6. Conservative first-meso: reduce by 15% if no training history
   if (hasHistory === false) {
     weight *= 0.85;
   }
 
-  // 6. Round to practical increment
+  // 7. Round to practical increment
   return roundToIncrement(weight, equipment);
 }
 
@@ -264,24 +273,6 @@ export function getLastLoggedWeight(
   }
 
   return null;
-}
-
-/**
- * Normalize target muscle strings to canonical keys used in lookup tables.
- */
-function normalizeMuscle(target: string): string {
-  const aliases: Record<string, string> = {
-    pecs: 'chest', 'upper chest': 'chest', 'lower chest': 'chest',
-    'middle back': 'upper back', 'rear delts': 'shoulders',
-    delts: 'shoulders', 'front delts': 'shoulders', 'lateral delts': 'shoulders',
-    traps: 'shoulders',
-    brachialis: 'biceps',
-    'forearm flexors': 'forearms', 'forearm extensors': 'forearms',
-    brachioradialis: 'forearms', grip: 'forearms',
-    gastrocnemius: 'calves', soleus: 'calves',
-    'lower abs': 'abs', 'core stability': 'abs',
-  };
-  return aliases[target] || target;
 }
 
 /**
@@ -323,7 +314,7 @@ function getIncrement(equipment: Equipment): number {
       return 2;
     case 'cable':
     case 'machine':
-      return 2.5;
+      return 5; // Weight stacks move in 5kg increments (matches roundToIncrement)
     default:
       return 2.5;
   }
@@ -332,12 +323,18 @@ function getIncrement(equipment: Equipment): number {
 /**
  * Smart progressive overload for generated sessions.
  *
- * Analyzes recent history for an exercise and decides:
- * - BUMP: user completed all sets at/above target reps → add one increment
- * - HOLD: user struggled (missed reps on some sets) → keep same weight
- * - DROP: user failed >50% of sets → reduce by one increment
+ * Analyzes the last 2-3 sessions for an exercise using a weighted average
+ * to smooth out noise from single good/bad days:
+ * - Most recent session: weight 3x
+ * - Second session: weight 2x
+ * - Third session: weight 1x
  *
- * Returns { weight, overloadAction } so the UI can show context.
+ * Decision thresholds (based on weighted hit ratio):
+ * - BUMP (≥0.8): user consistently hits target reps → add one increment
+ * - HOLD (0.4-0.8): mixed results → keep same weight, still adapting
+ * - DROP (<0.4): consistently failing → reduce by one increment
+ *
+ * Reference weight is the median from the most recent session.
  */
 export function getProgressiveWeight(
   exerciseId: string,
@@ -349,9 +346,13 @@ export function getProgressiveWeight(
       sets: Array<{ reps: number; weight?: number; completed: boolean }>;
     }>;
   }>,
-): { weight: number; action: 'bump' | 'hold' | 'drop' | 'none' } {
-  // Find the most recent session with this exercise
+): { weight: number; action: 'bump' | 'hold' | 'drop' | 'none'; lastWeight: number } {
+  // Collect last 3 sessions with this exercise
+  const SESSION_WEIGHTS = [3, 2, 1]; // Most recent → oldest
+  const recentSessions: Array<{ reps: number; weight: number }[]> = [];
+
   for (const session of history) {
+    if (recentSessions.length >= 3) break;
     if (!session.completedExercises) continue;
     const found = session.completedExercises.find((e) => e.exerciseId === exerciseId);
     if (!found) continue;
@@ -359,36 +360,48 @@ export function getProgressiveWeight(
     const completedSets = found.sets.filter((s) => s.completed && s.weight && s.weight > 0);
     if (completedSets.length === 0) continue;
 
-    // Median weight from last session
-    const weights = completedSets.map((s) => s.weight as number).sort((a, b) => a - b);
-    const mid = Math.floor(weights.length / 2);
-    const lastWeight = weights.length % 2 === 0
-      ? (weights[mid - 1] + weights[mid]) / 2
-      : weights[mid];
-
-    const increment = getIncrement(equipment);
-
-    // Count how many sets hit the minimum rep target
-    const hitsTarget = completedSets.filter((s) => s.reps >= targetMinReps).length;
-    const ratio = hitsTarget / completedSets.length;
-
-    if (ratio >= 0.8) {
-      // 80%+ sets hit target reps → ready to progress
-      return {
-        weight: roundToIncrement(lastWeight + increment, equipment),
-        action: 'bump',
-      };
-    } else if (ratio >= 0.4) {
-      // 40-80% → hold weight, still adapting
-      return { weight: roundToIncrement(lastWeight, equipment), action: 'hold' };
-    } else {
-      // <40% → weight too heavy, drop
-      return {
-        weight: roundToIncrement(Math.max(0, lastWeight - increment), equipment),
-        action: 'drop',
-      };
-    }
+    recentSessions.push(completedSets.map((s) => ({ reps: s.reps, weight: s.weight as number })));
   }
 
-  return { weight: 0, action: 'none' };
+  if (recentSessions.length === 0) {
+    return { weight: 0, action: 'none', lastWeight: 0 };
+  }
+
+  // Median weight from the most recent session (reference for bump/drop)
+  const latestWeights = recentSessions[0].map((s) => s.weight).sort((a, b) => a - b);
+  const mid = Math.floor(latestWeights.length / 2);
+  const lastWeight = latestWeights.length % 2 === 0
+    ? (latestWeights[mid - 1] + latestWeights[mid]) / 2
+    : latestWeights[mid];
+
+  // Compute weighted hit ratio across sessions
+  let weightedHits = 0;
+  let weightedTotal = 0;
+
+  for (let i = 0; i < recentSessions.length; i++) {
+    const sessionWeight = SESSION_WEIGHTS[i];
+    const sets = recentSessions[i];
+    const hits = sets.filter((s) => s.reps >= targetMinReps).length;
+    weightedHits += hits * sessionWeight;
+    weightedTotal += sets.length * sessionWeight;
+  }
+
+  const ratio = weightedTotal > 0 ? weightedHits / weightedTotal : 0;
+  const increment = getIncrement(equipment);
+
+  if (ratio >= 0.8) {
+    return {
+      weight: roundToIncrement(lastWeight + increment, equipment),
+      action: 'bump',
+      lastWeight,
+    };
+  } else if (ratio >= 0.4) {
+    return { weight: roundToIncrement(lastWeight, equipment), action: 'hold', lastWeight };
+  } else {
+    return {
+      weight: roundToIncrement(Math.max(0, lastWeight - increment), equipment),
+      action: 'drop',
+      lastWeight,
+    };
+  }
 }

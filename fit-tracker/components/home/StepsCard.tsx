@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, AppState } from 'react-native';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { useRouter } from 'expo-router';
@@ -10,19 +10,20 @@ import { getTodaySteps, watchTodaySteps } from '@/services/pedometer';
 export function StepsCard() {
   const router = useRouter();
   const [steps, setSteps] = useState(0);
+  const baseStepsRef = useRef(0);
 
   const fetchSteps = useCallback(async () => {
     const count = await getTodaySteps();
+    baseStepsRef.current = count;
     setSteps(count);
   }, []);
 
   useEffect(() => {
     fetchSteps();
 
-    // Live updates (incremental)
-    const unsub = watchTodaySteps((incremental) => {
-      // watchStepCount returns steps since subscription, add to initial
-      setSteps((prev) => Math.max(prev, prev + incremental));
+    // Live updates — watchStepCount returns cumulative steps since subscription start
+    const unsub = watchTodaySteps((stepsSinceSubscription) => {
+      setSteps(baseStepsRef.current + stepsSinceSubscription);
     });
 
     // Refresh when app comes to foreground

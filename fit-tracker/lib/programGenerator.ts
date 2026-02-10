@@ -20,6 +20,7 @@ import {
 import { Equipment } from '@/types';
 import { getEstimatedWeight, roundToIncrement } from '@/lib/weightEstimation';
 import { getExerciseCategory, getTargetRir } from '@/lib/exerciseClassification';
+import { TARGET_TO_MUSCLE } from '@/lib/muscleMapping';
 import i18n from '@/lib/i18n';
 
 // ─── Helpers ───
@@ -67,6 +68,139 @@ const MUSCLE_SORT_ORDER: Record<string, number> = {
   abs: 12, obliques: 13,
 };
 
+// ─── Age / Sex / Limitation Modifiers ───
+
+import type { JointKey } from '@/types/program';
+
+/**
+ * Age-based modifiers (Israetel guidelines for 40+/55+/70+).
+ * Rest: longer recovery windows. Overload: slower progression.
+ * Machines: prefer guided movements for joint safety.
+ */
+function getAgeModifiers(age?: number) {
+  if (!age || age < 40) return { restMultiplier: 1.0, overloadMultiplier: 1.0, preferMachines: false };
+  if (age < 55) return { restMultiplier: 1.15, overloadMultiplier: 0.6, preferMachines: false };
+  if (age < 70) return { restMultiplier: 1.3, overloadMultiplier: 0.4, preferMachines: true };
+  return { restMultiplier: 1.5, overloadMultiplier: 0.25, preferMachines: true };
+}
+
+/**
+ * Sex-based rest modifier.
+ * Women have greater fatigue resistance (2025 PubMed meta) →
+ * ~15% shorter rest periods without compromising force production.
+ */
+function getSexRestModifier(sex: 'male' | 'female'): number {
+  return sex === 'female' ? 0.85 : 1.0;
+}
+
+/**
+ * Muscles affected by each joint limitation.
+ * Used to cap volume and deprioritize free-weight compounds.
+ */
+const LIMITATION_MUSCLES: Record<JointKey, string[]> = {
+  shoulder: ['chest', 'shoulders', 'upper back'],
+  knee: ['quads', 'glutes'],
+  lower_back: ['lower back', 'hamstrings', 'glutes'],
+  hip: ['glutes', 'hamstrings', 'quads'],
+  elbow: ['biceps', 'triceps'],
+  wrist: ['forearms', 'biceps'],
+};
+
+/**
+ * Exercises to deprioritize (push to end of pool) per joint limitation.
+ * These are heavy free-weight compounds that stress the joint most.
+ */
+const LIMITATION_DEPRIORITIZE: Record<JointKey, Set<string>> = {
+  shoulder: new Set([
+    'ex_016', // Overhead Press
+    'ex_017', // DB Shoulder Press
+    'ex_015', // Arnold Press
+    'ex_091', // Machine Shoulder Press
+    'ex_023', // Bench Press (wide grip stresses shoulder)
+    'ex_024', // Incline Bench
+    'ex_031', // Dips
+  ]),
+  knee: new Set([
+    'ex_051', // Barbell Squat
+    'ex_052', // Front Squat
+    'ex_054', // Hack Squat
+    'ex_055', // Leg Extension (shear force)
+    'ex_060', // Walking Lunges
+    'ex_112', // Pistol Squat
+    'ex_130', // Jump Squat
+  ]),
+  lower_back: new Set([
+    'ex_009', // Deadlift
+    'ex_058', // Stiff Leg DL
+    'ex_107', // Good Morning
+    'ex_088', // Pendlay Row
+    'ex_051', // Barbell Squat
+    'ex_052', // Front Squat
+  ]),
+  hip: new Set([
+    'ex_051', // Barbell Squat
+    'ex_102', // Sumo Deadlift
+    'ex_061', // Hip Thrust (deep ROM)
+    'ex_059', // Bulgarian Split Squat
+  ]),
+  elbow: new Set([
+    'ex_040', // Skull Crusher
+    'ex_101', // EZ Skull Crusher
+    'ex_036', // Preacher Curl (full extension stress)
+    'ex_042', // Close-Grip Bench
+  ]),
+  wrist: new Set([
+    'ex_023', // Bench Press (wrist loading)
+    'ex_016', // Overhead Press
+    'ex_047', // Wrist Curl
+    'ex_048', // Reverse Wrist Curl
+    'ex_049', // Reverse Curl
+  ]),
+};
+
+/**
+ * Check if a muscle is affected by any user limitation.
+ */
+function isMuscleAffected(muscle: string, limitations?: JointKey[]): boolean {
+  if (!limitations || limitations.length === 0) return false;
+  return limitations.some((joint) => LIMITATION_MUSCLES[joint]?.includes(muscle));
+}
+
+/**
+ * Reorder exercise pool: push deprioritized exercises to end.
+ * Doesn't remove them — just nudges toward safer choices first.
+ */
+function applyLimitationReorder(pool: string[], limitations?: JointKey[]): string[] {
+  if (!limitations || limitations.length === 0) return pool;
+  const deprioritized = new Set<string>();
+  for (const joint of limitations) {
+    const set = LIMITATION_DEPRIORITIZE[joint];
+    if (set) set.forEach((id) => deprioritized.add(id));
+  }
+  const safe = pool.filter((id) => !deprioritized.has(id));
+  const risky = pool.filter((id) => deprioritized.has(id));
+  return [...safe, ...risky];
+}
+
+/**
+ * Sort exercise pool: machine/cable first for joint-friendly selection.
+ * Used for 55+ lifters where guided movements are safer.
+ */
+function applyMachinePreference(pool: string[]): string[] {
+  const preferred = new Set(['machine', 'cable', 'smith machine']);
+  const machines: string[] = [];
+  const freeWeights: string[] = [];
+  for (const id of pool) {
+    const ex = exerciseMap.get(id);
+    if (ex && preferred.has(ex.equipment)) {
+      machines.push(id);
+    } else {
+      freeWeights.push(id);
+    }
+  }
+  return [...machines, ...freeWeights];
+}
+
 // ─── Volume Logic ───
 
 function filterByEquipment(pool: string[], allowedEquipment: Equipment[]): string[] {
@@ -106,6 +240,35 @@ function getVolumeRange(
 
   start = Math.min(start + bonus, landmarks.mrv);
   end = Math.min(end + bonus, landmarks.mrv);
+
+  // ─── Training years micro-adjustment ───
+  // Refine volume within experience bucket for more precise prescription
+  if (profile.trainingYears != null) {
+    const years = profile.trainingYears;
+    let microAdjust = 0;
+    if (profile.experience === 'beginner') {
+      // 0-2 years: ramp from 0 to +1 set
+      microAdjust = Math.min(1, years / 2);
+    } else if (profile.experience === 'intermediate') {
+      // 2-5 years typical; more years → +1 set
+      microAdjust = Math.min(1, Math.max(0, (years - 2) / 3));
+    } else {
+      // Advanced 5+: more experience → slight boost toward MRV
+      microAdjust = Math.min(2, Math.max(0, (years - 5) / 4));
+    }
+    start = Math.round(start + microAdjust);
+    end = Math.round(end + microAdjust);
+    start = Math.max(landmarks.mev, Math.min(start, landmarks.mrv));
+    end = Math.max(landmarks.mev, Math.min(end, landmarks.mrv));
+  }
+
+  // ─── Limitation cap ───
+  // Muscles affected by joint limitations: conservative volume (MEV → MEV+2)
+  if (isMuscleAffected(muscle, profile.limitations)) {
+    start = landmarks.mev;
+    end = Math.min(landmarks.mev + 2, landmarks.mavLow);
+  }
+
   const deload = landmarks.mv;
 
   return { start, end, deload };
@@ -156,13 +319,23 @@ function pickExercises(
   dayVariant: number,
   weekPhase: number,
   allowedEquipment: Equipment[],
-  usedExercises: Set<string>
+  usedExercises: Set<string>,
+  limitations?: JointKey[],
+  preferMachines?: boolean,
 ): ProgramExercise[] {
   if (setsForMuscle <= 0) return [];
 
   const pool = EXERCISE_POOLS[muscle] || [];
-  const available = filterByEquipment(pool, allowedEquipment);
+  let available = filterByEquipment(pool, allowedEquipment);
   if (available.length === 0) return [];
+
+  // Safety reordering: push risky exercises to end for limited joints
+  available = applyLimitationReorder(available, limitations);
+
+  // Prefer guided movements for 55+ lifters
+  if (preferMachines) {
+    available = applyMachinePreference(available);
+  }
 
   const baseOffset = dayVariant * 2;
 
@@ -220,6 +393,11 @@ export function generateProgram(profile: UserProfile): TrainingProgram {
   const allowedEquipment = EQUIPMENT_BY_SETUP[profile.equipment];
   const goalConfig = GOAL_CONFIG[profile.goal];
 
+  // ─── Profile-based modifiers ───
+  const ageMods = getAgeModifiers(profile.age);
+  const sexRestMod = getSexRestModifier(profile.sex);
+  const restMultiplier = ageMods.restMultiplier * sexRestMod;
+
   // Compute volume ranges for all muscles
   const allMuscles = new Set<string>();
   for (const day of dayTemplates) {
@@ -269,7 +447,8 @@ export function generateProgram(profile: UserProfile): TrainingProgram {
 
         const exs = pickExercises(
           muscle, setsThisDay, variant, weekPhase,
-          allowedEquipment, usedExercises
+          allowedEquipment, usedExercises,
+          profile.limitations, ageMods.preferMachines,
         );
 
         // Assign reps + rest + RIR + suggested weight based on 6-tier category
@@ -280,7 +459,7 @@ export function generateProgram(profile: UserProfile): TrainingProgram {
           ex.minReps = catConfig.minReps;
           ex.maxReps = catConfig.maxReps;
           ex.reps = catConfig.maxReps; // backward compat
-          ex.restTime = catConfig.restTime;
+          ex.restTime = Math.round(catConfig.restTime * restMultiplier);
           ex.targetRir = targetRir;
 
           const exData = exerciseMap.get(ex.exerciseId);
@@ -291,7 +470,9 @@ export function generateProgram(profile: UserProfile): TrainingProgram {
               exData.target,
               profile.weight,
               profile.sex,
-              profile.experience
+              profile.experience,
+              undefined, // hasHistory
+              profile.height,
             );
 
             // Week-over-week weight progression: ~2.5% per training week
@@ -299,7 +480,7 @@ export function generateProgram(profile: UserProfile): TrainingProgram {
             // Deload resets to base weight
             if (baseWeight > 0 && !isDeload && weekIdx > 0) {
               const isCompoundEx = isCompound(ex.exerciseId);
-              const weeklyMultiplier = isCompoundEx ? 0.025 : 0.01;
+              const weeklyMultiplier = (isCompoundEx ? 0.025 : 0.01) * ageMods.overloadMultiplier;
               const rawWeight = baseWeight * (1 + weeklyMultiplier * weekIdx);
               ex.suggestedWeight = roundToIncrement(rawWeight, exData.equipment);
             } else {
@@ -369,20 +550,8 @@ export function generateProgram(profile: UserProfile): TrainingProgram {
 
 /** Map exercise target string → sort priority (lower = earlier in workout) */
 function getMuscleOrder(target: string): number {
-  // Direct match
   if (target in MUSCLE_SORT_ORDER) return MUSCLE_SORT_ORDER[target];
-  // Common target aliases
-  const aliases: Record<string, string> = {
-    pecs: 'chest', 'upper chest': 'chest', 'lower chest': 'chest',
-    'middle back': 'upper back', 'rear delts': 'shoulders',
-    delts: 'shoulders', 'front delts': 'shoulders', 'lateral delts': 'shoulders',
-    traps: 'shoulders', biceps: 'biceps', brachialis: 'biceps',
-    triceps: 'triceps', 'forearm flexors': 'forearms',
-    'forearm extensors': 'forearms', brachioradialis: 'forearms', grip: 'forearms',
-    gastrocnemius: 'calves', soleus: 'calves',
-    'lower abs': 'abs', 'core stability': 'abs',
-  };
-  const canonical = aliases[target];
+  const canonical = TARGET_TO_MUSCLE[target];
   if (canonical && canonical in MUSCLE_SORT_ORDER) return MUSCLE_SORT_ORDER[canonical];
   return 99;
 }
@@ -450,7 +619,7 @@ export function getOverloadSuggestions(
 export function estimateDuration(day: ProgramDay): number {
   let totalSeconds = 0;
   for (const ex of day.exercises) {
-    const setTime = isCompound(ex.exerciseId) ? 50 : 35; // compounds take longer
+    const setTime = ex.setTime || (isCompound(ex.exerciseId) ? 50 : 35);
     totalSeconds += ex.sets * (setTime + ex.restTime);
   }
   return Math.round(totalSeconds / 60);

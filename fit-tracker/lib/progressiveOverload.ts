@@ -171,6 +171,22 @@ export function detectPRs(
       });
     }
 
+    // Reps PR — meaningful for bodyweight exercises (primary metric)
+    // and for weighted exercises when weight didn't decrease (true strength gain)
+    if (
+      sessionBestReps > prev.bestReps &&
+      prev.bestReps > 0 &&
+      (sessionBestWeight === 0 || sessionBestWeight >= prev.bestWeight)
+    ) {
+      prs.push({
+        exerciseId: ex.exerciseId,
+        type: 'reps',
+        value: sessionBestReps,
+        previousValue: prev.bestReps,
+        label: `${sessionBestReps} reps`,
+      });
+    }
+
     // Volume PR (session total for this exercise)
     if (sessionVolume > prev.bestSessionVolume && sessionVolume > 0) {
       prs.push({

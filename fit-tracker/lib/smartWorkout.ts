@@ -26,6 +26,7 @@ import { isCompound } from '@/lib/programGenerator';
 import { getExerciseCategory } from '@/lib/exerciseClassification';
 import { getEstimatedWeight, getProgressiveWeight, roundToIncrement } from '@/lib/weightEstimation';
 import { RECOVERY_COLORS, TRACKABLE_BODY_PARTS } from '@/constants/recovery';
+import i18n from '@/lib/i18n';
 
 // ─── Types ───
 
@@ -74,28 +75,37 @@ export interface SessionSummary {
   estimatedMinutes: number;
 }
 
-// ─── Zone Labels ───
+// ─── Zone Labels (i18n) ───
 
-const ZONE_LABEL_SHORT: Record<VolumeLandmarkZone, string> = {
-  below_mv: 'Sous MV',
-  mv_mev: 'MV',
-  mev_mav: 'MEV',
-  mav_mrv: 'MAV',
-  above_mrv: 'MRV+',
+const ZONE_I18N_KEY: Record<VolumeLandmarkZone, string> = {
+  below_mv: 'zones.shortBelowMv',
+  mv_mev: 'zones.shortMv',
+  mev_mav: 'zones.shortMev',
+  mav_mrv: 'zones.shortMav',
+  above_mrv: 'zones.shortMrv',
 };
 
-// ─── Session Type Mapping ───
+function getZoneLabelShort(zone: VolumeLandmarkZone): string {
+  return i18n.t(ZONE_I18N_KEY[zone]);
+}
 
-const SESSION_TYPE_LABEL: Record<string, string> = {
-  push: 'Push',
-  pull: 'Pull',
-  legs: 'Jambes',
-  upper: 'Haut du corps',
-  lower: 'Bas du corps',
-  full_body: 'Full Body',
-  rest: 'Repos',
-  general: 'Entraînement',
+// ─── Session Type Mapping (i18n) ───
+
+const SESSION_LABEL_KEY: Record<string, string> = {
+  push: 'workoutGenerate.sessionLabels.push',
+  pull: 'workoutGenerate.sessionLabels.pull',
+  legs: 'workoutGenerate.sessionLabels.legs',
+  upper: 'workoutGenerate.sessionLabels.upper',
+  lower: 'workoutGenerate.sessionLabels.lower',
+  full_body: 'workoutGenerate.sessionLabels.fullBody',
+  rest: 'workoutGenerate.sessionLabels.rest',
+  general: 'workoutGenerate.sessionLabels.default',
 };
+
+function getSessionTypeLabel(type: string): string {
+  const key = SESSION_LABEL_KEY[type];
+  return key ? i18n.t(key) : i18n.t('workoutGenerate.sessionLabels.default');
+}
 
 const SESSION_TYPE_COLOR: Record<string, string> = {
   push: '#FF6B35',
@@ -138,7 +148,7 @@ export function computeSmartSuggestion(
   if (!hasHistory) {
     return {
       sessionType: 'full_body',
-      sessionLabel: 'Full Body',
+      sessionLabel: getSessionTypeLabel('full_body'),
       sessionColor: SESSION_TYPE_COLOR.full_body,
       muscles: [],
       nudge: '',
@@ -174,7 +184,7 @@ export function computeSmartSuggestion(
         labelFr: MUSCLE_LABELS_FR[muscle] || muscle,
         recoveryStatus: recoveryData?.status || 'fresh',
         zone,
-        zoneLabelShort: ZONE_LABEL_SHORT[zone],
+        zoneLabelShort: getZoneLabelShort(zone),
         zoneColor,
         currentSets,
       };
@@ -182,7 +192,7 @@ export function computeSmartSuggestion(
 
   return {
     sessionType: sessionType as SmartSuggestion['sessionType'],
-    sessionLabel: SESSION_TYPE_LABEL[sessionType] || 'Entraînement',
+    sessionLabel: getSessionTypeLabel(sessionType),
     sessionColor: SESSION_TYPE_COLOR[sessionType] || '#FF6B35',
     muscles,
     nudge: rec.message,
@@ -213,7 +223,7 @@ export function getAllMuscleData(
         labelFr: MUSCLE_LABELS_FR[muscle] || muscle,
         recoveryStatus: recoveryData?.status || 'undertrained',
         zone,
-        zoneLabelShort: ZONE_LABEL_SHORT[zone],
+        zoneLabelShort: getZoneLabelShort(zone),
         zoneColor,
         currentSets,
       };
@@ -481,12 +491,12 @@ function getSessionLabel(muscles: string[]): string {
   const hasPull = set.has('lats') || set.has('upper back') || set.has('biceps');
   const hasLegs = set.has('quads') || set.has('hamstrings') || set.has('glutes');
 
-  if (hasPush && !hasPull && !hasLegs) return 'Push';
-  if (hasPull && !hasPush && !hasLegs) return 'Pull';
-  if (hasLegs && !hasPush && !hasPull) return 'Jambes';
-  if (hasPush && hasPull && !hasLegs) return 'Haut du corps';
-  if (hasLegs && !hasPush && !hasPull) return 'Bas du corps';
-  if (hasPush && hasPull && hasLegs) return 'Full Body';
+  if (hasPush && !hasPull && !hasLegs) return getSessionTypeLabel('push');
+  if (hasPull && !hasPush && !hasLegs) return getSessionTypeLabel('pull');
+  if (hasLegs && !hasPush && !hasPull) return getSessionTypeLabel('legs');
+  if (hasPush && hasPull && !hasLegs) return getSessionTypeLabel('upper');
+  if (hasLegs && !hasPush && !hasPull) return getSessionTypeLabel('lower');
+  if (hasPush && hasPull && hasLegs) return getSessionTypeLabel('full_body');
 
-  return 'Entraînement';
+  return getSessionTypeLabel('general');
 }

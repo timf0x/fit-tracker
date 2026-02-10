@@ -11,6 +11,7 @@ import {
   getZoneColor,
 } from '@/constants/volumeLandmarks';
 import { getOverloadSuggestions } from '@/lib/programGenerator';
+import i18n from '@/lib/i18n';
 
 export interface MuscleImpact {
   muscle: string;
@@ -200,8 +201,12 @@ export function computeWorkoutInsights(
         ? 2.5 : 2;
       overloadTips.push({
         exerciseId: we.exerciseId,
-        exerciseName: ex.nameFr || ex.name,
-        tip: `${weights[0]}kg depuis ${past.length} séances — essaie ${weights[0] + step}kg`,
+        exerciseName: i18n.locale === 'fr' ? (ex.nameFr || ex.name) : ex.name,
+        tip: i18n.t('sessionInsights.staleWeightTip', {
+          weight: weights[0],
+          sessions: past.length,
+          next: weights[0] + step,
+        }),
       });
     }
   }

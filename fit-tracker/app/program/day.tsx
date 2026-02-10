@@ -40,6 +40,7 @@ import { getProgressiveWeight, getEstimatedWeight } from '@/lib/weightEstimation
 import { resolveDayLabel } from '@/lib/programLabels';
 import { computeSessionInsights } from '@/lib/sessionInsights';
 import { SessionInsights } from '@/components/program/SessionInsights';
+import { computeReadinessScore, computeSessionAdjustments, applyAdjustmentsToExercises } from '@/lib/readinessEngine';
 import { checkDeloadStatus } from '@/lib/deloadDetection';
 import type { ProgramExercise } from '@/types/program';
 
@@ -59,6 +60,7 @@ export default function ProgramDayScreen() {
   const history = useWorkoutStore((s) => s.history);
 
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [manualOverloads, setManualOverloads] = useState<Record<string, 'bump' | 'hold' | 'drop'>>({});
   const [showPacingWarning, setShowPacingWarning] = useState(false);
   const [showSwapSheet, setShowSwapSheet] = useState(false);
   const [swapExerciseIndex, setSwapExerciseIndex] = useState<number | null>(null);
@@ -174,7 +176,7 @@ export default function ProgramDayScreen() {
 
   // Progressive overload — recalculate weights from history
   const progressiveWeights = useMemo(() => {
-    const map: Record<string, { weight: number; action: 'bump' | 'hold' | 'drop' | 'none' }> = {};
+    const map: Record<string, { weight: number; action: 'bump' | 'hold' | 'drop' | 'none'; lastWeight: number }> = {};
     for (const pex of day.exercises) {
       const ex = getExerciseById(pex.exerciseId);
       if (!ex) continue;
@@ -197,7 +199,7 @@ export default function ProgramDayScreen() {
           program.userProfile.experience || 'intermediate',
         );
         if (estimated > 0) {
-          map[pex.exerciseId] = { weight: estimated, action: 'none' };
+          map[pex.exerciseId] = { weight: estimated, action: 'none', lastWeight: 0 };
         }
       }
     }
@@ -223,13 +225,27 @@ export default function ProgramDayScreen() {
     if (readiness) {
       saveSessionReadiness(sessionId, readiness);
     }
+
+    let exercisesJson = buildProgramExercisesParam(day, progressiveWeights);
+
+    // Apply readiness adjustments if score is moderate or low
+    if (readiness) {
+      const score = computeReadinessScore(readiness);
+      const adj = computeSessionAdjustments(score);
+      if (adj.level === 'moderate' || adj.level === 'low') {
+        const parsed = JSON.parse(exercisesJson);
+        const adjusted = applyAdjustmentsToExercises(parsed, adj);
+        exercisesJson = JSON.stringify(adjusted);
+      }
+    }
+
     router.push({
       pathname: '/workout/session',
       params: {
         workoutId,
         sessionId,
         workoutName: resolveDayLabel(day),
-        exercises: buildProgramExercisesParam(day, progressiveWeights),
+        exercises: exercisesJson,
       },
     });
   }, [program, weekNum, dayIdx, day, progressiveWeights]);
@@ -252,6 +268,13 @@ export default function ProgramDayScreen() {
         const ex = getExerciseById(pex.exerciseId);
         const step = (ex?.equipment === 'barbell' || ex?.equipment === 'ez bar' || ex?.equipment === 'smith machine') ? 2.5 : 2;
         newValue = Math.max(0, (pex.suggestedWeight || 0) + delta * step);
+        // Update overload badge based on manual weight vs last session
+        const prog = progressiveWeights[pex.exerciseId];
+        if (prog && prog.lastWeight > 0) {
+          const action = newValue > prog.lastWeight ? 'bump'
+            : newValue < prog.lastWeight ? 'drop' : 'hold';
+          setManualOverloads((prev) => ({ ...prev, [pex.exerciseId]: action }));
+        }
         break;
       }
       case 'restTime':
@@ -284,7 +307,8 @@ export default function ProgramDayScreen() {
     const displayWeight = progWeight && progWeight.action !== 'none'
       ? progWeight.weight
       : (pex.suggestedWeight || 0);
-    const overloadAction = progWeight?.action || 'none';
+    const overloadAction =
+      (manualOverloads[pex.exerciseId] || progWeight?.action || 'none') as 'bump' | 'hold' | 'drop' | 'none';
 
     return (
       <View key={`${pex.exerciseId}-${globalIdx}`}>
@@ -388,7 +412,7 @@ export default function ProgramDayScreen() {
                 <Text style={styles.overloadText}>{i18n.t('programDay.overloadHold')}</Text>
               </View>
             )}
-            {!overloadAction || overloadAction === 'none' ? (
+            {overloadAction === 'none' ? (
               suggestion ? (
                 <View style={styles.overloadRow}>
                   <TrendingUp size={12} color={Colors.primary} />

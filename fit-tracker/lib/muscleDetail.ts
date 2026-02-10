@@ -1,5 +1,5 @@
 import { exercises } from '@/data/exercises';
-import { Exercise, WorkoutSession } from '@/types';
+import { Exercise, WorkoutSession, isEffectiveSet } from '@/types';
 import { TARGET_TO_MUSCLE } from './muscleMapping';
 import { getSetsForWeek, getWeekBounds } from './weeklyVolume';
 import {
@@ -101,7 +101,7 @@ export function getExerciseBreakdown(
       }
 
       for (const set of compEx.sets) {
-        if (!set.completed) continue;
+        if (!isEffectiveSet(set)) continue;
         breakdown[compEx.exerciseId].sets++;
         const w = set.weight || 0;
         if (w > breakdown[compEx.exerciseId].bestWeight) {

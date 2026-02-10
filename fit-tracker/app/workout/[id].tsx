@@ -48,6 +48,9 @@ import { useProgramStore } from '@/stores/programStore';
 import type { WorkoutExercise, Exercise, BodyPart, Equipment } from '@/types';
 import { DEFAULT_SET_TIME } from '@/types';
 import type { ReadinessCheck as ReadinessCheckType } from '@/types/program';
+import { computeReadinessScore, computeSessionAdjustments, applyAdjustmentsToExercises } from '@/lib/readinessEngine';
+import { getExerciseCategory } from '@/lib/exerciseClassification';
+import { GOAL_CONFIG } from '@/constants/programTemplates';
 import { DropdownModal } from '@/components/ui/DropdownModal';
 import { getFocusOptions, getEquipmentOptions } from '@/constants/filterOptions';
 
@@ -136,6 +139,7 @@ export default function WorkoutDetailScreen() {
 
   // User profile for weight estimation fallback
   const userProfile = useProgramStore((s) => s.userProfile);
+  const goalConfig = GOAL_CONFIG[userProfile?.goal || 'hypertrophy'];
 
   // ─── Load workout exercises into local state (with progressive overload) ───
   useEffect(() => {
@@ -236,16 +240,20 @@ export default function WorkoutDetailScreen() {
   };
 
   const handleAddToWorkout = () => {
-    const newExercises: SelectedExercise[] = tempSelected.map((exercise, i) => ({
-      exerciseId: exercise.id,
-      exercise,
-      sets: 4,
-      reps: 12,
-      weight: 0,
-      restTime: 60,
-      setTime: DEFAULT_SET_TIME,
-      uid: `${exercise.id}_${Date.now()}_${i}`,
-    }));
+    const newExercises: SelectedExercise[] = tempSelected.map((exercise, i) => {
+      const category = getExerciseCategory(exercise.id);
+      const catConfig = goalConfig[category];
+      return {
+        exerciseId: exercise.id,
+        exercise,
+        sets: 3,
+        reps: catConfig.maxReps,
+        weight: 0,
+        restTime: catConfig.restTime,
+        setTime: catConfig.setTime,
+        uid: `${exercise.id}_${Date.now()}_${i}`,
+      };
+    });
     const updated = [...selectedExercises, ...newExercises];
     setSelectedExercises(updated);
     autoSave(updated);
@@ -281,7 +289,15 @@ export default function WorkoutDetailScreen() {
           const equip = ex.exercise.equipment;
           const step = (equip === 'barbell' || equip === 'ez bar' || equip === 'smith machine') ? 2.5 : 2;
           newValue = Math.max(0, (ex.weight || 0) + delta * step);
-          break;
+          // Recalculate overload action based on new weight vs history
+          const prog = getProgressiveWeight(ex.exerciseId, equip, ex.reps, history);
+          let overloadAction: SelectedExercise['overloadAction'] = 'none';
+          if (prog.action !== 'none') {
+            if (newValue > prog.lastWeight) overloadAction = 'bump';
+            else if (newValue < prog.lastWeight) overloadAction = 'drop';
+            else overloadAction = 'hold';
+          }
+          return { ...ex, weight: newValue, overloadAction };
         }
         case 'restTime':
           newValue = Math.max(15, ex.restTime + delta * 15);
@@ -345,26 +361,38 @@ export default function WorkoutDetailScreen() {
     if (readiness) {
       store.saveSessionReadiness(sessionId, readiness);
     }
+
+    let exercisesData = selectedExercises.map((ex) => ({
+      exerciseId: ex.exerciseId,
+      sets: ex.sets,
+      reps: ex.reps,
+      minReps: Math.max(1, ex.reps - 2),
+      maxReps: ex.reps,
+      targetRir: 2,
+      weight: ex.weight || 0,
+      restTime: ex.restTime,
+      setTime: ex.setTime || DEFAULT_SET_TIME,
+      exerciseName: ex.exercise.nameFr,
+      exerciseNameEn: ex.exercise.name,
+      bodyPart: ex.exercise.bodyPart,
+      isUnilateral: ex.exercise.isUnilateral,
+      overloadAction: ex.overloadAction || 'none',
+    }));
+
+    // Apply readiness adjustments if score is moderate or low
+    if (readiness) {
+      const score = computeReadinessScore(readiness);
+      const adjustments = computeSessionAdjustments(score);
+      exercisesData = applyAdjustmentsToExercises(exercisesData, adjustments);
+    }
+
     router.push({
       pathname: '/workout/session',
       params: {
         workoutId: id,
         sessionId,
         workoutName: workout.nameFr || workout.name,
-        exercises: JSON.stringify(
-          selectedExercises.map((ex) => ({
-            exerciseId: ex.exerciseId,
-            sets: ex.sets,
-            reps: ex.reps,
-            weight: ex.weight || 0,
-            restTime: ex.restTime,
-            exerciseName: ex.exercise.nameFr,
-            exerciseNameEn: ex.exercise.name,
-            bodyPart: ex.exercise.bodyPart,
-            isUnilateral: ex.exercise.isUnilateral,
-            overloadAction: ex.overloadAction || 'none',
-          }))
-        ),
+        exercises: JSON.stringify(exercisesData),
       },
     });
   };

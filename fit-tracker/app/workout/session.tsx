@@ -65,9 +65,20 @@ import {
 } from '@/services/audio';
 import { detectPRs } from '@/lib/progressiveOverload';
 import { TARGET_TO_MUSCLE } from '@/lib/muscleMapping';
+import {
+  computeVolumeImpact,
+  computeRecoveryForecast,
+  computeTrainingLoad,
+  getCelebrationSubtitle,
+  getFeedbackTransparency,
+  getZoneLabel,
+  formatReadyAt,
+} from '@/lib/postSessionEngine';
 import { ExerciseSwapSheet } from '@/components/program/ExerciseSwapSheet';
 import { SessionFeedbackForm } from '@/components/session/SessionFeedbackForm';
+import { getExerciseName, getExerciseDescription, getExerciseInstructions, getTargetLabel, getSecondaryMusclesLabel } from '@/lib/exerciseLocale';
 import type { CompletedSet, CompletedExercise, BodyPart } from '@/types';
+import { DEFAULT_SET_TIME } from '@/types';
 import type { EquipmentSetup, SessionFeedback } from '@/types/program';
 
 // ─── Types ───
@@ -86,6 +97,7 @@ interface SessionExercise {
   targetRir?: number;
   weight: number;
   restTime: number;
+  setTime?: number; // seconds per set execution — varies by exercise
   isUnilateral: boolean;
   overloadAction?: 'bump' | 'hold' | 'drop' | 'none';
 }
@@ -97,8 +109,15 @@ const RING_SIZE = Math.min(Math.round(SCREEN_WIDTH * 0.75), 330);
 const SHEET_HANDLE_HEIGHT = 80;
 
 const PREPARE_DURATION = 15;
-const BREAK_DURATION = 180;
-const EXERCISE_SET_DURATION = 30;
+const DEFAULT_BREAK_DURATION = 120; // fallback inter-exercise break (seconds)
+
+/** Get the set execution time for an exercise (uses exercise-specific value or default) */
+const getSetDuration = (ex: SessionExercise | undefined): number =>
+  ex?.setTime || DEFAULT_SET_TIME;
+
+/** Inter-exercise break: use the next exercise's restTime (longer pause between exercises than between sets) */
+const getBreakDuration = (nextEx: SessionExercise | undefined): number =>
+  nextEx ? Math.max(nextEx.restTime, DEFAULT_BREAK_DURATION) : DEFAULT_BREAK_DURATION;
 
 const PHASE_CONFIG: Record<Phase, { color: string; label: string; icon: typeof Zap }> = {
   prepare: { color: Colors.phases.prepare, label: i18n.t('workoutSession.phases.prepare'), icon: Zap },
@@ -282,6 +301,7 @@ export default function WorkoutSessionScreen() {
     performance: 2,
     jointPain: false,
   });
+  const [reviewExpanded, setReviewExpanded] = useState(false);
 
   // ─── Sheet (exercise list bottom drawer) ───
   const sheetClosedY = SCREEN_HEIGHT - SHEET_HANDLE_HEIGHT - insets.bottom;
@@ -433,10 +453,11 @@ export default function WorkoutSessionScreen() {
     if (phase === 'prepare') {
       const ex = sessionExercises[exerciseIndex];
       const isUni = ex?.isUnilateral;
+      const duration = getSetDuration(ex);
       setCurrentSide(isUni ? 'right' : null);
       setPhase('exercise');
-      setTotalTime(EXERCISE_SET_DURATION);
-      setTimeRemaining(EXERCISE_SET_DURATION);
+      setTotalTime(duration);
+      setTimeRemaining(duration);
       announcePhase(isUni ? 'exercise-right' : 'exercise', ex?.exerciseName);
     } else if (phase === 'exercise') {
       const ex = sessionExercises[exerciseIndex];
@@ -478,9 +499,10 @@ export default function WorkoutSessionScreen() {
         const nextExIdx = exerciseIndex + 1;
         if (nextExIdx < totalExercises) {
           const nextEx = sessionExercises[nextExIdx];
+          const breakTime = getBreakDuration(nextEx);
           setPhase('break');
-          setTotalTime(BREAK_DURATION);
-          setTimeRemaining(BREAK_DURATION);
+          setTotalTime(breakTime);
+          setTimeRemaining(breakTime);
           announcePhase('break', undefined, nextEx?.exerciseName);
         } else {
           finishWorkout();
@@ -489,10 +511,11 @@ export default function WorkoutSessionScreen() {
     } else if (phase === 'rest') {
       const ex = sessionExercises[exerciseIndex];
       const isUni = ex?.isUnilateral;
+      const duration = getSetDuration(ex);
       setCurrentSide(isUni ? 'right' : null);
       setPhase('exercise');
-      setTotalTime(EXERCISE_SET_DURATION);
-      setTimeRemaining(EXERCISE_SET_DURATION);
+      setTotalTime(duration);
+      setTimeRemaining(duration);
       announcePhase(isUni ? 'exercise-right' : 'exercise', ex?.exerciseName);
     } else if (phase === 'break') {
       const nextIdx = exerciseIndex + 1;
@@ -653,7 +676,8 @@ export default function WorkoutSessionScreen() {
     }
     cleanupAudio();
     allowNavRef.current = true;
-    router.back();
+    router.dismissAll();
+    router.replace('/(tabs)');
   }, [completedSets, sessionExercises, store, router]);
 
   const discardStop = useCallback(() => {
@@ -663,7 +687,8 @@ export default function WorkoutSessionScreen() {
     }
     cleanupAudio();
     allowNavRef.current = true;
-    router.back();
+    router.dismissAll();
+    router.replace('/(tabs)');
   }, [store, router]);
 
   const cancelStop = useCallback(() => {
@@ -687,7 +712,8 @@ export default function WorkoutSessionScreen() {
     }
     cleanupAudio();
     allowNavRef.current = true;
-    router.back();
+    router.dismissAll();
+    router.replace('/(tabs)');
   }, [completedSets, sessionExercises, store, router, sessionFeedback]);
 
   // ─── Per-Set Editing Handlers ───
@@ -893,6 +919,40 @@ export default function WorkoutSessionScreen() {
     return map;
   }, [sessionPRs]);
 
+  // ─── Post-Session Intelligence ───
+  const trainingLoad = useMemo(() => {
+    if (phase !== 'finished') return 0;
+    return computeTrainingLoad(elapsedSeconds, completedSets);
+  }, [phase, elapsedSeconds, completedSets]);
+
+  const volumeImpact = useMemo(() => {
+    if (phase !== 'finished') return [];
+    const currentExercises: CompletedExercise[] = sessionExercises.map((ex, idx) => ({
+      exerciseId: ex.exerciseId,
+      sets: completedSets[idx] || [],
+    }));
+    return computeVolumeImpact(currentExercises, store.history, sessionIdRef.current);
+  }, [phase, completedSets, sessionExercises, store.history]);
+
+  const recoveryForecast = useMemo(() => {
+    if (phase !== 'finished') return [];
+    const currentExercises: CompletedExercise[] = sessionExercises.map((ex, idx) => ({
+      exerciseId: ex.exerciseId,
+      sets: completedSets[idx] || [],
+    }));
+    return computeRecoveryForecast(currentExercises, sessionFeedback);
+  }, [phase, completedSets, sessionExercises, sessionFeedback]);
+
+  const celebrationSubtitle = useMemo(() => {
+    if (phase !== 'finished') return '';
+    const ratio = totalExercises > 0 ? completedExerciseCount / totalExercises : 0;
+    return getCelebrationSubtitle(ratio, sessionPRs.length);
+  }, [phase, completedExerciseCount, totalExercises, sessionPRs]);
+
+  const feedbackTransparency = useMemo(() => {
+    return getFeedbackTransparency(sessionFeedback);
+  }, [sessionFeedback]);
+
   // ═════════════════════════════════════════
   // Exercise Info Modal
   // ═════════════════════════════════════════
@@ -915,7 +975,7 @@ export default function WorkoutSessionScreen() {
 
               {/* Header */}
               <View style={s.infoSheetHeader}>
-                <Text style={s.infoSheetName}>{infoExercise.nameFr}</Text>
+                <Text style={s.infoSheetName}>{getExerciseName(infoExercise)}</Text>
                 <Pressable style={s.infoSheetClose} onPress={() => setShowExerciseInfo(false)}>
                   <X size={20} color="rgba(160,160,170,1)" strokeWidth={2} />
                 </Pressable>
@@ -966,7 +1026,7 @@ export default function WorkoutSessionScreen() {
                   <>
                     <View style={s.infoRow}>
                       <Text style={s.infoRowLabel}>{i18n.t('workoutSession.targetMuscle')}</Text>
-                      <Text style={s.infoRowValue}>{infoExercise.target}</Text>
+                      <Text style={s.infoRowValue}>{getTargetLabel(infoExercise.target)}</Text>
                     </View>
                     <View style={s.infoRowDivider} />
                     <View style={s.infoRow}>
@@ -988,27 +1048,20 @@ export default function WorkoutSessionScreen() {
                         <View style={s.infoRowDivider} />
                         <View style={s.infoRow}>
                           <Text style={s.infoRowLabel}>{i18n.t('workoutSession.secondaryMuscles')}</Text>
-                          <Text style={s.infoRowValue}>{infoExercise.secondaryMuscles.join(', ')}</Text>
+                          <Text style={s.infoRowValue}>{getSecondaryMusclesLabel(infoExercise.secondaryMuscles)}</Text>
                         </View>
                       </>
                     )}
-                    {infoExercise.description ? (
+                    {getExerciseDescription(infoExercise) ? (
                       <View style={s.infoTipCard}>
                         <Text style={s.infoTipLabel}>{i18n.t('workoutSession.formTips')}</Text>
-                        <Text style={s.infoTipText}>{infoExercise.description}</Text>
+                        <Text style={s.infoTipText}>{getExerciseDescription(infoExercise)}</Text>
                       </View>
                     ) : null}
                   </>
                 ) : (
                   <>
-                    {(infoExercise.instructions && infoExercise.instructions.length > 0
-                      ? infoExercise.instructions
-                      : infoExercise.description
-                          .split('.')
-                          .map((step: string) => step.trim())
-                          .filter((step: string) => step.length > 0)
-                          .map((step: string) => `${step}.`)
-                    ).map((step: string, i: number) => (
+                    {getExerciseInstructions(infoExercise).map((step: string, i: number) => (
                       <View key={i} style={s.guideStep}>
                         <View style={s.guideStepNumber}>
                           <Text style={s.guideStepNumberText}>{i + 1}</Text>
@@ -1045,9 +1098,10 @@ export default function WorkoutSessionScreen() {
               <Text style={s.finishedBadgeText}>{i18n.t('workoutSession.finishedBadge')}</Text>
             </View>
             <Text style={s.finishedTitle}>{i18n.t('workoutSession.finishedTitle')}</Text>
+            <Text style={s.finishedSubtitle}>{celebrationSubtitle}</Text>
           </View>
 
-          {/* ─── Summary Card ─── */}
+          {/* ─── Summary Card (4 metrics) ─── */}
           <View style={s.summaryCard}>
             <View style={s.summaryRow}>
               <Text style={s.summaryLabel}>{i18n.t('workoutSession.duration')}</Text>
@@ -1061,12 +1115,12 @@ export default function WorkoutSessionScreen() {
             <View style={s.summaryDivider} />
             <View style={s.summaryRow}>
               <Text style={s.summaryLabel}>{i18n.t('workoutSession.totalVolume')}</Text>
-              <Text style={s.summaryValue}>{totalVolume.toLocaleString()} kg</Text>
+              <Text style={s.summaryValue}>{totalVolume.toLocaleString()} {i18n.t('common.kgUnit')}</Text>
             </View>
             <View style={s.summaryDivider} />
             <View style={s.summaryRow}>
-              <Text style={s.summaryLabel}>{i18n.t('workoutSession.exercisesLabel')}</Text>
-              <Text style={s.summaryValue}>{completedExerciseCount}/{totalExercises}</Text>
+              <Text style={s.summaryLabel}>{i18n.t('workoutSession.trainingLoad')}</Text>
+              <Text style={s.summaryValue}>{trainingLoad} {i18n.t('workoutSession.trainingLoadUnit')}</Text>
             </View>
           </View>
 
@@ -1081,7 +1135,11 @@ export default function WorkoutSessionScreen() {
               </View>
               {sessionPRs.map((pr, idx) => {
                 const exName = prExerciseNames[pr.exerciseId] || pr.exerciseId;
-                const typeLabel = pr.type === 'weight' ? i18n.t('workoutSession.prWeight') : i18n.t('workoutSession.prVolume');
+                const typeLabel = pr.type === 'weight'
+                  ? i18n.t('workoutSession.prWeight')
+                  : pr.type === 'reps'
+                    ? i18n.t('workoutSession.prReps')
+                    : i18n.t('workoutSession.prVolume');
                 const isNew = pr.previousValue === 0;
                 return (
                   <View key={`${pr.exerciseId}-${pr.type}-${idx}`} style={s.prCard}>
@@ -1095,7 +1153,7 @@ export default function WorkoutSessionScreen() {
                       <Text style={s.prValue}>{pr.label}</Text>
                       {!isNew && pr.previousValue > 0 && (
                         <Text style={s.prPrevious}>
-                          {i18n.t('workoutSession.prBefore')}: {pr.type === 'weight' ? `${pr.previousValue} kg` : `${pr.previousValue} kg`}
+                          {i18n.t('workoutSession.prBefore')}: {pr.type === 'reps' ? `${pr.previousValue} reps` : `${pr.previousValue} kg`}
                         </Text>
                       )}
                       {isNew && (
@@ -1110,10 +1168,87 @@ export default function WorkoutSessionScreen() {
             </View>
           )}
 
-          {/* ─── Exercise Review ─── */}
-          <Text style={s.reviewSectionTitle}>{i18n.t('workoutSession.exerciseReview')}</Text>
+          {/* ─── Volume Impact ─── */}
+          {volumeImpact.length > 0 && (
+            <View style={s.volumeImpactSection}>
+              <Text style={s.reviewSectionTitle}>{i18n.t('workoutSession.volumeImpact')}</Text>
+              {volumeImpact.map((vi) => {
+                const barWidth = vi.landmarks.mrv > 0
+                  ? Math.min(100, (vi.setsAfter / vi.landmarks.mrv) * 100)
+                  : 0;
+                return (
+                  <View key={vi.muscle} style={s.volumeImpactRow}>
+                    <View style={s.volumeImpactHeader}>
+                      <Text style={s.volumeImpactMuscle}>{vi.muscleLabel}</Text>
+                      <View style={s.volumeImpactRight}>
+                        <Text style={s.volumeImpactSets}>{vi.setsAfter}/{vi.landmarks.mrv}</Text>
+                        <View style={[s.volumeImpactZoneDot, { backgroundColor: vi.zoneColor }]} />
+                        <Text style={[s.volumeImpactZone, { color: vi.zoneColor }]}>
+                          {getZoneLabel(vi.zoneAfter)}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={s.volumeImpactBarBg}>
+                      <View
+                        style={[
+                          s.volumeImpactBarFill,
+                          { width: `${barWidth}%`, backgroundColor: vi.zoneColor },
+                        ]}
+                      />
+                    </View>
+                    <Text style={s.volumeImpactAdded}>
+                      {i18n.t('workoutSession.setsAdded', { count: vi.setsAdded })}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
 
-          {sessionExercises.map((ex, idx) => {
+          {/* ─── Recovery Forecast ─── */}
+          {recoveryForecast.length > 0 && (
+            <View style={s.recoverySection}>
+              <Text style={s.reviewSectionTitle}>{i18n.t('workoutSession.recoveryForecast')}</Text>
+              {recoveryForecast.map((rf) => (
+                <View key={rf.muscle} style={s.recoveryRow}>
+                  <Text style={s.recoveryMuscle}>{rf.muscleLabel}</Text>
+                  <Text style={s.recoveryHours}>
+                    {i18n.t('workoutSession.recoveryHours', { hours: rf.hours })}
+                  </Text>
+                  <Text style={s.recoveryReadyAt}>{formatReadyAt(rf.readyAt)}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* ─── Post-Session Feedback ─── */}
+          <View style={s.feedbackSection}>
+            <SessionFeedbackForm
+              value={sessionFeedback}
+              onChange={setSessionFeedback}
+            />
+            {/* Transparency nudge */}
+            <View style={s.transparencyRow}>
+              <View style={[s.transparencyAccent, { backgroundColor: 'rgba(255,255,255,0.15)' }]} />
+              <Text style={s.transparencyText}>{feedbackTransparency}</Text>
+            </View>
+          </View>
+
+          {/* ─── Collapsible Exercise Review ─── */}
+          <Pressable
+            style={s.reviewToggleHeader}
+            onPress={() => {
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              setReviewExpanded(!reviewExpanded);
+            }}
+          >
+            <Text style={s.reviewSectionTitle}>{i18n.t('workoutSession.exerciseDetailToggle')}</Text>
+            <View style={[s.expandChevron, reviewExpanded && s.expandChevronOpen]}>
+              <ChevronDown size={16} color="rgba(255,255,255,0.35)" strokeWidth={2.5} />
+            </View>
+          </Pressable>
+
+          {reviewExpanded && sessionExercises.map((ex, idx) => {
             const loggedSets = completedSets[idx] || [];
             const completedCount = loggedSets.filter((ss) => ss.completed === true).length;
             const totalSetsNeeded = ex.isUnilateral ? ex.sets * 2 : ex.sets;
@@ -1166,7 +1301,6 @@ export default function WorkoutSessionScreen() {
                       }
 
                       const reviewRir = loggedSet.rir ?? 2;
-                      const reviewRirColor = isSetDone ? getRirColor(reviewRir) : 'rgba(255,255,255,0.2)';
 
                       return (
                         <View key={setIdx}>
@@ -1269,14 +1403,6 @@ export default function WorkoutSessionScreen() {
               </View>
             );
           })}
-
-          {/* ─── Post-Session Feedback ─── */}
-          <View style={s.feedbackSection}>
-            <SessionFeedbackForm
-              value={sessionFeedback}
-              onChange={setSessionFeedback}
-            />
-          </View>
         </ScrollView>
 
         {/* ─── Pinned Bottom Button ─── */}
@@ -2380,6 +2506,13 @@ const s = StyleSheet.create({
     color: Colors.text,
     letterSpacing: -0.3,
   },
+  finishedSubtitle: {
+    fontSize: 14,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    color: Colors.textSecondary,
+    marginTop: 6,
+  },
   summaryCard: {
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderWidth: 1,
@@ -2544,6 +2677,127 @@ const s = StyleSheet.create({
   feedbackSection: {
     marginTop: 24,
     marginBottom: 8,
+  },
+  // Volume Impact
+  volumeImpactSection: {
+    marginBottom: 24,
+  },
+  volumeImpactRow: {
+    marginBottom: 16,
+  },
+  volumeImpactHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  volumeImpactMuscle: {
+    fontSize: 14,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  volumeImpactRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  volumeImpactSets: {
+    fontSize: 13,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  volumeImpactZoneDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  volumeImpactZone: {
+    fontSize: 11,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  volumeImpactBarBg: {
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  volumeImpactBarFill: {
+    height: 4,
+    borderRadius: 2,
+  },
+  volumeImpactAdded: {
+    fontSize: 11,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.35)',
+    marginTop: 4,
+  },
+  // Recovery Forecast
+  recoverySection: {
+    marginBottom: 24,
+  },
+  recoveryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.04)',
+  },
+  recoveryMuscle: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    color: Colors.text,
+  },
+  recoveryHours: {
+    fontSize: 13,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    marginRight: 12,
+  },
+  recoveryReadyAt: {
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.35)',
+    minWidth: 100,
+    textAlign: 'right',
+  },
+  // Transparency nudge
+  transparencyRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginTop: 16,
+  },
+  transparencyAccent: {
+    width: 3,
+    minHeight: 18,
+    borderRadius: 1.5,
+    marginTop: 1,
+  },
+  transparencyText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.35)',
+    lineHeight: 18,
+  },
+  // Exercise Review Toggle
+  reviewToggleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    marginTop: 8,
   },
   rirRow: {
     flexDirection: 'row',

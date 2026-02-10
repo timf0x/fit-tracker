@@ -9,7 +9,7 @@ interface Props {
   exerciseId: string;
   width?: number;
   height?: number;
-  metric?: 'bestWeight' | 'totalVolume';
+  metric?: 'bestWeight' | 'totalVolume' | 'bestReps';
 }
 
 export function ExerciseSparkline({

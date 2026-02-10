@@ -36,6 +36,7 @@ import { RirMeter } from '@/components/program/RirMeter';
 import { VolumeSnapshot } from '@/components/program/VolumeSnapshot';
 import { buildProgramExercisesParam } from '@/lib/programSession';
 import { resolveDayLabel, resolveProgramName } from '@/lib/programLabels';
+import { computeReadinessScore, computeSessionAdjustments, applyAdjustmentsToExercises } from '@/lib/readinessEngine';
 
 export default function ProgramScreen() {
   const router = useRouter();
@@ -188,13 +189,27 @@ export default function ProgramScreen() {
       saveReadiness(readiness);
       saveSessionReadiness(sessionId, readiness);
     }
+
+    let exercisesJson = buildProgramExercisesParam(todayDay);
+
+    // Apply readiness adjustments if score is moderate or low
+    if (readiness) {
+      const score = computeReadinessScore(readiness);
+      const adj = computeSessionAdjustments(score);
+      if (adj.level === 'moderate' || adj.level === 'low') {
+        const parsed = JSON.parse(exercisesJson);
+        const adjusted = applyAdjustmentsToExercises(parsed, adj);
+        exercisesJson = JSON.stringify(adjusted);
+      }
+    }
+
     router.push({
       pathname: '/workout/session',
       params: {
         workoutId,
         sessionId,
         workoutName: resolveDayLabel(todayDay),
-        exercises: buildProgramExercisesParam(todayDay),
+        exercises: exercisesJson,
       },
     });
   };

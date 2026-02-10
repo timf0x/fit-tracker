@@ -34,9 +34,11 @@ export interface Exercise {
   isUnilateral: boolean;
   target: string;
   description: string;
+  descriptionFr?: string;
   category?: Category;
   gifUrl?: string;
   instructions?: string[];
+  instructionsFr?: string[];
   secondaryMuscles?: string[];
 }
 
@@ -90,6 +92,16 @@ export interface CompletedSet {
   completed: boolean;
   side?: 'right' | 'left';
   rir?: number; // Reps In Reserve (0=failure, 1-3=effective, 4+=too easy)
+}
+
+/**
+ * A set is "effective" for hypertrophy volume if completed at adequate intensity.
+ * Per RP science, sets at RIR ≤ 3 drive meaningful stimulus.
+ * Sets at RIR 4+ are "junk volume" — not hard enough to count toward weekly volume.
+ * Sets without RIR logged count fully (backward compat for users who don't log RIR).
+ */
+export function isEffectiveSet(set: CompletedSet): boolean {
+  return set.completed && (set.rir === undefined || set.rir <= 3);
 }
 
 export interface CompletedExercise {

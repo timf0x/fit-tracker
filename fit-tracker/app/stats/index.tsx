@@ -426,15 +426,23 @@ export default function StatsScreen() {
                   {weekPRs.prs.slice(0, 10).map((pr) => {
                     const exercise = getExerciseById(pr.exerciseId);
                     const typeLabelFr =
-                      pr.type === 'weight' ? i18n.t('stats.prWeight') : i18n.t('stats.prVolume');
+                      pr.type === 'weight'
+                        ? i18n.t('stats.prWeight')
+                        : pr.type === 'reps'
+                          ? i18n.t('stats.prReps')
+                          : i18n.t('stats.prVolume');
                     const oldVal =
                       pr.type === 'weight'
                         ? `${pr.previousValue}kg`
-                        : formatVolume(pr.previousValue);
+                        : pr.type === 'reps'
+                          ? `${pr.previousValue} reps`
+                          : formatVolume(pr.previousValue);
                     const newVal =
                       pr.type === 'weight'
                         ? `${pr.value}kg`
-                        : formatVolume(pr.value);
+                        : pr.type === 'reps'
+                          ? `${pr.value} reps`
+                          : formatVolume(pr.value);
                     return (
                       <Pressable
                         key={`${pr.exerciseId}_${pr.type}`}
@@ -461,7 +469,9 @@ export default function StatsScreen() {
                                 styles.prTypePill,
                                 pr.type === 'weight'
                                   ? styles.prTypePillWeight
-                                  : styles.prTypePillVolume,
+                                  : pr.type === 'reps'
+                                    ? styles.prTypePillReps
+                                    : styles.prTypePillVolume,
                               ]}
                             >
                               <Text
@@ -469,7 +479,9 @@ export default function StatsScreen() {
                                   styles.prTypePillText,
                                   pr.type === 'weight'
                                     ? styles.prTypePillTextWeight
-                                    : styles.prTypePillTextVolume,
+                                    : pr.type === 'reps'
+                                      ? styles.prTypePillTextReps
+                                      : styles.prTypePillTextVolume,
                                 ]}
                               >
                                 {typeLabelFr}
@@ -491,7 +503,9 @@ export default function StatsScreen() {
                           metric={
                             pr.type === 'weight'
                               ? 'bestWeight'
-                              : 'totalVolume'
+                              : pr.type === 'reps'
+                                ? 'bestReps'
+                                : 'totalVolume'
                           }
                         />
                       </Pressable>
@@ -1036,6 +1050,9 @@ const styles = StyleSheet.create({
   prTypePillVolume: {
     backgroundColor: 'rgba(74,222,128,0.12)',
   },
+  prTypePillReps: {
+    backgroundColor: 'rgba(251,191,36,0.12)',
+  },
   prTypePillText: {
     fontSize: 10,
     fontFamily: Fonts?.semibold,
@@ -1046,6 +1063,9 @@ const styles = StyleSheet.create({
   },
   prTypePillTextVolume: {
     color: '#4ADE80',
+  },
+  prTypePillTextReps: {
+    color: '#FBBF24',
   },
   prOldVal: {
     color: 'rgba(120,120,130,1)',

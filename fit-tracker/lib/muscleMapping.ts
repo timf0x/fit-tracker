@@ -1,5 +1,5 @@
 import { exercises } from '@/data/exercises';
-import { WorkoutSession } from '@/types';
+import { WorkoutSession, isEffectiveSet } from '@/types';
 import i18n from '@/lib/i18n';
 
 /**
@@ -125,7 +125,7 @@ export function getSetsPerMuscle(
       const muscle = TARGET_TO_MUSCLE[exercise.target];
       if (!muscle) continue;
 
-      const completedSets = compEx.sets.filter((s) => s.completed).length;
+      const completedSets = compEx.sets.filter(isEffectiveSet).length;
       result[muscle] = (result[muscle] || 0) + completedSets;
     }
   }

@@ -12,32 +12,34 @@ import {
 } from 'react-native';
 import { Colors, Fonts } from '@/constants/theme';
 import { ExerciseIcon } from '@/components/ExerciseIcon';
+import i18n from '@/lib/i18n';
+import { getExerciseName, getExerciseDescription, getExerciseInstructions, getTargetLabel, getSecondaryMusclesLabel } from '@/lib/exerciseLocale';
 import type { Exercise } from '@/types';
 
 const BODY_PART_LABELS: Record<string, string> = {
-  back: 'Dos',
-  shoulders: 'Épaules',
-  chest: 'Pectoraux',
-  'upper arms': 'Bras',
-  'lower arms': 'Avant-bras',
-  'upper legs': 'Jambes',
-  'lower legs': 'Mollets',
-  waist: 'Abdos',
-  cardio: 'Cardio',
+  back: i18n.t('bodyParts.back'),
+  shoulders: i18n.t('bodyParts.shoulders'),
+  chest: i18n.t('bodyParts.chest'),
+  'upper arms': i18n.t('bodyParts.upperArms'),
+  'lower arms': i18n.t('bodyParts.forearms'),
+  'upper legs': i18n.t('bodyParts.upperLegs'),
+  'lower legs': i18n.t('bodyParts.lowerLegs'),
+  waist: i18n.t('bodyParts.waist'),
+  cardio: i18n.t('bodyParts.cardio'),
 };
 
 const EQUIPMENT_LABELS: Record<string, string> = {
-  dumbbell: 'Haltères',
-  barbell: 'Barre',
-  cable: 'Câble',
-  machine: 'Machine',
-  'body weight': 'Poids du corps',
-  kettlebell: 'Kettlebell',
-  'resistance band': 'Bande élastique',
-  'ez bar': 'Barre EZ',
-  'smith machine': 'Smith machine',
-  'trap bar': 'Trap bar',
-  other: 'Autre',
+  dumbbell: i18n.t('equipment.dumbbells'),
+  barbell: i18n.t('equipment.barbell'),
+  cable: i18n.t('equipment.cable'),
+  machine: i18n.t('equipment.machine'),
+  'body weight': i18n.t('equipment.bodyweight'),
+  kettlebell: i18n.t('equipment.kettlebell'),
+  'resistance band': i18n.t('equipment.bands'),
+  'ez bar': i18n.t('equipment.ezBar'),
+  'smith machine': i18n.t('equipment.smithMachine'),
+  'trap bar': i18n.t('equipment.trapBar'),
+  other: i18n.t('equipment.other'),
 };
 
 interface ExerciseInfoSheetProps {
@@ -102,7 +104,7 @@ export function ExerciseInfoSheet({ exercise, onClose }: ExerciseInfoSheetProps)
                   <View style={s.handle} />
                 </View>
                 <View style={s.header}>
-                  <Text style={s.name}>{exercise.nameFr}</Text>
+                  <Text style={s.name}>{getExerciseName(exercise)}</Text>
                 </View>
               </View>
 
@@ -131,7 +133,7 @@ export function ExerciseInfoSheet({ exercise, onClose }: ExerciseInfoSheetProps)
                   onPress={() => setTab('about')}
                 >
                   <Text style={[s.tabText, tab === 'about' && s.tabTextActive]}>
-                    À propos
+                    {i18n.t('workoutSession.about')}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -139,7 +141,7 @@ export function ExerciseInfoSheet({ exercise, onClose }: ExerciseInfoSheetProps)
                   onPress={() => setTab('guide')}
                 >
                   <Text style={[s.tabText, tab === 'guide' && s.tabTextActive]}>
-                    Guide
+                    {i18n.t('workoutSession.guide')}
                   </Text>
                 </Pressable>
               </View>
@@ -154,58 +156,51 @@ export function ExerciseInfoSheet({ exercise, onClose }: ExerciseInfoSheetProps)
                 {tab === 'about' ? (
                   <>
                     <View style={s.row}>
-                      <Text style={s.rowLabel}>Muscle cible</Text>
-                      <Text style={s.rowValue}>{exercise.target}</Text>
+                      <Text style={s.rowLabel}>{i18n.t('workoutSession.targetMuscle')}</Text>
+                      <Text style={s.rowValue}>{getTargetLabel(exercise.target)}</Text>
                     </View>
                     <View style={s.rowDivider} />
                     <View style={s.row}>
-                      <Text style={s.rowLabel}>Groupe musculaire</Text>
+                      <Text style={s.rowLabel}>{i18n.t('workoutSession.muscleGroup')}</Text>
                       <Text style={s.rowValue}>
                         {BODY_PART_LABELS[exercise.bodyPart] || exercise.bodyPart}
                       </Text>
                     </View>
                     <View style={s.rowDivider} />
                     <View style={s.row}>
-                      <Text style={s.rowLabel}>Équipement</Text>
+                      <Text style={s.rowLabel}>{i18n.t('workoutSession.equipmentLabel')}</Text>
                       <Text style={s.rowValue}>
                         {EQUIPMENT_LABELS[exercise.equipment] || exercise.equipment}
                       </Text>
                     </View>
                     <View style={s.rowDivider} />
                     <View style={s.row}>
-                      <Text style={s.rowLabel}>Type</Text>
+                      <Text style={s.rowLabel}>{i18n.t('workoutSession.type')}</Text>
                       <Text style={s.rowValue}>
-                        {exercise.isUnilateral ? 'Unilatéral' : 'Bilatéral'}
+                        {exercise.isUnilateral ? i18n.t('workoutSession.unilateral') : i18n.t('workoutSession.bilateral')}
                       </Text>
                     </View>
                     {exercise.secondaryMuscles && exercise.secondaryMuscles.length > 0 && (
                       <>
                         <View style={s.rowDivider} />
                         <View style={s.row}>
-                          <Text style={s.rowLabel}>Muscles secondaires</Text>
+                          <Text style={s.rowLabel}>{i18n.t('workoutSession.secondaryMuscles')}</Text>
                           <Text style={s.rowValue}>
-                            {exercise.secondaryMuscles.join(', ')}
+                            {getSecondaryMusclesLabel(exercise.secondaryMuscles)}
                           </Text>
                         </View>
                       </>
                     )}
-                    {exercise.description ? (
+                    {getExerciseDescription(exercise) ? (
                       <View style={s.tipCard}>
-                        <Text style={s.tipLabel}>CONSEILS DE FORME</Text>
-                        <Text style={s.tipText}>{exercise.description}</Text>
+                        <Text style={s.tipLabel}>{i18n.t('workoutSession.formTips')}</Text>
+                        <Text style={s.tipText}>{getExerciseDescription(exercise)}</Text>
                       </View>
                     ) : null}
                   </>
                 ) : (
                   <>
-                    {(exercise.instructions && exercise.instructions.length > 0
-                      ? exercise.instructions
-                      : exercise.description
-                          .split('.')
-                          .map((step) => step.trim())
-                          .filter((step) => step.length > 0)
-                          .map((step) => `${step}.`)
-                    ).map((step, i) => (
+                    {getExerciseInstructions(exercise).map((step, i) => (
                       <View key={i} style={s.guideStep}>
                         <View style={s.guideStepNumber}>
                           <Text style={s.guideStepNumberText}>{i + 1}</Text>

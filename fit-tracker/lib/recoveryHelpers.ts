@@ -13,6 +13,7 @@ import {
   BODY_PART_LABELS,
 } from '@/constants/recovery';
 import { TARGET_TO_MUSCLE } from '@/lib/muscleMapping';
+import { SessionFeedback } from '@/types/program';
 import i18n from '@/lib/i18n';
 
 const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
@@ -22,6 +23,7 @@ interface MuscleLastTrained {
   totalSets: number;
   sessionDate: string;
   exerciseNames: string[];
+  feedback?: SessionFeedback;
 }
 
 /**
@@ -74,6 +76,7 @@ function getLastTrainedPerMuscle(
           totalSets: data.sets,
           sessionDate: session.startTime,
           exerciseNames: data.names,
+          feedback: session.feedback,
         };
       }
     }
@@ -83,21 +86,72 @@ function getLastTrainedPerMuscle(
 }
 
 /**
- * Determine recovery status for a muscle based on hours since training.
+ * Compute a recovery time multiplier based on volume and session feedback.
+ *
+ * Volume: ~4 sets = baseline (1.0x). More sets → proportionally longer recovery.
+ *   Capped at [0.8x, 1.6x] to stay realistic.
+ *
+ * Feedback (multiplicative on top of volume):
+ *   - Soreness 3 (high): +25% — significant muscle damage signal
+ *   - Soreness 1 (low): -10% — minimal damage
+ *   - Joint pain: +40% — injury risk, needs extra caution
+ *   - Performance 1 + Soreness ≥ 2: +15% — overreaching signal
+ */
+function getRecoveryMultiplier(
+  totalSets: number,
+  feedback?: SessionFeedback,
+): number {
+  // Volume scaling: 4 sets = baseline
+  const volumeMultiplier = Math.max(0.8, Math.min(1.6, 1 + (totalSets - 4) * 0.05));
+
+  let feedbackMultiplier = 1.0;
+  if (feedback) {
+    if (feedback.soreness === 3) feedbackMultiplier *= 1.25;
+    else if (feedback.soreness === 1) feedbackMultiplier *= 0.9;
+    if (feedback.jointPain) feedbackMultiplier *= 1.4;
+    if (feedback.performance === 1 && feedback.soreness >= 2) feedbackMultiplier *= 1.15;
+  }
+
+  return volumeMultiplier * feedbackMultiplier;
+}
+
+/**
+ * Determine recovery status for a muscle based on hours since training,
+ * volume performed, and post-session feedback.
  */
 function getRecoveryStatus(
   bodyPart: RecoveryBodyPart,
-  hoursSince: number | null
+  hoursSince: number | null,
+  totalSets: number = 0,
+  feedback?: SessionFeedback,
 ): RecoveryLevel {
   if (hoursSince === null) return 'undertrained';
 
   const thresholds = MUSCLE_RECOVERY_HOURS[bodyPart];
   if (!thresholds) return 'fresh';
 
-  if (hoursSince < thresholds.freshMin) return 'fatigued';
-  if (hoursSince <= thresholds.freshMax) return 'fresh';
+  const multiplier = getRecoveryMultiplier(totalSets, feedback);
+  const adjustedFreshMin = thresholds.freshMin * multiplier;
+  const adjustedFreshMax = thresholds.freshMax * multiplier;
+
+  if (hoursSince < adjustedFreshMin) return 'fatigued';
+  if (hoursSince <= adjustedFreshMax) return 'fresh';
+  // Undertrained threshold stays fixed — it's about training frequency, not fatigue duration
   if (hoursSince > thresholds.undertrained) return 'undertrained';
   return 'fresh';
+}
+
+/**
+ * Get the adjusted recovery hours for a muscle (for detail views / progress bars).
+ */
+function getAdjustedRecoveryHours(
+  bodyPart: RecoveryBodyPart,
+  totalSets: number,
+  feedback?: SessionFeedback,
+): number {
+  const thresholds = MUSCLE_RECOVERY_HOURS[bodyPart];
+  if (!thresholds) return 48;
+  return thresholds.freshMin * getRecoveryMultiplier(totalSets, feedback);
 }
 
 /**
@@ -112,8 +166,8 @@ export function computeRecoveryOverview(
   const muscles: MuscleRecoveryData[] = TRACKABLE_BODY_PARTS.map((bp) => {
     const data = lastTrained[bp];
     const hoursSince = data ? data.hoursSince : null;
-    const status = getRecoveryStatus(bp, hoursSince);
     const totalSets = data ? data.totalSets : 0;
+    const status = getRecoveryStatus(bp, hoursSince, totalSets, data?.feedback);
 
     return { bodyPart: bp, status, hoursSinceTraining: hoursSince, totalSets };
   });
@@ -154,10 +208,9 @@ export function getMuscleRecoveryDetail(
 } {
   const lastTrained = getLastTrainedPerMuscle(history);
   const data = lastTrained[bodyPart];
-  const thresholds = MUSCLE_RECOVERY_HOURS[bodyPart];
-  const totalRecoveryHours = thresholds?.freshMin || 48;
 
   if (!data) {
+    const thresholds = MUSCLE_RECOVERY_HOURS[bodyPart];
     return {
       hoursSince: null,
       totalSets: 0,
@@ -165,11 +218,12 @@ export function getMuscleRecoveryDetail(
       sessionDate: null,
       recoveryProgress: 0,
       hoursRemaining: 0,
-      totalRecoveryHours,
+      totalRecoveryHours: thresholds?.freshMin || 48,
     };
   }
 
-  const status = getRecoveryStatus(bodyPart, data.hoursSince);
+  const totalRecoveryHours = getAdjustedRecoveryHours(bodyPart, data.totalSets, data.feedback);
+  const status = getRecoveryStatus(bodyPart, data.hoursSince, data.totalSets, data.feedback);
   let recoveryProgress = 1;
   let hoursRemaining = 0;
 

@@ -42,6 +42,7 @@ import { MUSCLE_LABELS_FR } from '@/lib/muscleMapping';
 import type { EquipmentSetup } from '@/types/program';
 import type { Exercise, WorkoutExercise } from '@/types';
 import type { ReadinessCheck as ReadinessCheckType } from '@/types/program';
+import { computeReadinessScore, computeSessionAdjustments, applyAdjustmentsToExercises } from '@/lib/readinessEngine';
 
 type GeneratorStep = 'select' | 'review';
 
@@ -315,30 +316,39 @@ export default function GenerateWorkoutScreen() {
       saveSessionReadiness(sessionId, readiness);
     }
 
+    let exercisesData = generatedExercises.map((ge) => {
+      const ex = getExerciseById(ge.exerciseId);
+      return {
+        exerciseId: ge.exerciseId,
+        sets: ge.sets,
+        reps: ge.maxReps || ge.reps,
+        minReps: ge.minReps,
+        maxReps: ge.maxReps,
+        targetRir: 2,
+        weight: ge.suggestedWeight || 0,
+        restTime: ge.restTime,
+        setTime: ge.setTime,
+        exerciseName: ex?.nameFr || ex?.name || '',
+        exerciseNameEn: ex?.name || '',
+        bodyPart: ex?.bodyPart || 'chest',
+        isUnilateral: ex?.isUnilateral || false,
+      };
+    });
+
+    // Apply readiness adjustments if score is moderate or low
+    if (readiness) {
+      const score = computeReadinessScore(readiness);
+      const adj = computeSessionAdjustments(score);
+      exercisesData = applyAdjustmentsToExercises(exercisesData, adj);
+    }
+
     router.push({
       pathname: '/workout/session',
       params: {
         workoutId,
         sessionId,
         workoutName: sessionLabel,
-        exercises: JSON.stringify(
-          generatedExercises.map((ge) => {
-            const ex = getExerciseById(ge.exerciseId);
-            return {
-              exerciseId: ge.exerciseId,
-              sets: ge.sets,
-              reps: ge.maxReps || ge.reps,
-              minReps: ge.minReps,
-              maxReps: ge.maxReps,
-              weight: ge.suggestedWeight || 0,
-              restTime: ge.restTime,
-              exerciseName: ex?.nameFr || ex?.name || '',
-              exerciseNameEn: ex?.name || '',
-              bodyPart: ex?.bodyPart || 'chest',
-              isUnilateral: ex?.isUnilateral || false,
-            };
-          }),
-        ),
+        exercises: JSON.stringify(exercisesData),
       },
     });
   }, [generatedExercises, sessionLabel, startSession, saveSessionReadiness]);
