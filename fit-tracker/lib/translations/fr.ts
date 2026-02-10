@@ -1092,6 +1092,10 @@ export default {
     prs: 'PR',
     sessions: 'séances',
     volume: 'volume',
+    // Week summary — additional
+    noTraining: 'Pas encore d\'entraînement cette semaine',
+    setsCount: '%{count} séries',
+    prBadge: '%{count} PR',
   },
 
   // ─── Active Program Card — Schedule Additions ───
@@ -1105,6 +1109,43 @@ export default {
   programOverview_schedule: {
     scheduledDate: '%{date}',
     nextSessionNudge: 'Prochaine séance : %{day}',
+  },
+
+  // ─── Missed Day Intelligence ───
+  missedDay: {
+    // Card title
+    title: 'Séance manquée',
+    titleMultiple: '%{count} séances manquées',
+    daysSince: '%{count}j sans entraînement',
+
+    // Resolution options
+    doMissed: 'Faire cette séance',
+    doMissedDesc: 'Rattraper la séance manquée aujourd\'hui',
+    skipContinue: 'Passer et continuer',
+    skipContinueDesc: 'Ignorer la séance manquée, passer à la suivante',
+    skipDeloadDesc: 'Semaine de décharge — pas de souci, le repos fait partie du plan',
+    skipMultipleDesc: 'Trop de retard — on repart de la prochaine séance prévue',
+    merge: 'Fusionner les muscles',
+    mergeDesc: 'Ajouter les muscles manqués à la prochaine séance (+%{sets} séries)',
+    reschedule: 'Reprogrammer la semaine',
+    rescheduleDesc: 'Décaler les séances restantes à partir d\'aujourd\'hui',
+
+    // Nudges
+    nudgeSingle: 'Une séance en retard — pas de panique, on s\'adapte',
+    nudgeMultiple: 'Plusieurs séances manquées — reprenons intelligemment',
+    nudgeLongBreak: 'Longue pause détectée — tes muscles sont frais, c\'est le moment',
+    nudgeDeload: 'Semaine de décharge — manquer une séance n\'a aucun impact',
+    nudgeUrgent: 'Plusieurs jours sans entraînement — choisis comment reprendre',
+
+    // Badges
+    recommended: 'Recommandé',
+    missedLabel: 'Manqué',
+    skippedLabel: 'Passé',
+    mergedLabel: 'Fusionné',
+
+    // Recovery context
+    musclesReady: 'Muscles frais et prêts',
+    musclesRecovering: 'Certains muscles encore en récupération',
   },
 
   // ─── Priority Muscle Groups (Onboarding) ───

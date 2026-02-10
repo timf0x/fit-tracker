@@ -27,6 +27,7 @@ import { Fonts, Colors } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { useProgramStore } from '@/stores/programStore';
 import { useWorkoutStore } from '@/stores/workoutStore';
+import type { ResolutionAction } from '@/types/program';
 import { AmbientBackground } from '@/components/home/AmbientBackground';
 import { MesocycleTimeline } from '@/components/program/MesocycleTimeline';
 import { DayCard } from '@/components/program/DayCard';
@@ -41,10 +42,13 @@ import { getPlannedDayForDate, getNextScheduledDay, getTodayISO, formatScheduled
 
 export default function ProgramScreen() {
   const router = useRouter();
-  const { program, activeState, clearProgram, isProgramComplete, saveReadiness } =
-    useProgramStore();
+  const {
+    program, activeState, clearProgram, isProgramComplete,
+    saveReadiness, reconcileSchedule, resolveAndApply,
+  } = useProgramStore();
   const startSession = useWorkoutStore((s) => s.startSession);
   const saveSessionReadiness = useWorkoutStore((s) => s.saveSessionReadiness);
+  const workoutHistory = useWorkoutStore((s) => s.history);
 
   const [selectedWeek, setSelectedWeek] = useState(
     activeState?.currentWeek || 1,
@@ -150,6 +154,13 @@ export default function ProgramScreen() {
     const now = new Date();
     return last.toDateString() === now.toDateString();
   }, [activeState?.lastCompletedAt]);
+
+  // ─── Missed day reconciliation ───
+  useEffect(() => {
+    if (program && activeState?.schedule) {
+      reconcileSchedule(workoutHistory);
+    }
+  }, [workoutHistory.length, activeState?.schedule, program]);
 
   // ─── Redirect to onboarding if no program (after all hooks) ───
   useEffect(() => {
@@ -289,6 +300,31 @@ export default function ProgramScreen() {
               <Text style={styles.newProgramText}>{i18n.t('programOverview.newProgram')}</Text>
               <ChevronRight size={14} color="#0C0C0C" />
             </PressableScale>
+          </View>
+        )}
+
+        {/* ─── Missed day banner ─── */}
+        {activeState.pendingResolution && activeState.pendingResolution.missedDays.length > 0 && (
+          <View style={styles.missedBanner}>
+            <AlertTriangle
+              size={14}
+              color={
+                activeState.pendingResolution.severity === 'urgent' ? '#FF4B4B'
+                : activeState.pendingResolution.severity === 'warning' ? '#FBBF24'
+                : Colors.primary
+              }
+              strokeWidth={2.5}
+            />
+            <Text style={[
+              styles.missedBannerText,
+              {
+                color: activeState.pendingResolution.severity === 'urgent' ? '#FF4B4B'
+                  : activeState.pendingResolution.severity === 'warning' ? '#FBBF24'
+                  : Colors.primary,
+              },
+            ]}>
+              {i18n.t(activeState.pendingResolution.nudgeKey)}
+            </Text>
           </View>
         )}
 
@@ -595,6 +631,26 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
+  },
+
+  // ─── Missed Day Banner ───
+  missedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginTop: 8,
+    backgroundColor: 'rgba(251,191,36,0.06)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  missedBannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    lineHeight: 18,
   },
 
   // ─── Body ───

@@ -10,6 +10,8 @@ import {
   SessionFeedback,
   ReadinessCheck,
   WeekDay,
+  MissedDayResolution,
+  ResolutionAction,
 } from '@/types/program';
 import { generateProgram } from '@/lib/programGenerator';
 import { computeFeedbackAdjustments } from '@/lib/feedbackAdaptation';
@@ -20,6 +22,10 @@ import {
   getNextScheduledDay,
   getTodayISO,
 } from '@/lib/scheduleEngine';
+import {
+  computeResolution,
+  executeResolution,
+} from '@/lib/scheduleReconciliation';
 
 interface ProgramStoreState {
   userProfile: UserProfile | null;
@@ -54,6 +60,11 @@ interface ProgramStoreState {
 
   // Exercise swap
   swapExercise: (week: number, dayIndex: number, exerciseIndex: number, newExerciseId: string) => void;
+
+  // Missed day reconciliation
+  reconcileSchedule: (history: import('@/types').WorkoutSession[]) => void;
+  resolveAndApply: (action: ResolutionAction, history: import('@/types').WorkoutSession[]) => void;
+  clearPendingResolution: () => void;
 
   // Getters
   getTodayWorkout: () => { week: number; dayIndex: number } | null;
@@ -361,6 +372,61 @@ export const useProgramStore = create<ProgramStoreState>()(
       swapExercise: (week, dayIndex, exerciseIndex, newExerciseId) => {
         get().overrideExercise(week, dayIndex, exerciseIndex, {
           exerciseId: newExerciseId,
+        });
+      },
+
+      reconcileSchedule: (history) => {
+        const { program, activeState } = get();
+        if (!program || !activeState || !activeState.schedule) return;
+
+        const resolution = computeResolution(program, activeState, history);
+        set({
+          activeState: {
+            ...get().activeState!,
+            pendingResolution: resolution,
+          },
+        });
+      },
+
+      resolveAndApply: (action, history) => {
+        const { program, activeState } = get();
+        if (!program || !activeState?.pendingResolution) return;
+
+        const result = executeResolution(
+          action,
+          activeState.pendingResolution,
+          program,
+          activeState,
+        );
+
+        const updates: Partial<ActiveProgramState> = {
+          schedule: result.updatedSchedule,
+          pendingResolution: null,
+        };
+
+        if (result.advanceToWeek !== undefined) {
+          updates.currentWeek = result.advanceToWeek;
+        }
+        if (result.advanceToDayIndex !== undefined) {
+          updates.currentDayIndex = result.advanceToDayIndex;
+        }
+
+        set({
+          activeState: {
+            ...activeState,
+            ...updates,
+          },
+        });
+      },
+
+      clearPendingResolution: () => {
+        const { activeState } = get();
+        if (!activeState) return;
+        set({
+          activeState: {
+            ...activeState,
+            pendingResolution: null,
+          },
         });
       },
 

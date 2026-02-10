@@ -37,6 +37,7 @@ export interface TimelineDay {
   // Scheduled data (future days from program)
   scheduledDay?: ScheduledDay;
   programDay?: ProgramDay;
+  isSkipped?: boolean;           // true if this day was skipped/merged
 
   // Predicted recovery (future days)
   recoveryProjection?: {
@@ -206,6 +207,7 @@ export function buildWeekTimeline(
       scheduledDay,
       programDay,
       recoveryProjection,
+      isSkipped: !!scheduledDay?.skippedDate,
     });
   }
 

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { AnimatedStartButton } from '@/components/ui/AnimatedStartButton';
@@ -26,6 +26,10 @@ import {
   HeartPulse,
   Shield,
   AlertTriangle,
+  SkipForward,
+  Merge,
+  CalendarClock,
+  RotateCcw,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
@@ -38,7 +42,7 @@ import { getProgressiveWeight } from '@/lib/weightEstimation';
 import { checkDeloadStatus } from '@/lib/deloadDetection';
 import { ReadinessCheck } from '@/components/program/ReadinessCheck';
 import { ConfirmModal } from '@/components/program/ConfirmModal';
-import type { ReadinessCheck as ReadinessCheckType } from '@/types/program';
+import type { ReadinessCheck as ReadinessCheckType, ResolutionAction, ResolutionOption } from '@/types/program';
 import i18n from '@/lib/i18n';
 import { resolveDayLabel } from '@/lib/programLabels';
 import { getNextScheduledDay, formatScheduledDate, getPlannedDayForDate, getTodayISO } from '@/lib/scheduleEngine';
@@ -74,13 +78,27 @@ export const DEFAULT_BODY_ICON: BodyIcon = { Icon: Dumbbell, ...NEUTRAL };
 
 export function ActiveProgramCard() {
   const router = useRouter();
-  const { userProfile, program, activeState, isProgramComplete, saveReadiness } = useProgramStore();
+  const {
+    userProfile, program, activeState, isProgramComplete,
+    saveReadiness, reconcileSchedule, resolveAndApply,
+  } = useProgramStore();
   const startSession = useWorkoutStore((s) => s.startSession);
   const saveSessionReadiness = useWorkoutStore((s) => s.saveSessionReadiness);
   const workoutHistory = useWorkoutStore((s) => s.history);
 
   const [showReadiness, setShowReadiness] = useState(false);
   const [showPacingWarning, setShowPacingWarning] = useState(false);
+
+  // ─── Missed day reconciliation — runs on mount + history change ───
+  useEffect(() => {
+    if (program && activeState?.schedule) {
+      reconcileSchedule(workoutHistory);
+    }
+  }, [workoutHistory.length, activeState?.schedule, program]);
+
+  const handleResolution = useCallback((action: ResolutionAction) => {
+    resolveAndApply(action, workoutHistory);
+  }, [resolveAndApply, workoutHistory]);
 
   // Pacing guard — check if user already completed a session today
   const hasSessionToday = useMemo(() => {
@@ -207,6 +225,124 @@ export function ActiveProgramCard() {
             <ChevronRight size={14} color={Colors.primary} strokeWidth={2.5} />
           </PressableScale>
         </PressableScale>
+      </View>
+    );
+  }
+
+  // ─── State 4: Missed day detected ───
+  const pendingResolution = activeState.pendingResolution;
+  if (pendingResolution && pendingResolution.missedDays.length > 0) {
+    const missedCount = pendingResolution.missedDays.length;
+    const severityColor =
+      pendingResolution.severity === 'urgent' ? '#FF4B4B'
+      : pendingResolution.severity === 'warning' ? '#FBBF24'
+      : Colors.primary;
+    const severityBg =
+      pendingResolution.severity === 'urgent' ? 'rgba(255,75,75,0.08)'
+      : pendingResolution.severity === 'warning' ? 'rgba(251,191,36,0.08)'
+      : 'rgba(255,107,53,0.08)';
+
+    const RESOLUTION_ICONS: Record<string, typeof SkipForward> = {
+      do_missed: RotateCcw,
+      skip_continue: SkipForward,
+      merge: Merge,
+      reschedule_week: CalendarClock,
+    };
+
+    return (
+      <View style={styles.container}>
+        <View style={[styles.card, { borderColor: `${severityColor}20` }]}>
+          {/* Header */}
+          <View style={styles.sessionHeader}>
+            <View style={styles.sessionTitleRow}>
+              <View style={[styles.focusDot, { backgroundColor: severityColor }]} />
+              <Text style={styles.sessionName}>
+                {missedCount === 1
+                  ? i18n.t('missedDay.title')
+                  : i18n.t('missedDay.titleMultiple', { count: missedCount })}
+              </Text>
+            </View>
+            <Text style={styles.sessionMeta}>
+              {i18n.t('missedDay.daysSince', { count: pendingResolution.daysSinceLast })}
+            </Text>
+          </View>
+
+          {/* Nudge */}
+          <View style={[styles.missedNudge, { backgroundColor: severityBg }]}>
+            <View style={[styles.missedNudgeAccent, { backgroundColor: severityColor }]} />
+            <Text style={[styles.missedNudgeText, { color: severityColor }]}>
+              {i18n.t(pendingResolution.nudgeKey)}
+            </Text>
+          </View>
+
+          {/* Resolution options */}
+          <View style={styles.missedOptions}>
+            {pendingResolution.options.map((option) => {
+              const OptionIcon = RESOLUTION_ICONS[option.action] || SkipForward;
+              const isRec = option.recommended;
+              return (
+                <PressableScale
+                  key={option.action}
+                  style={[
+                    styles.missedOptionBtn,
+                    isRec && styles.missedOptionBtnRecommended,
+                  ]}
+                  activeScale={0.97}
+                  onPress={() => handleResolution(option.action)}
+                >
+                  <View style={styles.missedOptionRow}>
+                    <OptionIcon
+                      size={16}
+                      color={isRec ? Colors.primary : 'rgba(255,255,255,0.5)'}
+                      strokeWidth={2}
+                    />
+                    <View style={styles.missedOptionContent}>
+                      <View style={styles.missedOptionLabelRow}>
+                        <Text style={[
+                          styles.missedOptionLabel,
+                          isRec && { color: Colors.primary },
+                        ]}>
+                          {i18n.t(option.labelKey)}
+                        </Text>
+                        {isRec && (
+                          <Text style={styles.missedOptionRecBadge}>
+                            {i18n.t('missedDay.recommended')}
+                          </Text>
+                        )}
+                      </View>
+                      <Text style={styles.missedOptionDesc}>
+                        {i18n.t(option.descriptionKey, {
+                          sets: option.meta?.extraSets || 0,
+                        })}
+                      </Text>
+                    </View>
+                  </View>
+                </PressableScale>
+              );
+            })}
+          </View>
+
+          {/* Mesocycle bar (same as active state) */}
+          <View style={styles.mesoBar}>
+            {program.weeks.map((week) => {
+              const weekDays = week.days.length;
+              const completedInWeek = activeState.completedDays.filter(
+                (k) => k.startsWith(`${week.weekNumber}-`)
+              ).length;
+              const weekComplete = completedInWeek >= weekDays;
+              return (
+                <View
+                  key={week.weekNumber}
+                  style={[
+                    styles.mesoSegment,
+                    weekComplete && !week.isDeload && styles.mesoSegmentDone,
+                    weekComplete && week.isDeload && styles.mesoSegmentDeload,
+                  ]}
+                />
+              );
+            })}
+          </View>
+        </View>
       </View>
     );
   }
@@ -715,6 +851,79 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
+  },
+
+  // ─── Missed Day State ───
+  missedNudge: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  missedNudgeAccent: {
+    width: 3,
+    height: 16,
+    borderRadius: 1.5,
+    marginTop: 1,
+  },
+  missedNudgeText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+  missedOptions: {
+    gap: 6,
+  },
+  missedOptionBtn: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  missedOptionBtnRecommended: {
+    borderColor: 'rgba(255,107,53,0.2)',
+    backgroundColor: 'rgba(255,107,53,0.04)',
+  },
+  missedOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  missedOptionContent: {
+    flex: 1,
+    gap: 2,
+  },
+  missedOptionLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  missedOptionLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+  },
+  missedOptionRecBadge: {
+    color: Colors.primary,
+    fontSize: 10,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  missedOptionDesc: {
+    color: 'rgba(255,255,255,0.3)',
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    lineHeight: 16,
   },
 
   // Deload banner

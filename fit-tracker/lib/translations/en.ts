@@ -1092,6 +1092,10 @@ export default {
     prs: 'PRs',
     sessions: 'sessions',
     volume: 'volume',
+    // Week summary — additional
+    noTraining: 'No training this week yet',
+    setsCount: '%{count} sets',
+    prBadge: '%{count} PRs',
   },
 
   // ─── Active Program Card — Schedule Additions ───
@@ -1105,6 +1109,43 @@ export default {
   programOverview_schedule: {
     scheduledDate: '%{date}',
     nextSessionNudge: 'Next session: %{day}',
+  },
+
+  // ─── Missed Day Intelligence ───
+  missedDay: {
+    // Card title
+    title: 'Missed Session',
+    titleMultiple: '%{count} Missed Sessions',
+    daysSince: '%{count}d without training',
+
+    // Resolution options
+    doMissed: 'Do this session',
+    doMissedDesc: 'Catch up on the missed session today',
+    skipContinue: 'Skip and continue',
+    skipContinueDesc: 'Skip the missed session, move to the next one',
+    skipDeloadDesc: 'Deload week — no worries, rest is part of the plan',
+    skipMultipleDesc: 'Too much delay — let\'s restart from the next planned session',
+    merge: 'Merge muscles',
+    mergeDesc: 'Add missed muscles to the next session (+%{sets} sets)',
+    reschedule: 'Reschedule the week',
+    rescheduleDesc: 'Shift remaining sessions starting from today',
+
+    // Nudges
+    nudgeSingle: 'One session behind — no panic, let\'s adapt',
+    nudgeMultiple: 'Several missed sessions — let\'s get back on track smartly',
+    nudgeLongBreak: 'Long break detected — your muscles are fresh, now\'s the time',
+    nudgeDeload: 'Deload week — missing a session has zero impact',
+    nudgeUrgent: 'Several days without training — choose how to resume',
+
+    // Badges
+    recommended: 'Recommended',
+    missedLabel: 'Missed',
+    skippedLabel: 'Skipped',
+    mergedLabel: 'Merged',
+
+    // Recovery context
+    musclesReady: 'Muscles fresh and ready',
+    musclesRecovering: 'Some muscles still recovering',
   },
 
   // ─── Priority Muscle Groups (Onboarding) ───

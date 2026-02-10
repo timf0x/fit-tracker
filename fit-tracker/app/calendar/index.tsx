@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  Zap,
 } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/theme';
 import i18n from '@/lib/i18n';
@@ -14,14 +15,18 @@ import { useWorkoutStore } from '@/stores/workoutStore';
 import { useProgramStore } from '@/stores/programStore';
 import { WeekStrip } from '@/components/calendar/WeekStrip';
 import { DayContentCard } from '@/components/calendar/DayContentCard';
+import { WeekSummaryCard } from '@/components/calendar/WeekSummaryCard';
 import { MonthGrid } from '@/components/calendar/MonthGrid';
 import {
   buildWeekTimeline,
   buildMonthSummary,
 } from '@/lib/timelineEngine';
-import { getWeekBounds } from '@/lib/weeklyVolume';
+import { getWeekBounds, getSetsForWeek } from '@/lib/weeklyVolume';
+import { getWeekSummary, getWeekPRs, getPeriodPRs } from '@/lib/statsHelpers';
 import { buildProgramExercisesParam } from '@/lib/programSession';
 import { getProgressiveWeight } from '@/lib/weightEstimation';
+import { getMuscleLabel, MUSCLE_TO_BODYPART, TARGET_TO_MUSCLE } from '@/lib/muscleMapping';
+import { BODY_ICONS } from '@/components/home/ActiveProgramCard';
 import { exercises } from '@/data/exercises';
 
 const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
@@ -85,15 +90,36 @@ export default function CalendarScreen() {
     [weekDays, selectedDate],
   );
 
-  // Month stats
+  // Week summary data
+  const weekSummary = useMemo(
+    () => getWeekSummary(history, weekOffset),
+    [history, weekOffset],
+  );
+
+  const weekPRs = useMemo(
+    () => getWeekPRs(history, weekOffset),
+    [history, weekOffset],
+  );
+
+  const weeklySets = useMemo(
+    () => getSetsForWeek(history, weekOffset),
+    [history, weekOffset],
+  );
+
+  // Month stats (expanded: sessions, volume, PRs, avg duration)
   const monthStats = useMemo(() => {
     let sessions = 0;
     let totalVolume = 0;
+    let totalSeconds = 0;
+    const monthSessions: typeof history = [];
+
     for (const s of history) {
       if (!s.endTime) continue;
       const d = new Date(s.startTime);
       if (d.getFullYear() === monthYear && d.getMonth() === monthMonth) {
         sessions++;
+        totalSeconds += s.durationSeconds || 0;
+        monthSessions.push(s);
         for (const ex of s.completedExercises) {
           for (const set of ex.sets) {
             if (set.completed) totalVolume += (set.weight || 0) * set.reps;
@@ -101,7 +127,33 @@ export default function CalendarScreen() {
         }
       }
     }
-    return { sessions, totalVolume: Math.round(totalVolume) };
+
+    // Compute PRs for the month
+    const prData = getPeriodPRs(history, monthSessions);
+
+    // Top muscles
+    const muscleSets: Record<string, number> = {};
+    for (const s of monthSessions) {
+      for (const compEx of s.completedExercises) {
+        const ex = exerciseMap.get(compEx.exerciseId);
+        if (!ex) continue;
+        const muscle = TARGET_TO_MUSCLE[ex.target];
+        if (!muscle) continue;
+        muscleSets[muscle] = (muscleSets[muscle] || 0) +
+          compEx.sets.filter((set) => set.completed).length;
+      }
+    }
+    const topMuscles = Object.entries(muscleSets)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+
+    return {
+      sessions,
+      totalVolume: Math.round(totalVolume),
+      avgMinutes: sessions > 0 ? Math.round(totalSeconds / 60 / sessions) : 0,
+      prs: prData.total,
+      topMuscles,
+    };
   }, [history, monthYear, monthMonth]);
 
   // ─── Start Session Handler ───
@@ -241,11 +293,24 @@ export default function CalendarScreen() {
               }}
             />
 
+            {/* Week summary card */}
+            <View style={styles.summarySection}>
+              <WeekSummaryCard
+                summary={weekSummary}
+                prs={weekPRs}
+                setsPerMuscle={weeklySets}
+                currentWeek={activeState?.currentWeek}
+                totalWeeks={program?.totalWeeks}
+              />
+            </View>
+
             {/* Day content */}
             <View style={styles.dayContent}>
               {selectedDay ? (
                 <DayContentCard
                   day={selectedDay}
+                  weekHistory={history}
+                  weeklySets={weeklySets}
                   onStartSession={
                     hasTodayScheduled && selectedDay.isToday
                       ? handleStartSession
@@ -282,14 +347,13 @@ export default function CalendarScreen() {
               onSelectDate={handleMonthDateSelect}
             />
 
-            {/* Month summary stats */}
+            {/* Month summary stats — 4 metrics */}
             <View style={styles.monthStats}>
               <View style={styles.monthStat}>
                 <Text style={styles.monthStatValue}>{monthStats.sessions}</Text>
-                <Text style={styles.monthStatLabel}>
-                  {i18n.t('calendar.monthSessions', { count: monthStats.sessions })}
-                </Text>
+                <Text style={styles.monthStatLabel}>{i18n.t('calendar.sessions')}</Text>
               </View>
+
               {monthStats.totalVolume > 0 && (
                 <>
                   <View style={styles.monthStatDivider} />
@@ -303,7 +367,62 @@ export default function CalendarScreen() {
                   </View>
                 </>
               )}
+
+              {monthStats.prs > 0 && (
+                <>
+                  <View style={styles.monthStatDivider} />
+                  <View style={styles.monthStat}>
+                    <View style={styles.prStatRow}>
+                      <Zap size={12} color={Colors.primary} strokeWidth={2.5} />
+                      <Text style={[styles.monthStatValue, { color: Colors.primary }]}>
+                        {monthStats.prs}
+                      </Text>
+                    </View>
+                    <Text style={styles.monthStatLabel}>{i18n.t('calendar.prs')}</Text>
+                  </View>
+                </>
+              )}
+
+              {monthStats.avgMinutes > 0 && (
+                <>
+                  <View style={styles.monthStatDivider} />
+                  <View style={styles.monthStat}>
+                    <Text style={styles.monthStatValue}>
+                      {monthStats.avgMinutes}{i18n.t('common.minAbbr')}
+                    </Text>
+                    <Text style={styles.monthStatLabel}>{i18n.t('calendar.avgDuration')}</Text>
+                  </View>
+                </>
+              )}
             </View>
+
+            {/* Top muscles */}
+            {monthStats.topMuscles.length > 0 && (
+              <View style={styles.topMuscles}>
+                <Text style={styles.topMusclesLabel}>{i18n.t('calendar.topMuscles')}</Text>
+                {monthStats.topMuscles.map(([muscle, sets], idx) => {
+                  const bodyPart = MUSCLE_TO_BODYPART[muscle] || 'waist';
+                  const iconData = BODY_ICONS[bodyPart] || BODY_ICONS.waist;
+                  const Icon = iconData.Icon;
+                  const rankColors = ['#FF6B35', '#4ADE80', '#3B82F6'];
+
+                  return (
+                    <View key={muscle} style={styles.topMuscleRow}>
+                      <Text style={[styles.topMuscleRank, { color: rankColors[idx] || 'rgba(255,255,255,0.3)' }]}>
+                        {idx + 1}.
+                      </Text>
+                      <Icon size={14} color={rankColors[idx] || 'rgba(255,255,255,0.3)'} strokeWidth={2} />
+                      <Text style={styles.topMuscleName} numberOfLines={1}>
+                        {getMuscleLabel(muscle)}
+                      </Text>
+                      <Text style={styles.topMuscleSets}>
+                        {i18n.t('calendar.setsCount', { count: sets })}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
           </ScrollView>
         )}
       </SafeAreaView>
@@ -386,9 +505,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
+  summarySection: {
+    paddingHorizontal: 20,
+    paddingTop: 4,
+  },
+
   dayContent: {
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 4,
   },
 
   emptyText: {
@@ -400,13 +524,14 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
 
+  // Month stats
   monthStats: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 20,
-    paddingHorizontal: 40,
-    gap: 24,
+    paddingHorizontal: 24,
+    gap: 20,
   },
   monthStat: {
     alignItems: 'center',
@@ -414,13 +539,13 @@ const styles = StyleSheet.create({
   },
   monthStatValue: {
     color: '#FFFFFF',
-    fontSize: 20,
+    fontSize: 18,
     fontFamily: Fonts?.bold,
     fontWeight: '700',
   },
   monthStatLabel: {
     color: 'rgba(255,255,255,0.3)',
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
   },
@@ -428,5 +553,50 @@ const styles = StyleSheet.create({
     width: 1,
     height: 28,
     backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  prStatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+
+  // Top muscles
+  topMuscles: {
+    paddingHorizontal: 20,
+    gap: 8,
+    paddingBottom: 12,
+  },
+  topMusclesLabel: {
+    color: 'rgba(255,255,255,0.25)',
+    fontSize: 10,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  topMuscleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  topMuscleRank: {
+    fontSize: 13,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+    width: 18,
+  },
+  topMuscleName: {
+    flex: 1,
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+  },
+  topMuscleSets: {
+    color: 'rgba(255,255,255,0.3)',
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
   },
 });

@@ -14,7 +14,11 @@ export interface ScheduledDay {
   dayIndex: number;                 // index within the week's days array
   plannedDate: string;              // ISO date "2026-02-16"
   completedDate?: string;           // actual completion ISO date (if done)
+  skippedDate?: string;             // ISO date when marked as skipped
+  skippedReason?: SkipReason;       // why this day was skipped
 }
+
+export type SkipReason = 'user_skip' | 'auto_reschedule' | 'merged' | 'deload_skip';
 
 // ─── User Profile ───
 
@@ -106,6 +110,37 @@ export interface ActiveProgramState {
   schedule?: ProgramSchedule; // calendar mapping (optional for backward compat)
   sessionFeedback?: Record<string, SessionFeedback>; // key = "week-day"
   lastReadiness?: ReadinessCheck;
+  pendingResolution?: MissedDayResolution | null; // set when missed days detected
+}
+
+// ─── Missed Day Resolution ───
+
+export type ResolutionAction =
+  | 'do_missed'       // Do the missed workout now (shift schedule forward)
+  | 'skip_continue'   // Skip missed, continue with next planned
+  | 'merge'           // Merge missed muscles into next session
+  | 'reschedule_week' // Reschedule remaining week from today
+
+export interface ResolutionOption {
+  action: ResolutionAction;
+  labelKey: string;           // i18n key for button label
+  descriptionKey: string;     // i18n key for explanation
+  recommended: boolean;       // highlight as recommended option
+  meta?: {
+    mergedMuscles?: string[]; // for 'merge': which muscles get added
+    extraSets?: number;       // for 'merge': how many sets added
+    newDate?: string;         // for 'reschedule_week': proposed next date
+  };
+}
+
+export interface MissedDayResolution {
+  missedDays: ScheduledDay[];     // days that were missed (past + uncompleted)
+  daysSinceLast: number;          // days since last completed session
+  weekContext: 'early' | 'mid' | 'late'; // where in the program week
+  mesocyclePhase: 'ramp' | 'peak' | 'deload'; // current mesocycle phase
+  options: ResolutionOption[];    // available actions for user
+  nudgeKey: string;               // i18n key for contextual nudge
+  severity: 'info' | 'warning' | 'urgent'; // visual treatment
 }
 
 // ─── Session Feedback (post-session) ───
