@@ -2,8 +2,20 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Colors, Fonts } from '@/constants/theme';
 import { TimelineDay } from '@/lib/timelineEngine';
 import { MUSCLE_TO_BODYPART } from '@/lib/muscleMapping';
-import { BODYPART_DOT_COLORS } from '@/components/calendar/MuscleZoneChip';
 import i18n from '@/lib/i18n';
+
+const BODYPART_DOT_COLORS: Record<string, string> = {
+  chest: '#FF6B35',
+  back: '#3B82F6',
+  'upper legs': '#4ADE80',
+  'lower legs': '#4ADE80',
+  'upper arms': '#A78BFA',
+  'lower arms': '#A78BFA',
+  shoulders: '#FBBF24',
+  waist: '#6B7280',
+  cardio: '#EF4444',
+  neck: '#9CA3AF',
+};
 
 interface WeekStripProps {
   days: TimelineDay[];
