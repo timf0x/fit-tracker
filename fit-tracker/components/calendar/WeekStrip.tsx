@@ -1,12 +1,23 @@
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Colors, Fonts } from '@/constants/theme';
 import { TimelineDay } from '@/lib/timelineEngine';
+import { MUSCLE_TO_BODYPART } from '@/lib/muscleMapping';
+import { BODYPART_DOT_COLORS } from '@/components/calendar/MuscleZoneChip';
 import i18n from '@/lib/i18n';
 
 interface WeekStripProps {
   days: TimelineDay[];
   selectedDate: string;
   onSelectDate: (date: string) => void;
+}
+
+/** Map totalSets → intensity color for the bar */
+function getIntensityColor(totalSets: number): string {
+  if (totalSets === 0) return 'transparent';
+  if (totalSets <= 8) return '#6B7280';        // low — gray
+  if (totalSets <= 16) return '#3B82F6';       // med — blue
+  if (totalSets <= 24) return '#4ADE80';       // high — green
+  return '#FBBF24';                             // very high — amber
 }
 
 export function WeekStrip({ days, selectedDate, onSelectDate }: WeekStripProps) {
@@ -20,15 +31,39 @@ export function WeekStrip({ days, selectedDate, onSelectDate }: WeekStripProps) 
         const isScheduled = !!day.scheduledDay && !day.scheduledDay.completedDate;
         const dateNum = parseInt(day.date.split('-')[2], 10);
 
+        // Intensity bar
+        const intensityColor = getIntensityColor(day.totalSets);
+        const hasBar = day.totalSets > 0;
+
+        // Muscle dots (up to 3, colored by body part)
+        const muscleDots = day.musclesTrained.slice(0, 3).map((m) => {
+          const bp = MUSCLE_TO_BODYPART[m] || 'chest';
+          return BODYPART_DOT_COLORS[bp] || 'rgba(255,255,255,0.25)';
+        });
+
+        // Scheduled future day: show planned muscle targets as dim dots
+        const isScheduledFuture = !day.isPast && !day.isToday && isScheduled && day.programDay;
+        const scheduledDots = isScheduledFuture
+          ? (day.programDay!.muscleTargets || []).slice(0, 3).map((target) => {
+              const bp = MUSCLE_TO_BODYPART[target] || 'chest';
+              return BODYPART_DOT_COLORS[bp] || 'rgba(255,255,255,0.15)';
+            })
+          : [];
+
+        const dotsToShow = muscleDots.length > 0 ? muscleDots : scheduledDots;
+
         return (
           <Pressable
             key={day.date}
             style={styles.dayColumn}
             onPress={() => onSelectDate(day.date)}
           >
+            {/* Day label */}
             <Text style={[styles.dayLabel, day.isToday && styles.dayLabelToday]}>
               {dayLabels[day.dayOfWeek]}
             </Text>
+
+            {/* Date circle */}
             <View
               style={[
                 styles.dateCircle,
@@ -40,21 +75,36 @@ export function WeekStrip({ days, selectedDate, onSelectDate }: WeekStripProps) 
                 style={[
                   styles.dateNum,
                   isSelected && styles.dateNumSelected,
-                  day.isToday && styles.dateNumToday,
+                  day.isToday && !isSelected && styles.dateNumToday,
+                  !hasSessions && !day.isToday && !isSelected && styles.dateNumDim,
                 ]}
               >
                 {dateNum}
               </Text>
             </View>
-            {/* Status dot */}
-            <View style={styles.dotWrap}>
-              {hasSessions ? (
-                <View style={styles.dotTrained} />
-              ) : isScheduled ? (
-                <View style={styles.dotScheduled} />
-              ) : (
-                <View style={styles.dotEmpty} />
-              )}
+
+            {/* Intensity bar */}
+            <View style={styles.barSlot}>
+              {hasBar ? (
+                <View style={[styles.bar, { backgroundColor: intensityColor }]} />
+              ) : isScheduledFuture ? (
+                <View style={styles.barDashed} />
+              ) : null}
+            </View>
+
+            {/* Muscle dots */}
+            <View style={styles.dotsRow}>
+              {dotsToShow.map((color, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.muscleDot,
+                    {
+                      backgroundColor: muscleDots.length > 0 ? color : `${color}40`,
+                    },
+                  ]}
+                />
+              ))}
             </View>
           </Pressable>
         );
@@ -67,13 +117,14 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   dayColumn: {
     alignItems: 'center',
-    gap: 6,
     flex: 1,
+    gap: 4,
+    paddingVertical: 4,
   },
   dayLabel: {
     color: 'rgba(120,120,130,1)',
@@ -99,7 +150,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
   },
   dateNum: {
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(255,255,255,0.7)',
     fontSize: 15,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
@@ -110,28 +161,34 @@ const styles = StyleSheet.create({
   dateNumToday: {
     color: Colors.primary,
   },
-  dotWrap: {
-    height: 6,
+  dateNumDim: {
+    color: 'rgba(255,255,255,0.35)',
+  },
+  barSlot: {
+    height: 4,
+    width: '60%',
     justifyContent: 'center',
   },
-  dotTrained: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.primary,
+  bar: {
+    height: 4,
+    borderRadius: 2,
   },
-  dotScheduled: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-    backgroundColor: 'transparent',
+  barDashed: {
+    height: 4,
+    borderRadius: 2,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(255,255,255,0.15)',
   },
-  dotEmpty: {
+  dotsRow: {
+    flexDirection: 'row',
+    gap: 3,
+    height: 6,
+    alignItems: 'center',
+  },
+  muscleDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'transparent',
   },
 });

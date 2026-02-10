@@ -1067,6 +1067,31 @@ export default {
     todayNudge: '%{name} session planned today',
     nextNudge: 'Next: %{day} — %{name}',
     restNudge: 'Rest day — %{count} muscles recovering',
+    // Week summary card
+    weekSummary: 'WEEK SUMMARY',
+    volumeByMuscle: 'Volume by Muscle',
+    mesocycleProgress: 'Mesocycle',
+    weekProgress: 'Wk. %{n}/%{total}',
+    // Day content — enriched states
+    musclesTrained: 'Muscles Trained',
+    muscleReadiness: 'Muscle Readiness',
+    recoveryStatus: 'Recovery',
+    musclesFresh: '%{count} muscles fresh',
+    musclesRecovering: '%{count} recovering',
+    musclesFatigued: '%{count} fatigued',
+    readyTomorrow: '%{muscles} will be fresh tomorrow',
+    inDays: 'In %{count}d',
+    restDayTitle: 'Rest Day',
+    recoveryProjection: 'Recovery Projection',
+    fresh: 'fresh',
+    recovering: 'recovering',
+    fatigued: 'fatigued',
+    // Month summary — enriched
+    avgDuration: 'avg.',
+    topMuscles: 'Top Muscles',
+    prs: 'PRs',
+    sessions: 'sessions',
+    volume: 'volume',
   },
 
   // ─── Active Program Card — Schedule Additions ───

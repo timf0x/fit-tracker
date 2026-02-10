@@ -1,4 +1,4 @@
-import { useState, useMemo, Fragment } from 'react';
+import { useState, useMemo, useEffect, Fragment } from 'react';
 import {
   View,
   Text,
@@ -54,45 +54,14 @@ export default function ProgramScreen() {
   const [showPacingWarning, setShowPacingWarning] = useState(false);
   const [showReadiness, setShowReadiness] = useState(false);
 
-  if (!program || !activeState) {
-    router.replace('/program/onboarding');
-    return null;
-  }
+  const needsOnboarding = !program || !activeState;
 
-  const programComplete = isProgramComplete();
-
-  const currentWeekData = program.weeks.find(
+  const currentWeekData = program?.weeks.find(
     (w) => w.weekNumber === selectedWeek,
-  );
-  const deloadWeekNum = program.weeks.find((w) => w.isDeload)?.weekNumber;
-  const isCurrentWeek = selectedWeek === activeState.currentWeek;
-
-  // Schedule-aware today detection
-  const todayISO = getTodayISO();
-  const scheduledToday = activeState.schedule
-    ? getPlannedDayForDate(activeState.schedule, todayISO)
-    : null;
-
-  // Determine today's workout day
-  const todayDay = activeState.schedule
-    ? (scheduledToday && !scheduledToday.completedDate
-        ? currentWeekData?.days[scheduledToday.dayIndex]
-        : null)
-    : (isCurrentWeek
-        ? currentWeekData?.days[activeState.currentDayIndex]
-        : null);
-
-  // For schedule-aware: the today dayIndex in the selected week
-  const todayDayIndex = activeState.schedule
-    ? (scheduledToday && scheduledToday.weekNumber === selectedWeek
-        ? scheduledToday.dayIndex
-        : -1)
-    : (isCurrentWeek ? activeState.currentDayIndex : -1);
-
-  const isDayDone = (dayIndex: number) =>
-    activeState.completedDays.includes(`${selectedWeek}-${dayIndex}`);
+  ) ?? null;
 
   const completedWeeks = useMemo(() => {
+    if (!program || !activeState) return [];
     const result: number[] = [];
     for (const week of program.weeks) {
       const totalDays = week.days.length;
@@ -102,11 +71,10 @@ export default function ProgramScreen() {
       if (completedDays >= totalDays) result.push(week.weekNumber);
     }
     return result;
-  }, [program.weeks, activeState.completedDays]);
+  }, [program?.weeks, activeState?.completedDays]);
 
-  // Week summary — completed/total + total sets
   const weekSummary = useMemo(() => {
-    if (!currentWeekData) return { done: 0, total: 0, sets: 0 };
+    if (!currentWeekData || !activeState) return { done: 0, total: 0, sets: 0 };
     const done = activeState.completedDays.filter((k) =>
       k.startsWith(`${selectedWeek}-`),
     ).length;
@@ -115,9 +83,8 @@ export default function ProgramScreen() {
       0,
     );
     return { done, total: currentWeekData.days.length, sets };
-  }, [currentWeekData, selectedWeek, activeState.completedDays]);
+  }, [currentWeekData, selectedWeek, activeState?.completedDays]);
 
-  // RIR target for selected week — extracted from first exercise
   const weekRir = useMemo(() => {
     if (!currentWeekData) return null;
     const firstEx = currentWeekData.days
@@ -126,28 +93,26 @@ export default function ProgramScreen() {
     return firstEx?.targetRir ?? null;
   }, [currentWeekData]);
 
-  // Volume delta vs previous week
   const volumeDelta = useMemo(() => {
-    if (!currentWeekData) return null;
+    if (!currentWeekData || !program) return null;
     const currentTotal = Object.values(currentWeekData.volumeTargets).reduce((s, v) => s + v, 0);
     const prevWeek = program.weeks.find((w) => w.weekNumber === selectedWeek - 1);
     if (!prevWeek) return null;
     const prevTotal = Object.values(prevWeek.volumeTargets).reduce((s, v) => s + v, 0);
     return { delta: currentTotal - prevTotal, prevWeek: selectedWeek - 1 };
-  }, [currentWeekData, selectedWeek, program.weeks]);
+  }, [currentWeekData, selectedWeek, program?.weeks]);
 
-  // Mesocycle phase for smart nudge
   const weekPhase = useMemo(() => {
-    if (!currentWeekData) return 'adaptation';
+    if (!currentWeekData || !program) return 'adaptation';
     if (currentWeekData.isDeload) return 'deload' as const;
-    const training = program.totalWeeks - 1; // exclude deload
+    const training = program.totalWeeks - 1;
     const weekIdx = selectedWeek - 1;
     const progress = weekIdx / Math.max(training - 1, 1);
     if (progress <= 0.15) return 'adaptation' as const;
     if (progress <= 0.55) return 'accumulation' as const;
     if (progress <= 0.85) return 'intensification' as const;
     return 'peak' as const;
-  }, [currentWeekData, selectedWeek, program.totalWeeks]);
+  }, [currentWeekData, selectedWeek, program?.totalWeeks]);
 
   const NUDGE_KEYS: Record<string, string> = {
     adaptation: 'programOverview.nudgeAdaptation',
@@ -180,11 +145,50 @@ export default function ProgramScreen() {
 
   // Pacing check — warn if already completed a session today
   const isLastCompletionToday = useMemo(() => {
-    if (!activeState.lastCompletedAt) return false;
+    if (!activeState?.lastCompletedAt) return false;
     const last = new Date(activeState.lastCompletedAt);
     const now = new Date();
     return last.toDateString() === now.toDateString();
-  }, [activeState.lastCompletedAt]);
+  }, [activeState?.lastCompletedAt]);
+
+  // ─── Redirect to onboarding if no program (after all hooks) ───
+  useEffect(() => {
+    if (needsOnboarding) {
+      router.replace('/program/onboarding');
+    }
+  }, [needsOnboarding]);
+
+  if (needsOnboarding) {
+    return null;
+  }
+
+  // ─── Derived values (safe: program & activeState guaranteed non-null below) ───
+  const programComplete = isProgramComplete();
+
+  const deloadWeekNum = program.weeks.find((w) => w.isDeload)?.weekNumber;
+  const isCurrentWeek = selectedWeek === activeState.currentWeek;
+
+  const todayISO = getTodayISO();
+  const scheduledToday = activeState.schedule
+    ? getPlannedDayForDate(activeState.schedule, todayISO)
+    : null;
+
+  const todayDay = activeState.schedule
+    ? (scheduledToday && !scheduledToday.completedDate
+        ? currentWeekData?.days[scheduledToday.dayIndex]
+        : null)
+    : (isCurrentWeek
+        ? currentWeekData?.days[activeState.currentDayIndex]
+        : null);
+
+  const todayDayIndex = activeState.schedule
+    ? (scheduledToday && scheduledToday.weekNumber === selectedWeek
+        ? scheduledToday.dayIndex
+        : -1)
+    : (isCurrentWeek ? activeState.currentDayIndex : -1);
+
+  const isDayDone = (dayIndex: number) =>
+    activeState.completedDays.includes(`${selectedWeek}-${dayIndex}`);
 
   const handleStartToday = () => {
     if (!todayDay) return;

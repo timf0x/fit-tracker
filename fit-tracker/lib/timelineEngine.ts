@@ -49,6 +49,8 @@ export interface TimelineDay {
 export interface MonthDayData {
   date: string;
   type: 'trained' | 'scheduled' | 'rest' | 'today';
+  totalSets: number;
+  muscleCount: number;
 }
 
 // ─── Helpers ───
@@ -294,11 +296,17 @@ export function buildMonthSummary(
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
 
-  // Index sessions by date
-  const trainedDates = new Set<string>();
+  // Index sessions by date with stats
+  const trainedDates = new Map<string, { totalSets: number; muscles: Set<string> }>();
   for (const session of history) {
     if (!session.endTime) continue;
-    trainedDates.add(toISODate(new Date(session.startTime)));
+    const dateKey = toISODate(new Date(session.startTime));
+    const existing = trainedDates.get(dateKey) || { totalSets: 0, muscles: new Set<string>() };
+    existing.totalSets += getSessionSets(session);
+    for (const m of getSessionMuscles(session)) {
+      existing.muscles.add(m);
+    }
+    trainedDates.set(dateKey, existing);
   }
 
   // Index scheduled dates
@@ -325,7 +333,13 @@ export function buildMonthSummary(
       type = 'scheduled';
     }
 
-    result.push({ date: dateISO, type });
+    const dayStats = trainedDates.get(dateISO);
+    result.push({
+      date: dateISO,
+      type,
+      totalSets: dayStats?.totalSets || 0,
+      muscleCount: dayStats?.muscles.size || 0,
+    });
   }
 
   return result;
