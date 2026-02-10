@@ -2,6 +2,8 @@ import { exercises } from '@/data/exercises';
 import { ALL_BADGES } from '@/data/badges';
 import type { Badge, BadgeProgress, WorkoutSession } from '@/types';
 import { TARGET_TO_MUSCLE } from './muscleMapping';
+import { RP_VOLUME_LANDMARKS } from '@/constants/volumeLandmarks';
+import { getSetsForWeek } from '@/lib/weeklyVolume';
 
 const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
 
@@ -22,6 +24,9 @@ const BOOLEAN_CONDITIONS = new Set([
   'workout_hour_before',
   'workout_hour_after',
   'workout_date',
+  'deload_completed',
+  'all_14_muscles_week',
+  'program_completed',
 ]);
 
 // Composite muscle groups (conditionExtra.muscle → TARGET_TO_MUSCLE keys)
@@ -68,6 +73,18 @@ interface PrecomputedStats {
   maxSessionDurationHours: number;
   weekendStreakWeeks: number;
   workoutDates: Set<number>;
+  // Science badge stats
+  rirLoggedSessions: number;
+  weeksInMav: number;
+  musclesInMavWeek: number;
+  deloadCompleted: number;
+  allMuscles2xWeeks: number;
+  consecutiveBumps: number;
+  readinessChecks: number;
+  feedbackSessions: number;
+  failureSets: number;
+  all14MusclesWeek: number;
+  programCompleted: number;
 }
 
 function getDateKey(d: Date): string {
@@ -459,6 +476,183 @@ function computeStats(history: WorkoutSession[]): PrecomputedStats {
     }
   }
 
+  // ── Science badge stats ──
+
+  // RIR-logged sessions: sessions where at least one completed set has rir defined
+  let rirLoggedSessions = 0;
+  let readinessChecks = 0;
+  let feedbackSessions = 0;
+  let failureSets = 0;
+  for (const session of completed) {
+    if (session.readiness) readinessChecks++;
+    if (session.feedback) feedbackSessions++;
+
+    let hasRir = false;
+    for (const compEx of session.completedExercises) {
+      for (const set of compEx.sets) {
+        if (!set.completed) continue;
+        if (set.rir !== undefined) hasRir = true;
+        if (set.rir === 0) failureSets++;
+      }
+    }
+    if (hasRir) rirLoggedSessions++;
+  }
+
+  // Consecutive weight bumps: for each exercise, track max consecutive weight increases
+  let consecutiveBumps = 0;
+  const exerciseSessionWeights = new Map<string, number[]>();
+  for (const session of sorted) {
+    for (const compEx of session.completedExercises) {
+      let maxWeight = 0;
+      for (const set of compEx.sets) {
+        if (set.completed && set.weight && set.weight > maxWeight) {
+          maxWeight = set.weight;
+        }
+      }
+      if (maxWeight > 0) {
+        if (!exerciseSessionWeights.has(compEx.exerciseId)) {
+          exerciseSessionWeights.set(compEx.exerciseId, []);
+        }
+        exerciseSessionWeights.get(compEx.exerciseId)!.push(maxWeight);
+      }
+    }
+  }
+  for (const weights of exerciseSessionWeights.values()) {
+    let streak = 0;
+    for (let i = 1; i < weights.length; i++) {
+      if (weights[i] > weights[i - 1]) {
+        streak++;
+        if (streak > consecutiveBumps) consecutiveBumps = streak;
+      } else {
+        streak = 0;
+      }
+    }
+  }
+
+  // Volume-based stats using getSetsForWeek and RP_VOLUME_LANDMARKS
+  // Scan up to 24 weeks back to gather weekly volume data
+  const allMuscleKeys = Object.keys(RP_VOLUME_LANDMARKS);
+  const weeklyMuscleSets: Array<Record<string, number>> = [];
+  for (let offset = 0; offset >= -23; offset--) {
+    const sets = getSetsForWeek(history, offset);
+    weeklyMuscleSets.push(sets);
+  }
+
+  // weeksInMav: count of distinct weeks where at least one muscle is in MAV zone
+  let weeksInMav = 0;
+  for (const weekSets of weeklyMuscleSets) {
+    let anyInMav = false;
+    for (const muscle of allMuscleKeys) {
+      const sets = weekSets[muscle] || 0;
+      const lm = RP_VOLUME_LANDMARKS[muscle];
+      if (sets >= lm.mavLow && sets < lm.mrv) {
+        anyInMav = true;
+        break;
+      }
+    }
+    if (anyInMav) weeksInMav++;
+  }
+
+  // musclesInMavWeek: count of muscles in MAV zone in the most recent week (offset 0)
+  let musclesInMavWeek = 0;
+  const currentWeekSets = weeklyMuscleSets[0];
+  for (const muscle of allMuscleKeys) {
+    const sets = currentWeekSets[muscle] || 0;
+    const lm = RP_VOLUME_LANDMARKS[muscle];
+    if (sets >= lm.mavLow && sets < lm.mrv) {
+      musclesInMavWeek++;
+    }
+  }
+
+  // deloadCompleted: check if any week had < 60% of the average volume of the preceding 2 weeks
+  let deloadCompleted = 0;
+  for (let i = 0; i < weeklyMuscleSets.length - 2; i++) {
+    const weekSets = weeklyMuscleSets[i];
+    const prev1 = weeklyMuscleSets[i + 1];
+    const prev2 = weeklyMuscleSets[i + 2];
+
+    let totalCurrent = 0;
+    let totalPrev1 = 0;
+    let totalPrev2 = 0;
+    for (const muscle of allMuscleKeys) {
+      totalCurrent += weekSets[muscle] || 0;
+      totalPrev1 += prev1[muscle] || 0;
+      totalPrev2 += prev2[muscle] || 0;
+    }
+
+    const avgPrev = (totalPrev1 + totalPrev2) / 2;
+    if (avgPrev > 0 && totalCurrent < avgPrev * 0.6 && totalCurrent > 0) {
+      deloadCompleted = 1;
+      break;
+    }
+  }
+
+  // allMuscles2xWeeks: consecutive weeks where all major muscles were trained 2+ times
+  // Major muscles: chest, back (upper back + lats), shoulders, biceps, triceps, quads, hamstrings, glutes
+  const majorMuscles = ['chest', 'upper back', 'lats', 'shoulders', 'biceps', 'triceps', 'quads', 'hamstrings', 'glutes'];
+  // We need frequency (sessions hitting each muscle), not just total sets.
+  // Build per-week per-muscle session counts from history.
+  const weekMuscleFreq = new Map<number, Record<string, number>>();
+  for (let offset = 0; offset >= -23; offset--) {
+    const { start, end } = (() => {
+      const now = new Date();
+      const day = now.getDay();
+      const mondayOff = day === 0 ? 6 : day - 1;
+      const monday = new Date(now);
+      monday.setDate(monday.getDate() - mondayOff + offset * 7);
+      monday.setHours(0, 0, 0, 0);
+      const sunday = new Date(monday);
+      sunday.setDate(sunday.getDate() + 6);
+      sunday.setHours(23, 59, 59, 999);
+      return { start: monday, end: sunday };
+    })();
+    const startMs = start.getTime();
+    const endMs = end.getTime();
+    const freq: Record<string, number> = {};
+
+    for (const session of completed) {
+      const sessionMs = new Date(session.startTime).getTime();
+      if (sessionMs < startMs || sessionMs > endMs) continue;
+      const musclesHitThisSession = new Set<string>();
+      for (const compEx of session.completedExercises) {
+        const exercise = exerciseMap.get(compEx.exerciseId);
+        if (!exercise) continue;
+        const muscle = TARGET_TO_MUSCLE[exercise.target];
+        if (muscle && compEx.sets.some((s) => s.completed)) {
+          musclesHitThisSession.add(muscle);
+        }
+      }
+      for (const muscle of musclesHitThisSession) {
+        freq[muscle] = (freq[muscle] || 0) + 1;
+      }
+    }
+    weekMuscleFreq.set(offset, freq);
+  }
+
+  let allMuscles2xWeeks = 0;
+  for (let offset = 0; offset >= -23; offset--) {
+    const freq = weekMuscleFreq.get(offset) || {};
+    const allMajorHit2x = majorMuscles.every((m) => (freq[m] || 0) >= 2);
+    if (allMajorHit2x) {
+      allMuscles2xWeeks++;
+    } else {
+      break; // consecutive from current week
+    }
+  }
+
+  // all14MusclesWeek: check if any single week had all 14 tracked muscles trained at least once
+  let all14MusclesWeek = 0;
+  for (const weekSets of weeklyMuscleSets) {
+    const trainedMuscles = allMuscleKeys.filter((m) => (weekSets[m] || 0) > 0);
+    if (trainedMuscles.length >= allMuscleKeys.length) {
+      all14MusclesWeek = 1;
+      break;
+    }
+  }
+
+  // programCompleted: requires programStore, handled separately — return 0 for now
+  const programCompleted = 0;
+
   return {
     totalVolumeKg,
     sessionsCount: completed.length,
@@ -483,6 +677,18 @@ function computeStats(history: WorkoutSession[]): PrecomputedStats {
     maxSessionDurationHours,
     weekendStreakWeeks,
     workoutDates,
+    // Science badge stats
+    rirLoggedSessions,
+    weeksInMav,
+    musclesInMavWeek,
+    deloadCompleted,
+    allMuscles2xWeeks,
+    consecutiveBumps,
+    readinessChecks,
+    feedbackSessions,
+    failureSets,
+    all14MusclesWeek,
+    programCompleted,
   };
 }
 
@@ -583,6 +789,40 @@ function evaluateCondition(
 
     case 'workout_date':
       return stats.workoutDates.has(badge.conditionValue) ? 1 : 0;
+
+    // Science badges
+    case 'rir_logged_sessions':
+      return stats.rirLoggedSessions;
+
+    case 'weeks_in_mav':
+      return stats.weeksInMav;
+
+    case 'muscles_in_mav_week':
+      return stats.musclesInMavWeek;
+
+    case 'deload_completed':
+      return stats.deloadCompleted;
+
+    case 'all_muscles_2x_weeks':
+      return stats.allMuscles2xWeeks;
+
+    case 'consecutive_bumps':
+      return stats.consecutiveBumps;
+
+    case 'readiness_checks':
+      return stats.readinessChecks;
+
+    case 'feedback_sessions':
+      return stats.feedbackSessions;
+
+    case 'failure_sets':
+      return stats.failureSets;
+
+    case 'all_14_muscles_week':
+      return stats.all14MusclesWeek;
+
+    case 'program_completed':
+      return stats.programCompleted;
 
     // Social and AI — deferred until Supabase
     default:

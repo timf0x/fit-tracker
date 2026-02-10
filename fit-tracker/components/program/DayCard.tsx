@@ -15,6 +15,7 @@ interface DayCardProps {
   dayNumber: number;
   isToday: boolean;
   isCompleted: boolean;
+  scheduledDate?: string; // e.g. "Lun 17 fév"
   onPress: () => void;
 }
 
@@ -28,6 +29,7 @@ export function DayCard({
   dayNumber,
   isToday,
   isCompleted,
+  scheduledDate,
   onPress,
 }: DayCardProps) {
   const duration = useMemo(() => estimateDuration(day), [day]);
@@ -75,7 +77,11 @@ export function DayCard({
           >
             {resolveDayLabel(day)}
           </Text>
-          <Text style={styles.duration}>~{duration} {i18n.t('common.minAbbr')}</Text>
+          {scheduledDate ? (
+            <Text style={styles.scheduledDate}>{scheduledDate}</Text>
+          ) : (
+            <Text style={styles.duration}>~{duration} {i18n.t('common.minAbbr')}</Text>
+          )}
         </View>
         <View style={styles.iconRow}>
           <View style={styles.iconGroup}>
@@ -159,6 +165,13 @@ const styles = StyleSheet.create({
   },
   duration: {
     color: 'rgba(255,255,255,0.25)',
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    marginLeft: 8,
+  },
+  scheduledDate: {
+    color: 'rgba(255,255,255,0.35)',
     fontSize: 12,
     fontFamily: Fonts?.medium,
     fontWeight: '500',

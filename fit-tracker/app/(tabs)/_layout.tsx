@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Flame, Dumbbell, Settings } from 'lucide-react-native';
+import { Flame, Dumbbell, TrendingUp, Settings } from 'lucide-react-native';
 import { Fonts } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,6 +24,7 @@ const TIMING_CONFIG = {
 const TAB_CONFIG = [
   { name: 'index', labelKey: 'tabs.home', icon: Flame },
   { name: 'workouts', labelKey: 'tabs.workouts', icon: Dumbbell },
+  { name: 'stats', labelKey: 'tabs.stats', icon: TrendingUp },
   { name: 'prefs', labelKey: 'tabs.settings', icon: Settings },
 ];
 
@@ -121,6 +122,7 @@ export default function TabLayout() {
     >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="workouts" />
+      <Tabs.Screen name="stats" />
       <Tabs.Screen name="prefs" />
     </Tabs>
   );

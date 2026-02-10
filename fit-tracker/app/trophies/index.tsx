@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,20 @@ import {
   Pressable,
   Modal,
   Dimensions,
+  FlatList,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withRepeat,
+  withDelay,
+  interpolate,
+  Easing,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle as SvgCircle, Line } from 'react-native-svg';
 import {
   Trophy,
   ArrowLeft,
@@ -77,16 +86,26 @@ import {
   Globe,
   Landmark,
   CalendarCheck,
+  FlaskConical,
+  Activity,
+  Gauge,
+  Award,
+  Crosshair,
+  BarChart3,
+  Swords,
+  Lock,
 } from 'lucide-react-native';
 import { Fonts } from '@/constants/theme';
-import { BADGE_CATEGORIES, TIER_CONFIG, USER_LEVELS } from '@/data/badges';
+import { CircularProgress } from '@/components/CircularProgress';
+import { BadgeIcon } from '@/components/badges/BadgeIcon';
+import { getDisplayableBadges, BADGE_CATEGORIES, TIER_CONFIG, USER_LEVELS } from '@/data/badges';
 import { evaluateAllBadges } from '@/lib/badgeEvaluation';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { useBadgeStore } from '@/stores/badgeStore';
 import i18n, { getLocale } from '@/lib/i18n';
-import type { BadgeProgress, BadgeTier } from '@/types';
+import type { Badge, BadgeProgress, BadgeTier } from '@/types';
 
-/** Pick the locale-aware field from data objects that have both `name`/`nameFr` etc. */
+// ── Locale-aware field access ──
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function loc(obj: any, field: string): string {
   const isFr = getLocale() === 'fr';
@@ -115,7 +134,8 @@ const ICON_MAP: Record<string, IconComponent> = {
   'clipboard-check': ClipboardCheck, 'message-circle': MessageCircle, flag: Flag,
   sunrise: Sunrise, sun: Sun, moon: Moon, timer: Timer, 'party-popper': PartyPopper,
   weight: Weight, mountain: Mountain, globe: Globe, landmark: Landmark,
-  swords: Shield, seedling: Sparkles, sprout: Sparkles,
+  swords: Swords, 'flask-conical': FlaskConical, activity: Activity, gauge: Gauge,
+  award: Award, crosshair: Crosshair, 'bar-chart-3': BarChart3,
 };
 
 function getIcon(name: string): IconComponent {
@@ -138,115 +158,140 @@ function buildSummary(progress: BadgeProgress[]) {
   return { totalBadges: unlocked.length, totalPoints, level: currentLevel, nextLevel, badgesByTier };
 }
 
-// ── SVG Decorative Ring ──
-function BadgeRing({
-  size,
-  isUnlocked,
-  tierColor,
-  children,
-}: {
-  size: number;
-  isUnlocked: boolean;
-  tierColor: string;
-  children: React.ReactNode;
-}) {
-  const center = size / 2;
-  const ringRadius = size / 2 - 3;
-  const tickCount = 36;
-  const tickInner = ringRadius - 3;
-  const tickOuter = ringRadius + 1;
-
-  return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
-        <SvgCircle
-          cx={center}
-          cy={center}
-          r={ringRadius - 6}
-          fill={isUnlocked ? `${tierColor}18` : 'rgba(255,255,255,0.03)'}
-        />
-        <SvgCircle
-          cx={center}
-          cy={center}
-          r={ringRadius}
-          stroke={isUnlocked ? `${tierColor}80` : 'rgba(255,255,255,0.08)'}
-          strokeWidth={1.5}
-          fill="transparent"
-        />
-        {Array.from({ length: tickCount }).map((_, i) => {
-          const angle = (i / tickCount) * 2 * Math.PI - Math.PI / 2;
-          const isMajor = i % 9 === 0;
-          const inner = isMajor ? tickInner - 2 : tickInner;
-          return (
-            <Line
-              key={i}
-              x1={center + inner * Math.cos(angle)}
-              y1={center + inner * Math.sin(angle)}
-              x2={center + tickOuter * Math.cos(angle)}
-              y2={center + tickOuter * Math.sin(angle)}
-              stroke={isUnlocked ? `${tierColor}50` : 'rgba(255,255,255,0.06)'}
-              strokeWidth={isMajor ? 1.5 : 0.8}
-            />
-          );
-        })}
-      </Svg>
-      {children}
-    </View>
-  );
+// ── Tier color for the current level ──
+function getLevelTier(points: number): BadgeTier {
+  if (points >= 3000) return 'platinum';
+  if (points >= 800) return 'gold';
+  if (points >= 150) return 'silver';
+  return 'bronze';
 }
 
-// ── Badge Card (4-col grid item) ──
-const BADGE_SIZE = (SCREEN_WIDTH - 48 - 36) / 4;
+// ── Category order (Science first) ──
+const CATEGORY_ORDER: string[] = [
+  'science', 'volume', 'consistency', 'strength', 'mastery', 'explorer', 'special',
+];
 
-function BadgeCard({ progress, onPress }: { progress: BadgeProgress; onPress: () => void }) {
+// ── Badge grid sizing ──
+const GRID_PADDING = 20;
+const GRID_GAP = 10;
+const GRID_COLUMNS = 4;
+const BADGE_CELL_SIZE = (SCREEN_WIDTH - GRID_PADDING * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
+
+// ── Showcase item sizing ──
+const SHOWCASE_ICON_SIZE = 72;
+
+// ============================================
+// SECTION: Badge Detail Modal (redesigned)
+// ============================================
+
+function BadgeDetailModal({
+  visible,
+  progress,
+  onClose,
+}: {
+  visible: boolean;
+  progress: BadgeProgress | null;
+  onClose: () => void;
+}) {
+  if (!progress) return null;
   const { badge, isUnlocked, progressPercent } = progress;
   const tierColor = TIER_CONFIG[badge.tier].color;
-  const IconComp = getIcon(badge.icon);
-  const ringSize = Math.min(BADGE_SIZE - 8, 68);
+  const tierLabel = loc(TIER_CONFIG[badge.tier], 'label');
+  const catMeta = BADGE_CATEGORIES.find((c) => c.id === badge.category);
+  const CatIcon = catMeta ? getIcon(catMeta.icon) : null;
+
+  const unlockDate = isUnlocked && progress.unlockedAt
+    ? new Date(progress.unlockedAt).toLocaleDateString(getLocale() === 'fr' ? 'fr-FR' : 'en-US', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    : null;
 
   return (
-    <Pressable style={[styles.badgeCard, { width: BADGE_SIZE }]} onPress={onPress}>
-      {isUnlocked && (
-        <View
-          style={[styles.badgeGlow, { shadowColor: tierColor }]}
-          pointerEvents="none"
-        />
-      )}
-      <BadgeRing size={ringSize} isUnlocked={isUnlocked} tierColor={tierColor}>
-        <IconComp
-          size={ringSize * 0.35}
-          color={isUnlocked ? tierColor : 'rgba(100,100,110,1)'}
-          strokeWidth={isUnlocked ? 2.2 : 1.5}
-        />
-      </BadgeRing>
-      <Text
-        style={[styles.badgeName, !isUnlocked && { color: 'rgba(100,100,110,1)' }]}
-        numberOfLines={2}
-      >
-        {loc(badge, 'name')}
-      </Text>
-      <View style={styles.progressBarBg}>
-        {isUnlocked ? (
-          <View style={[styles.tierDot, { backgroundColor: tierColor }]} />
-        ) : (
-          <>
-            <View style={[styles.tierDotSmall, { backgroundColor: TIER_CONFIG[badge.tier].color + '60' }]} />
-            {progressPercent > 5 && (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+          {/* Close button */}
+          <Pressable style={styles.modalClose} onPress={onClose}>
+            <X size={22} color="rgba(160,150,140,1)" />
+          </Pressable>
+
+          {/* Large badge icon */}
+          <View style={styles.modalBadgeContainer}>
+            {isUnlocked && (
               <View
                 style={[
-                  styles.progressBarFill,
-                  { width: `${Math.min(progressPercent, 100)}%`, backgroundColor: tierColor },
+                  styles.modalBadgeGlow,
+                  { shadowColor: tierColor, backgroundColor: `${tierColor}10` },
                 ]}
               />
             )}
-          </>
-        )}
-      </View>
-    </Pressable>
+            <BadgeIcon badge={badge} size={140} isUnlocked={isUnlocked} showProgress={progressPercent / 100} />
+          </View>
+
+          {/* Tier + Category labels (NO pills/borders, plain text) */}
+          <View style={styles.modalMeta}>
+            <Text style={[styles.modalTierLabel, { color: tierColor }]}>
+              {tierLabel.toUpperCase()}
+            </Text>
+            {catMeta && (
+              <View style={styles.modalCatRow}>
+                <View style={styles.modalMetaDot} />
+                {CatIcon && <CatIcon size={13} color="rgba(160,150,140,1)" strokeWidth={2} />}
+                <Text style={styles.modalCatLabel}>{loc(catMeta, 'label')}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Name + Description */}
+          <Text style={styles.modalBadgeName}>{loc(badge, 'name')}</Text>
+          <Text style={styles.modalDescription}>{loc(badge, 'description')}</Text>
+
+          {/* Unlocked state */}
+          {isUnlocked && unlockDate ? (
+            <View style={styles.modalUnlockedRow}>
+              <CheckCircle size={16} color="#4ADE80" strokeWidth={2.5} />
+              <Text style={styles.modalUnlockedText}>
+                {i18n.t('trophies.unlockedOn', { date: unlockDate })}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.modalProgressSection}>
+              <View style={styles.modalProgressBarBg}>
+                <LinearGradient
+                  colors={[tierColor, `${tierColor}80`]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[
+                    styles.modalProgressBarFill,
+                    { width: `${Math.min(progressPercent, 100)}%` },
+                  ]}
+                />
+              </View>
+              <Text style={[styles.modalProgressPct, { color: tierColor }]}>
+                {Math.round(progressPercent)}%
+              </Text>
+            </View>
+          )}
+
+          {/* Points */}
+          <View style={styles.modalPointsRow}>
+            <Sparkles size={16} color="#f97316" strokeWidth={2.5} />
+            <Text style={styles.modalPointsText}>
+              {badge.points} {i18n.t('trophies.points')}
+            </Text>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
-// ── Category Section Header ──
+// ============================================
+// SECTION: Category Header
+// ============================================
+
 function CategoryHeader({
   category,
   unlockedCount,
@@ -270,91 +315,10 @@ function CategoryHeader({
   );
 }
 
-// ── Detail Bottom Sheet Modal ──
-function BadgeDetailModal({
-  visible,
-  progress,
-  onClose,
-}: {
-  visible: boolean;
-  progress: BadgeProgress | null;
-  onClose: () => void;
-}) {
-  if (!progress) return null;
-  const { badge, isUnlocked, progressPercent } = progress;
-  const tierColor = TIER_CONFIG[badge.tier].color;
-  const tierLabel = loc(TIER_CONFIG[badge.tier], 'label');
-  const IconComp = getIcon(badge.icon);
-  const catMeta = BADGE_CATEGORIES.find((c) => c.id === badge.category);
+// ============================================
+// MAIN SCREEN
+// ============================================
 
-  const unlockDate = isUnlocked && progress.unlockedAt
-    ? new Date(progress.unlockedAt).toLocaleDateString(getLocale() === 'fr' ? 'fr-FR' : 'en-US', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      })
-    : null;
-
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <View style={styles.modalSheet}>
-          <Pressable style={styles.modalClose} onPress={onClose}>
-            <X size={22} color="rgba(160,150,140,1)" />
-          </Pressable>
-          <View style={styles.modalBadgeContainer}>
-            {isUnlocked && (
-              <View style={[styles.modalBadgeGlow, { shadowColor: tierColor, backgroundColor: `${tierColor}10` }]} />
-            )}
-            <BadgeRing size={140} isUnlocked={isUnlocked} tierColor={tierColor}>
-              <IconComp
-                size={48}
-                color={isUnlocked ? tierColor : 'rgba(100,100,110,1)'}
-                strokeWidth={isUnlocked ? 2 : 1.5}
-              />
-            </BadgeRing>
-          </View>
-          <View style={styles.modalMeta}>
-            <View style={[styles.modalPill, { backgroundColor: `${tierColor}20`, borderColor: `${tierColor}40` }]}>
-              <Text style={[styles.modalPillText, { color: tierColor }]}>{tierLabel.toUpperCase()}</Text>
-            </View>
-            <View style={[styles.modalPill, { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.08)' }]}>
-              {catMeta && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  {React.createElement(getIcon(catMeta.icon), { size: 12, color: 'rgba(200,200,200,1)', strokeWidth: 2 })}
-                  <Text style={[styles.modalPillText, { color: 'rgba(200,200,200,1)' }]}>{loc(catMeta, 'label')}</Text>
-                </View>
-              )}
-            </View>
-          </View>
-          <Text style={styles.modalBadgeName}>{loc(badge, 'name')}</Text>
-          <Text style={styles.modalDescription}>{loc(badge, 'description')}</Text>
-          {isUnlocked && unlockDate ? (
-            <View style={styles.modalUnlockedPill}>
-              <CheckCircle size={16} color="#4ADE80" strokeWidth={2.5} />
-              <Text style={styles.modalUnlockedText}>{i18n.t('trophies.unlockedOn', { date: unlockDate })}</Text>
-            </View>
-          ) : (
-            <View style={styles.modalProgressSection}>
-              <View style={styles.modalProgressBarBg}>
-                <View
-                  style={[styles.modalProgressBarFill, { width: `${Math.min(progressPercent, 100)}%`, backgroundColor: tierColor }]}
-                />
-              </View>
-              <Text style={styles.modalProgressPct}>{Math.round(progressPercent)}%</Text>
-            </View>
-          )}
-          <View style={styles.modalPointsRow}>
-            <Sparkles size={16} color="#f97316" strokeWidth={2.5} />
-            <Text style={styles.modalPointsText}>{badge.points} {i18n.t('trophies.points')}</Text>
-          </View>
-        </View>
-      </Pressable>
-    </Modal>
-  );
-}
-
-// ── Main Screen ──
 export default function TrophiesScreen() {
   const router = useRouter();
   const [detailBadge, setDetailBadge] = useState<BadgeProgress | null>(null);
@@ -369,36 +333,199 @@ export default function TrophiesScreen() {
     if (history.length > 0) checkBadges(history);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Filter to displayable badges only
+  const displayableBadgeIds = useMemo(() => {
+    const badges = getDisplayableBadges();
+    return new Set(badges.map((b) => b.id));
+  }, []);
+
   const allProgress = useMemo(
-    () => evaluateAllBadges(history, unlockedBadges),
-    [history, unlockedBadges],
+    () => evaluateAllBadges(history, unlockedBadges).filter((p) => displayableBadgeIds.has(p.badge.id)),
+    [history, unlockedBadges, displayableBadgeIds],
   );
+
   const summary = useMemo(() => buildSummary(allProgress), [allProgress]);
 
+  // Recent unlocks (last 5, most recent first)
+  const recentUnlocks = useMemo(() => {
+    return allProgress
+      .filter((p) => p.isUnlocked && p.unlockedAt)
+      .sort((a, b) => new Date(b.unlockedAt!).getTime() - new Date(a.unlockedAt!).getTime())
+      .slice(0, 5);
+  }, [allProgress]);
+
+  // Next goals (3 closest to unlock, excluding 0%)
+  const nextGoals = useMemo(() => {
+    return allProgress
+      .filter((p) => !p.isUnlocked && p.progressPercent > 0)
+      .sort((a, b) => b.progressPercent - a.progressPercent)
+      .slice(0, 3);
+  }, [allProgress]);
+
+  // Category sections, ordered by CATEGORY_ORDER
   const categorySections = useMemo(() => {
-    return BADGE_CATEGORIES.map((cat) => {
+    return CATEGORY_ORDER.map((catId) => {
+      const cat = BADGE_CATEGORIES.find((c) => c.id === catId);
+      if (!cat) return null;
       const badges = allProgress.filter((p) => p.badge.category === cat.id);
       const unlockedCount = badges.filter((p) => p.isUnlocked).length;
       return { category: cat, badges, unlockedCount, totalCount: badges.length };
-    });
+    }).filter(Boolean) as {
+      category: (typeof BADGE_CATEGORIES)[number];
+      badges: BadgeProgress[];
+      unlockedCount: number;
+      totalCount: number;
+    }[];
   }, [allProgress]);
 
-  const LevelIcon = getIcon(summary.level.icon);
+  const currentTier = getLevelTier(summary.totalPoints);
   const progressToNext = summary.nextLevel
     ? ((summary.totalPoints - summary.level.minPoints) /
         (summary.nextLevel.minPoints - summary.level.minPoints)) * 100
     : 100;
+  const pointsToNext = summary.nextLevel
+    ? summary.nextLevel.minPoints - summary.totalPoints
+    : 0;
+
+  const openDetail = useCallback((p: BadgeProgress) => {
+    setDetailBadge(p);
+    setShowDetail(true);
+  }, []);
+
+  // Build the virtual level badge for BadgeIcon rendering
+  const levelBadge: Badge = useMemo(() => ({
+    id: 'level',
+    name: summary.level.name,
+    nameFr: summary.level.nameFr,
+    category: 'special',
+    tier: currentTier,
+    icon: summary.level.icon,
+    points: 0,
+    isSecret: false,
+    description: '',
+    descriptionFr: '',
+    conditionType: 'sessions_count',
+    conditionValue: 0,
+  }), [summary.level, currentTier]);
+
+  // ══════════════════════════════════════════
+  // ANIMATIONS — Making the Forge breathe
+  // ══════════════════════════════════════════
+  const sinEase = Easing.inOut(Easing.sin);
+
+  // ── Ambient orb breathing (3 independent cycles) ──
+  const orbGoldBreath = useSharedValue(0);
+  const orbSilverBreath = useSharedValue(0);
+  const orbBronzeBreath = useSharedValue(0);
+
+  // ── Hero entrance (mount once) ──
+  const heroEnter = useSharedValue(0);
+
+  // ── Hero aura glow breathing ──
+  const auraPulse = useSharedValue(0);
+
+  // ── Showcase entrance (slide from right) ──
+  const showcaseEnter = useSharedValue(0);
+
+  // ── Forge nodes entrance (rise up) ──
+  const forgeEnter = useSharedValue(0);
+
+  // ── Closest badge urgency pulse ──
+  const closestPulse = useSharedValue(0);
+
+  useEffect(() => {
+    // Breathing orbs — desynchronized organic rhythms
+    orbGoldBreath.value = withRepeat(
+      withTiming(1, { duration: 12000, easing: sinEase }), -1, true,
+    );
+    orbSilverBreath.value = withDelay(4000, withRepeat(
+      withTiming(1, { duration: 16000, easing: sinEase }), -1, true,
+    ));
+    orbBronzeBreath.value = withDelay(2000, withRepeat(
+      withTiming(1, { duration: 10000, easing: sinEase }), -1, true,
+    ));
+
+    // Hero entrance — scale + fade in
+    heroEnter.value = withDelay(100, withTiming(1, {
+      duration: 700, easing: Easing.out(Easing.cubic),
+    }));
+
+    // Hero aura — continuous breathing glow
+    auraPulse.value = withDelay(800, withRepeat(
+      withTiming(1, { duration: 4000, easing: sinEase }), -1, true,
+    ));
+
+    // Showcase — slide in from right
+    showcaseEnter.value = withDelay(400, withTiming(1, {
+      duration: 600, easing: Easing.out(Easing.cubic),
+    }));
+
+    // Forge nodes — float up
+    forgeEnter.value = withDelay(600, withTiming(1, {
+      duration: 650, easing: Easing.out(Easing.cubic),
+    }));
+
+    // Closest badge — urgency pulse
+    closestPulse.value = withDelay(1200, withRepeat(
+      withTiming(1, { duration: 2500, easing: sinEase }), -1, true,
+    ));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Animated styles ──
+  const orbGoldStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: interpolate(orbGoldBreath.value, [0, 1], [0.9, 1.15]) },
+      { translateX: interpolate(orbGoldBreath.value, [0, 1], [-8, 8]) },
+    ],
+  }));
+  const orbSilverStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: interpolate(orbSilverBreath.value, [0, 1], [0.95, 1.1]) },
+      { translateY: interpolate(orbSilverBreath.value, [0, 1], [-6, 6]) },
+    ],
+  }));
+  const orbBronzeStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: interpolate(orbBronzeBreath.value, [0, 1], [0.92, 1.12]) },
+      { translateX: interpolate(orbBronzeBreath.value, [0, 1], [5, -5]) },
+    ],
+  }));
+
+  const heroAnimStyle = useAnimatedStyle(() => ({
+    opacity: heroEnter.value,
+    transform: [{ scale: interpolate(heroEnter.value, [0, 1], [0.85, 1]) }],
+  }));
+
+  const auraAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(auraPulse.value, [0, 1], [0.88, 1.12]) }],
+    opacity: interpolate(auraPulse.value, [0, 1], [0.6, 1.0]),
+  }));
+
+  const showcaseAnimStyle = useAnimatedStyle(() => ({
+    opacity: showcaseEnter.value,
+    transform: [{ translateX: interpolate(showcaseEnter.value, [0, 1], [40, 0]) }],
+  }));
+
+  const forgeAnimStyle = useAnimatedStyle(() => ({
+    opacity: forgeEnter.value,
+    transform: [{ translateY: interpolate(forgeEnter.value, [0, 1], [24, 0]) }],
+  }));
+
+  const closestPulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(closestPulse.value, [0, 1], [0.96, 1.06]) }],
+    opacity: interpolate(closestPulse.value, [0, 1], [0.5, 1.0]),
+  }));
 
   return (
     <View style={styles.container}>
-      {/* Ambient orbs */}
-      <View style={styles.orbOrange} pointerEvents="none" />
-      <View style={styles.orbGold} pointerEvents="none" />
-      <View style={styles.orbBrown} pointerEvents="none" />
+      {/* Ambient orbs — breathing like the home screen */}
+      <Animated.View style={[styles.orbGold, orbGoldStyle]} pointerEvents="none" />
+      <Animated.View style={[styles.orbSilver, orbSilverStyle]} pointerEvents="none" />
+      <Animated.View style={[styles.orbBronze, orbBronzeStyle]} pointerEvents="none" />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          {/* Header with back button */}
+          {/* ── Header ── */}
           <View style={styles.header}>
             <Pressable style={styles.backButton} onPress={() => router.back()}>
               <ArrowLeft size={22} color="#fff" strokeWidth={2} />
@@ -408,58 +535,168 @@ export default function TrophiesScreen() {
             <View style={{ width: 40 }} />
           </View>
 
-          {/* Level Card */}
-          <View style={styles.levelCard}>
-            <View style={styles.levelTop}>
-              <View style={styles.levelIconBox}>
-                <LevelIcon size={28} color="#f97316" strokeWidth={2.2} />
-              </View>
-              <View style={styles.levelInfo}>
-                <Text style={styles.levelLabel}>{i18n.t('trophies.level')}</Text>
-                <Text style={styles.levelName}>{loc(summary.level, 'name')}</Text>
-              </View>
-              <View style={styles.levelPtsBlock}>
-                <Text style={styles.levelPtsBig}>{summary.totalPoints}</Text>
-                <Text style={styles.levelPtsLabel}>{i18n.t('trophies.pts')}</Text>
-              </View>
-            </View>
-            <View style={styles.levelProgressRow}>
-              <View style={styles.levelProgressBarBg}>
-                <LinearGradient
-                  colors={['#f97316', '#eab308']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={[styles.levelProgressBarFill, { width: `${progressToNext}%` }]}
-                />
+          {/* ── Forge Identity — Immersive Level Display ── */}
+          <Animated.View style={[styles.heroSection, heroAnimStyle]}>
+            {/* Golden aura glow — breathing */}
+            <Animated.View style={[styles.heroGlow, auraAnimStyle]} pointerEvents="none" />
+
+            {/* Circular progress ring + badge centered inside */}
+            <View style={styles.heroRingContainer}>
+              <CircularProgress
+                size={156}
+                strokeWidth={5}
+                progress={progressToNext / 100}
+                color="#FFD700"
+              />
+              <View style={styles.heroBadgeOverlay}>
+                <BadgeIcon badge={levelBadge} size={104} isUnlocked />
               </View>
             </View>
-            <View style={styles.levelProgressLabels}>
-              <Text style={styles.levelPctText}>{Math.round(progressToNext)}%</Text>
-              {summary.nextLevel && (
-                <Text style={styles.levelNextText}>
-                  {summary.nextLevel.minPoints - summary.totalPoints} {i18n.t('trophies.ptsTo')} {loc(summary.nextLevel, 'name')}
-                </Text>
+
+            {/* Level name */}
+            <Text style={styles.heroLevelName}>{loc(summary.level, 'name')}</Text>
+
+            {/* Points + next level */}
+            <View style={styles.heroPointsRow}>
+              <Sparkles size={13} color="rgba(255,215,0,0.6)" strokeWidth={2.2} />
+              <Text style={styles.heroPointsText}>
+                {summary.totalPoints} {i18n.t('trophies.points')}
+              </Text>
+            </View>
+            {summary.nextLevel && (
+              <Text style={styles.heroNextHint}>
+                {pointsToNext} {i18n.t('trophies.ptsTo')} {loc(summary.nextLevel, 'name')}
+              </Text>
+            )}
+
+            {/* Tier orbs — only tiers with unlocks */}
+            <View style={styles.heroTierRow}>
+              {(['bronze', 'silver', 'gold', 'platinum'] as BadgeTier[]).map((tier) =>
+                summary.badgesByTier[tier] > 0 ? (
+                  <View key={tier} style={styles.heroTierItem}>
+                    <View
+                      style={[
+                        styles.heroTierDot,
+                        {
+                          backgroundColor: TIER_CONFIG[tier].color,
+                          shadowColor: TIER_CONFIG[tier].color,
+                          shadowOpacity: 0.4,
+                          shadowRadius: 6,
+                          shadowOffset: { width: 0, height: 0 },
+                        },
+                      ]}
+                    />
+                    <Text style={[styles.heroTierCount, { color: TIER_CONFIG[tier].color }]}>
+                      {summary.badgesByTier[tier]}
+                    </Text>
+                  </View>
+                ) : null,
               )}
             </View>
-            <View style={styles.levelDivider} />
-            <View style={styles.levelStatsRow}>
-              <View style={styles.levelStatItem}>
-                <Text style={styles.levelStatNumber}>{summary.totalBadges}</Text>
-                <Text style={styles.levelStatLabel}>{i18n.t('trophies.unlocked')}</Text>
-              </View>
-              <View style={styles.levelStatSep} />
-              {(['bronze', 'silver', 'gold', 'platinum'] as BadgeTier[]).map((tier) => (
-                <View key={tier} style={styles.levelStatItem}>
-                  <View style={[styles.tierDotLarge, { backgroundColor: TIER_CONFIG[tier].color }]} />
-                  <Text style={[styles.levelStatNumber, { color: TIER_CONFIG[tier].color }]}>
-                    {summary.badgesByTier[tier]}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
+          </Animated.View>
 
-          {/* Category Sections */}
+          {/* ── Showcase Row: Recent Achievements ── */}
+          <Animated.View style={[styles.sectionContainer, showcaseAnimStyle]}>
+            <Text style={styles.sectionTitle}>
+              {i18n.t('trophies.recentAchievements')}
+            </Text>
+            {recentUnlocks.length > 0 ? (
+              <FlatList
+                data={recentUnlocks}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(item) => item.badge.id}
+                contentContainerStyle={styles.showcaseList}
+                renderItem={({ item }) => {
+                  const tierColor = TIER_CONFIG[item.badge.tier].color;
+                  return (
+                    <Pressable
+                      style={styles.showcaseItem}
+                      onPress={() => openDetail(item)}
+                    >
+                      <View style={[styles.showcaseGlow, { shadowColor: tierColor }]}>
+                        <BadgeIcon
+                          badge={item.badge}
+                          size={SHOWCASE_ICON_SIZE}
+                          isUnlocked
+                        />
+                      </View>
+                      <Text style={styles.showcaseName} numberOfLines={2}>
+                        {loc(item.badge, 'name')}
+                      </Text>
+                    </Pressable>
+                  );
+                }}
+              />
+            ) : (
+              <View style={styles.noUnlocksContainer}>
+                <Lock size={20} color="rgba(100,100,110,1)" strokeWidth={2} />
+                <Text style={styles.noUnlocksText}>
+                  {i18n.t('trophies.noUnlocks')}
+                </Text>
+              </View>
+            )}
+          </Animated.View>
+
+          {/* ── Forge Progress — Radial Nodes ── */}
+          {nextGoals.length > 0 && (
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>
+                {i18n.t('trophies.nextGoals')}
+              </Text>
+              <Animated.View style={[styles.forgeProgressRow, forgeAnimStyle]}>
+                {nextGoals.map((item, idx) => {
+                  const isClosest = idx === 0;
+                  const nodeSize = isClosest ? 72 : 56;
+                  const ringSize = nodeSize + 24;
+                  const tierColor = TIER_CONFIG[item.badge.tier].color;
+                  return (
+                    <Pressable
+                      key={item.badge.id}
+                      style={styles.forgeNode}
+                      onPress={() => openDetail(item)}
+                    >
+                      {/* Tier glow behind closest badge — pulsing urgency */}
+                      {isClosest && (
+                        <Animated.View
+                          style={[
+                            styles.forgeNodeGlow,
+                            { shadowColor: tierColor, backgroundColor: `${tierColor}08` },
+                            closestPulseStyle,
+                          ]}
+                          pointerEvents="none"
+                        />
+                      )}
+                      <View style={[styles.forgeRingContainer, { width: ringSize, height: ringSize }]}>
+                        <CircularProgress
+                          size={ringSize}
+                          strokeWidth={3}
+                          progress={item.progressPercent / 100}
+                          color={tierColor}
+                        />
+                        <View style={styles.forgeBadgeOverlay}>
+                          <BadgeIcon
+                            badge={item.badge}
+                            size={nodeSize}
+                            isUnlocked={false}
+                            showProgress={item.progressPercent / 100}
+                          />
+                        </View>
+                      </View>
+                      <Text style={styles.forgeNodeName} numberOfLines={2}>
+                        {loc(item.badge, 'name')}
+                      </Text>
+                      <Text style={[styles.forgeNodePct, { color: tierColor }]}>
+                        {Math.round(item.progressPercent)}%
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </Animated.View>
+            </View>
+          )}
+
+          {/* ── Category Collections ── */}
           {categorySections.map((section) => (
             <View key={section.category.id} style={styles.catSection}>
               <CategoryHeader
@@ -470,21 +707,43 @@ export default function TrophiesScreen() {
               <View style={styles.badgeGrid}>
                 {section.badges
                   .filter((p) => !p.badge.isSecret || p.isUnlocked)
-                  .map((p) => (
-                    <BadgeCard
-                      key={p.badge.id}
-                      progress={p}
-                      onPress={() => {
-                        setDetailBadge(p);
-                        setShowDetail(true);
-                      }}
-                    />
-                  ))}
+                  .map((p) => {
+                    const tierColor = TIER_CONFIG[p.badge.tier].color;
+                    return (
+                      <Pressable
+                        key={p.badge.id}
+                        style={[styles.badgeCell, { width: BADGE_CELL_SIZE }]}
+                        onPress={() => openDetail(p)}
+                      >
+                        {p.isUnlocked && (
+                          <View
+                            style={[styles.badgeCellGlow, { shadowColor: tierColor }]}
+                            pointerEvents="none"
+                          />
+                        )}
+                        <BadgeIcon
+                          badge={p.badge}
+                          size={BADGE_CELL_SIZE - 12}
+                          isUnlocked={p.isUnlocked}
+                          showProgress={!p.isUnlocked ? p.progressPercent / 100 : undefined}
+                        />
+                        <Text
+                          style={[
+                            styles.badgeCellName,
+                            !p.isUnlocked && { color: 'rgba(100,100,110,1)' },
+                          ]}
+                          numberOfLines={2}
+                        >
+                          {loc(p.badge, 'name')}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
               </View>
             </View>
           ))}
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: 48 }} />
         </ScrollView>
       </SafeAreaView>
 
@@ -497,54 +756,65 @@ export default function TrophiesScreen() {
   );
 }
 
-// ── Styles ──
+// ============================================
+// STYLES
+// ============================================
+
 const styles = StyleSheet.create({
+  // ── Container ──
   container: {
     flex: 1,
     backgroundColor: '#0C0C0C',
     position: 'relative',
     overflow: 'hidden',
   },
-  orbOrange: {
-    position: 'absolute',
-    top: -80,
-    right: -80,
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: 'rgba(249, 115, 22, 0.10)',
-    shadowColor: '#f97316',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 100,
-  },
+
+  // ── Ambient orbs ──
   orbGold: {
     position: 'absolute',
-    top: 400,
-    left: -100,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: 'rgba(234, 179, 8, 0.06)',
-    shadowColor: '#eab308',
+    top: -60,
+    right: -80,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(255, 215, 0, 0.07)',
+    shadowColor: '#FFD700',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.12,
     shadowRadius: 100,
   },
-  orbBrown: {
+  orbSilver: {
     position: 'absolute',
-    top: 80,
-    right: -40,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(139, 69, 19, 0.06)',
-    shadowColor: '#8B4513',
+    top: 380,
+    left: -100,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(192, 192, 192, 0.05)',
+    shadowColor: '#C0C0C0',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.08,
+    shadowRadius: 90,
+  },
+  orbBronze: {
+    position: 'absolute',
+    top: 700,
+    right: -60,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(205, 127, 50, 0.06)',
+    shadowColor: '#CD7F32',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.10,
     shadowRadius: 80,
   },
-  scrollContent: { paddingBottom: 40 },
+
+  scrollContent: {
+    paddingBottom: 40,
+  },
+
+  // ── Header ──
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -569,117 +839,180 @@ const styles = StyleSheet.create({
     fontFamily: Fonts?.bold,
     fontWeight: '700',
   },
-  levelCard: {
-    marginHorizontal: 20,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    padding: 20,
-    gap: 14,
-  },
-  levelTop: {
-    flexDirection: 'row',
+
+  // ── Forge Identity (Immersive Level) ──
+  heroSection: {
     alignItems: 'center',
-    gap: 14,
+    paddingTop: 8,
+    paddingBottom: 12,
+    gap: 10,
   },
-  levelIconBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: 'rgba(249, 115, 22, 0.15)',
+  heroGlow: {
+    position: 'absolute',
+    top: -10,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255,215,0,0.04)',
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 70,
+  },
+  heroRingContainer: {
+    width: 156,
+    height: 156,
+  },
+  heroBadgeOverlay: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  levelInfo: { flex: 1 },
-  levelLabel: {
-    color: 'rgba(160,150,140,1)',
-    fontSize: 11,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    letterSpacing: 1.2,
-  },
-  levelName: {
-    color: '#f97316',
-    fontSize: 22,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  levelPtsBlock: { alignItems: 'flex-end' },
-  levelPtsBig: {
+  heroLevelName: {
     color: '#fff',
-    fontSize: 32,
+    fontSize: 26,
     fontFamily: Fonts?.bold,
     fontWeight: '700',
-    lineHeight: 36,
+    marginTop: 4,
   },
-  levelPtsLabel: {
+  heroPointsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  heroPointsText: {
     color: 'rgba(160,150,140,1)',
+    fontSize: 14,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+  },
+  heroNextHint: {
+    color: 'rgba(100,100,110,1)',
     fontSize: 12,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
-    marginTop: -2,
   },
-  levelProgressRow: { marginTop: 2 },
-  levelProgressBarBg: {
-    height: 6,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  levelProgressBarFill: { height: '100%', borderRadius: 3 },
-  levelProgressLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: -4,
-  },
-  levelPctText: {
-    color: 'rgba(160,150,140,1)',
-    fontSize: 11,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-  levelNextText: {
-    color: 'rgba(120,120,130,1)',
-    fontSize: 11,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-  levelDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  levelStatsRow: {
+  heroTierRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 16,
+    gap: 14,
+    marginTop: 4,
   },
-  levelStatItem: { alignItems: 'center', gap: 4 },
-  levelStatSep: {
-    width: 1,
-    height: 28,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+  heroTierItem: {
+    alignItems: 'center',
+    gap: 4,
+    flexDirection: 'row',
   },
-  levelStatNumber: {
-    color: '#fff',
-    fontSize: 22,
+  heroTierDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  heroTierCount: {
+    fontSize: 14,
     fontFamily: Fonts?.bold,
     fontWeight: '700',
   },
-  levelStatLabel: {
-    color: 'rgba(120,120,130,1)',
-    fontSize: 10,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    letterSpacing: 0.8,
+
+  // ── Section titles ──
+  sectionContainer: {
+    marginTop: 28,
+    paddingHorizontal: 20,
   },
-  tierDotLarge: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  sectionTitle: {
+    color: 'rgba(160,150,140,1)',
+    fontSize: 12,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 14,
   },
+
+  // ── Showcase (Recent Achievements) ──
+  showcaseList: {
+    gap: 16,
+    paddingRight: 8,
+  },
+  showcaseItem: {
+    alignItems: 'center',
+    width: SHOWCASE_ICON_SIZE + 20,
+    gap: 8,
+  },
+  showcaseGlow: {
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+  },
+  showcaseName: {
+    color: '#fff',
+    fontSize: 11,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 14,
+    height: 28,
+  },
+  noUnlocksContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 16,
+  },
+  noUnlocksText: {
+    color: 'rgba(100,100,110,1)',
+    fontSize: 14,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+  },
+
+  // ── Forge Progress (Radial Nodes) ──
+  forgeProgressRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'flex-start',
+  },
+  forgeNode: {
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    maxWidth: 110,
+  },
+  forgeNodeGlow: {
+    position: 'absolute',
+    top: -6,
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 30,
+  },
+  forgeRingContainer: {
+    position: 'relative',
+  },
+  forgeBadgeOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  forgeNodeName: {
+    color: '#fff',
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 15,
+    height: 30,
+  },
+  forgeNodePct: {
+    fontSize: 15,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+  },
+
+  // ── Category sections ──
   catSection: {
     marginTop: 28,
     paddingHorizontal: 20,
@@ -710,16 +1043,18 @@ const styles = StyleSheet.create({
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
   },
+
+  // ── Badge grid ──
   badgeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: GRID_GAP,
   },
-  badgeCard: {
+  badgeCell: {
     alignItems: 'center',
     gap: 6,
   },
-  badgeGlow: {
+  badgeCellGlow: {
     position: 'absolute',
     top: 4,
     width: 60,
@@ -727,9 +1062,9 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
-    shadowRadius: 20,
+    shadowRadius: 18,
   },
-  badgeName: {
+  badgeCellName: {
     color: '#fff',
     fontSize: 11,
     fontFamily: Fonts?.medium,
@@ -738,34 +1073,11 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     height: 28,
   },
-  progressBarBg: {
-    width: '80%',
-    height: 3,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 1.5,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  progressBarFill: {
-    position: 'absolute',
-    left: 0,
-    height: '100%',
-    borderRadius: 1.5,
-  },
-  tierDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  tierDotSmall: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-  },
+
+  // ── Modal ──
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
@@ -779,7 +1091,7 @@ const styles = StyleSheet.create({
     paddingTop: 32,
     paddingBottom: 48,
     alignItems: 'center',
-    gap: 16,
+    gap: 14,
   },
   modalClose: {
     position: 'absolute',
@@ -789,6 +1101,7 @@ const styles = StyleSheet.create({
     height: 36,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 10,
   },
   modalBadgeContainer: {
     alignItems: 'center',
@@ -809,17 +1122,28 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 4,
   },
-  modalPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  modalPillText: {
+  modalTierLabel: {
     fontSize: 12,
     fontFamily: Fonts?.bold,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
+  },
+  modalCatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  modalMetaDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: 'rgba(120,120,130,1)',
+  },
+  modalCatLabel: {
+    color: 'rgba(160,150,140,1)',
+    fontSize: 12,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
   },
   modalBadgeName: {
     color: '#fff',
@@ -835,16 +1159,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
-  modalUnlockedPill: {
+  modalUnlockedRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(74, 222, 128, 0.10)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(74, 222, 128, 0.20)',
+    paddingVertical: 6,
   },
   modalUnlockedText: {
     color: '#4ADE80',
@@ -870,8 +1189,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   modalProgressPct: {
-    color: 'rgba(160,150,140,1)',
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: Fonts?.bold,
     fontWeight: '700',
   },

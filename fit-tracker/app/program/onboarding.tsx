@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -29,12 +29,14 @@ import {
   Watch,
   Plus,
   Minus,
+  Calendar,
 } from 'lucide-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { OnboardingStep } from '@/components/program/OnboardingStep';
-import { getSplitForDays, SPLIT_TEMPLATES } from '@/constants/programTemplates';
-import { getMuscleLabel } from '@/lib/muscleMapping';
+import { getSplitForDays, SPLIT_TEMPLATES, PRIORITY_GROUPS } from '@/constants/programTemplates';
+import { getDefaultPreferredDays, formatScheduledDate, getTodayISO } from '@/lib/scheduleEngine';
+import type { WeekDay } from '@/types/program';
 
 const FOCUS_COLORS: Record<string, { bg: string; text: string }> = {
   push: { bg: 'rgba(255,107,53,0.12)', text: '#FF6B35' },
@@ -62,11 +64,11 @@ const JOINT_ITEMS: { key: JointKey; Icon: any; labelKey: string }[] = [
   { key: 'wrist', Icon: Watch, labelKey: 'wrist' },
 ];
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 10;
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { setUserProfile, generateAndSetProgram, startProgram } = useProgramStore();
+  const { setUserProfile, generateAndSetProgram, startProgram, startProgramWithSchedule } = useProgramStore();
 
   // Form state
   const [step, setStep] = useState(0);
@@ -74,7 +76,6 @@ export default function OnboardingScreen() {
   const [experience, setExperience] = useState<ExperienceLevel | null>(null);
   const [daysPerWeek, setDaysPerWeek] = useState<3 | 4 | 5 | 6 | null>(null);
   const [equipment, setEquipment] = useState<EquipmentSetup | null>(null);
-  const [userName, setUserName] = useState('');
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
   const [age, setAge] = useState('');
@@ -82,20 +83,55 @@ export default function OnboardingScreen() {
   const [priorityMuscles, setPriorityMuscles] = useState<string[]>([]);
   const [trainingYears, setTrainingYears] = useState<number | null>(null);
   const [limitations, setLimitations] = useState<JointKey[]>([]);
+  const [preferredDays, setPreferredDays] = useState<WeekDay[]>([]);
+  const [startDateOption, setStartDateOption] = useState<'today' | 'nextMonday' | 'pick'>('today');
+  const [customStartDate, setCustomStartDate] = useState<string | null>(null);
+
+  // Compute the actual start date ISO string
+  const computedStartDate = useMemo(() => {
+    if (startDateOption === 'today') return getTodayISO();
+    if (startDateOption === 'nextMonday') {
+      const now = new Date();
+      const jsDay = now.getDay(); // 0=Sun
+      const daysUntilMonday = jsDay === 0 ? 1 : jsDay === 1 ? 7 : 8 - jsDay;
+      const monday = new Date(now);
+      monday.setDate(monday.getDate() + daysUntilMonday);
+      const y = monday.getFullYear();
+      const m = String(monday.getMonth() + 1).padStart(2, '0');
+      const d = String(monday.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    return customStartDate || getTodayISO();
+  }, [startDateOption, customStartDate]);
+
+  // Pre-compute next Monday label for start date step (must be top-level hook)
+  const nextMondayLabel = useMemo(() => {
+    const now = new Date();
+    const jsDay = now.getDay();
+    const daysUntilMonday = jsDay === 0 ? 1 : jsDay === 1 ? 7 : 8 - jsDay;
+    const monday = new Date(now);
+    monday.setDate(monday.getDate() + daysUntilMonday);
+    return formatScheduledDate(
+      `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`,
+      i18n.locale,
+    );
+  }, []);
 
   const canAdvance = useCallback(() => {
     switch (step) {
       case 0: return !!goal;
       case 1: return !!experience;
       case 2: return !!daysPerWeek;
-      case 3: return !!equipment;
-      case 4: return true; // limitations (optional)
-      case 5: return !!sex && !!weight && parseFloat(weight) > 0;
-      case 6: return true;
-      case 7: return true;
+      case 3: return !!daysPerWeek && preferredDays.length === daysPerWeek; // preferred days
+      case 4: return true; // start date (always valid)
+      case 5: return !!equipment;
+      case 6: return true; // limitations (optional)
+      case 7: return !!sex && !!weight && parseFloat(weight) > 0;
+      case 8: return true; // priority muscles (optional)
+      case 9: return true; // confirmation
       default: return false;
     }
-  }, [step, goal, experience, daysPerWeek, equipment, sex, weight]);
+  }, [step, goal, experience, daysPerWeek, preferredDays, equipment, sex, weight]);
 
   const next = () => {
     if (step < TOTAL_STEPS - 1) {
@@ -116,7 +152,6 @@ export default function OnboardingScreen() {
 
     const now = new Date().toISOString();
     const profile: UserProfile = {
-      name: userName.trim() || undefined,
       goal,
       experience,
       daysPerWeek,
@@ -127,6 +162,7 @@ export default function OnboardingScreen() {
       age: age ? parseInt(age, 10) : undefined,
       trainingYears: trainingYears ?? undefined,
       limitations: limitations.length > 0 ? limitations : undefined,
+      preferredDays: preferredDays.length > 0 ? preferredDays : undefined,
       priorityMuscles,
       createdAt: now,
       updatedAt: now,
@@ -134,7 +170,13 @@ export default function OnboardingScreen() {
 
     setUserProfile(profile);
     generateAndSetProgram();
-    startProgram();
+
+    // Use schedule-aware start if preferred days are set
+    if (preferredDays.length > 0) {
+      startProgramWithSchedule(preferredDays, computedStartDate);
+    } else {
+      startProgram();
+    }
     router.replace('/program');
   };
 
@@ -168,11 +210,13 @@ export default function OnboardingScreen() {
       case 0: return renderGoal();
       case 1: return renderExperience();
       case 2: return renderFrequency();
-      case 3: return renderEquipment();
-      case 4: return renderLimitations();
-      case 5: return renderMeasurements();
-      case 6: return renderPriorityMuscles();
-      case 7: return renderConfirmation();
+      case 3: return renderPreferredDays();
+      case 4: return renderStartDate();
+      case 5: return renderEquipment();
+      case 6: return renderLimitations();
+      case 7: return renderMeasurements();
+      case 8: return renderPriorityMuscles();
+      case 9: return renderConfirmation();
       default: return null;
     }
   };
@@ -281,7 +325,7 @@ export default function OnboardingScreen() {
             <Pressable
               key={d}
               style={[styles.pill, daysPerWeek === d && styles.pillSelected]}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setDaysPerWeek(d); }}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setDaysPerWeek(d); setPreferredDays(getDefaultPreferredDays(d)); }}
             >
               <Text style={[styles.pillText, daysPerWeek === d && styles.pillTextSelected]}>
                 {i18n.t('programOnboarding.frequency.days', { count: d })}
@@ -309,6 +353,108 @@ export default function OnboardingScreen() {
                 );
               })}
             </ScrollView>
+          </View>
+        )}
+      </OnboardingStep>
+    );
+  };
+
+  // ─── Step 3: Preferred Training Days ───
+  const togglePreferredDay = (day: WeekDay) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setPreferredDays((prev) => {
+      if (prev.includes(day)) return prev.filter((d) => d !== day);
+      if (daysPerWeek && prev.length >= daysPerWeek) return prev;
+      return [...prev, day].sort((a, b) => a - b);
+    });
+  };
+
+  const renderPreferredDays = () => {
+    const dayLabels = i18n.t('scheduling.dayLabels') as unknown as string[];
+    const dayLabelsFull = i18n.t('scheduling.dayLabelsFull') as unknown as string[];
+
+    return (
+      <OnboardingStep
+        title={i18n.t('scheduling.preferredDaysTitle')}
+        subtitle={i18n.t('scheduling.preferredDaysSubtitle', { count: daysPerWeek || 3 })}
+      >
+        <View style={styles.daysGrid}>
+          {([0, 1, 2, 3, 4, 5, 6] as WeekDay[]).map((day) => {
+            const selected = preferredDays.includes(day);
+            return (
+              <Pressable
+                key={day}
+                style={styles.dayColumn}
+                onPress={() => togglePreferredDay(day)}
+              >
+                <View
+                  style={[
+                    styles.dayCircle,
+                    selected && styles.dayCircleSelected,
+                  ]}
+                >
+                  {selected && (
+                    <Check size={14} color="#0C0C0C" strokeWidth={3} />
+                  )}
+                </View>
+                <Text
+                  style={[
+                    styles.dayCircleLabel,
+                    selected && styles.dayCircleLabelSelected,
+                  ]}
+                >
+                  {dayLabels[day]}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* Preview of selected days */}
+        {preferredDays.length > 0 && (
+          <Text style={styles.daysPreview}>
+            {preferredDays.map((d) => dayLabelsFull[d]).join(' · ')}
+          </Text>
+        )}
+      </OnboardingStep>
+    );
+  };
+
+  // ─── Step 4: Start Date ───
+  const renderStartDate = () => {
+    // Show partial week nudge when starting today on Thu(4)/Fri(5)/Sat(6)/Sun(0)
+    const todayJsDay = new Date().getDay(); // 0=Sun, 4=Thu, 5=Fri, 6=Sat
+    const isLateInWeek = todayJsDay === 0 || todayJsDay >= 4;
+    const showPartialNudge = startDateOption === 'today' && isLateInWeek;
+
+    return (
+      <OnboardingStep
+        title={i18n.t('scheduling.startDateTitle')}
+        subtitle={i18n.t('scheduling.startDateSubtitle')}
+      >
+        <View style={styles.cardsCol}>
+          <SelectionCard
+            icon={<Calendar size={22} color={startDateOption === 'today' ? '#0C0C0C' : '#FF6B35'} />}
+            title={i18n.t('scheduling.today')}
+            subtitle={i18n.t('scheduling.todayDesc')}
+            selected={startDateOption === 'today'}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setStartDateOption('today'); }}
+          />
+          <SelectionCard
+            icon={<Calendar size={22} color={startDateOption === 'nextMonday' ? '#0C0C0C' : '#FF6B35'} />}
+            title={`${i18n.t('scheduling.nextMonday')} — ${nextMondayLabel}`}
+            subtitle={i18n.t('scheduling.nextMondayDesc')}
+            selected={startDateOption === 'nextMonday'}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setStartDateOption('nextMonday'); }}
+          />
+        </View>
+
+        {showPartialNudge && (
+          <View style={styles.partialWeekNudge}>
+            <View style={styles.partialWeekAccent} />
+            <Text style={styles.partialWeekText}>
+              {i18n.t('scheduling.partialWeekNudge')}
+            </Text>
           </View>
         )}
       </OnboardingStep>
@@ -392,17 +538,6 @@ export default function OnboardingScreen() {
       >
         <View style={styles.inputsGrid}>
           <View style={styles.inputRow}>
-            <Text style={styles.inputLabel}>{i18n.t('programOnboarding.measurements.name')}</Text>
-            <TextInput
-              style={styles.input}
-              value={userName}
-              onChangeText={setUserName}
-              placeholder={i18n.t('programOnboarding.measurements.namePlaceholder')}
-              placeholderTextColor="rgba(255,255,255,0.2)"
-              autoCapitalize="words"
-            />
-          </View>
-          <View style={styles.inputRow}>
             <Text style={styles.inputLabel}>{i18n.t('programOnboarding.measurements.sex')}</Text>
             <View style={styles.sexToggle}>
               <Pressable
@@ -465,11 +600,6 @@ export default function OnboardingScreen() {
     </OnboardingStep>
   );
 
-  const muscleKeys = [
-    'chest', 'upper_back', 'lats', 'shoulders', 'quads', 'hamstrings', 'glutes',
-    'biceps', 'triceps', 'forearms', 'calves', 'abs', 'obliques', 'lower_back',
-  ];
-
   const renderPriorityMuscles = () => (
     <OnboardingStep
       title={i18n.t('programOnboarding.priority.title')}
@@ -478,16 +608,16 @@ export default function OnboardingScreen() {
       onSkip={next}
     >
       <View style={styles.muscleGrid}>
-        {muscleKeys.map((key) => {
-          const selected = priorityMuscles.includes(key);
+        {PRIORITY_GROUPS.map((group) => {
+          const selected = priorityMuscles.includes(group.key);
           return (
             <Pressable
-              key={key}
+              key={group.key}
               style={[styles.musclePill, selected && styles.musclePillSelected]}
-              onPress={() => toggleMuscle(key)}
+              onPress={() => toggleMuscle(group.key)}
             >
               <Text style={[styles.musclePillText, selected && styles.musclePillTextSelected]}>
-                {getMuscleLabel(key)}
+                {i18n.t(group.labelKey)}
               </Text>
             </Pressable>
           );
@@ -521,6 +651,8 @@ export default function OnboardingScreen() {
     wrist: i18n.t('programOnboarding.limitations.wrist'),
   };
 
+  const dayLabelsFull = i18n.t('scheduling.dayLabelsFull') as unknown as string[];
+
   const confirmItems = [
     { label: i18n.t('programOnboarding.confirmation.objective'), value: goal ? goalLabels[goal] : '—' },
     { label: i18n.t('programOnboarding.confirmation.experience'), value: experience ? expLabels[experience] : '—' },
@@ -528,12 +660,19 @@ export default function OnboardingScreen() {
       ? [{ label: i18n.t('programOnboarding.confirmation.trainingYears'), value: i18n.t('programOnboarding.confirmation.yearsCount', { count: trainingYears }) }]
       : []),
     { label: i18n.t('programOnboarding.confirmation.frequency'), value: daysPerWeek ? i18n.t('programOnboarding.confirmation.daysPerWeek', { count: daysPerWeek }) : '—' },
+    ...(preferredDays.length > 0
+      ? [{ label: i18n.t('scheduling.confirmDays'), value: preferredDays.map((d) => dayLabelsFull[d]).join(', ') }]
+      : []),
+    { label: i18n.t('scheduling.confirmStart'), value: formatScheduledDate(computedStartDate, i18n.locale) },
     { label: i18n.t('programOnboarding.confirmation.equipment'), value: equipment ? equipLabels[equipment] : '—' },
     { label: i18n.t('programOnboarding.confirmation.limitations'), value: limitations.length > 0 ? limitations.map((k) => limitationLabels[k]).join(', ') : i18n.t('programOnboarding.confirmation.noLimitation') },
     { label: i18n.t('programOnboarding.confirmation.sex'), value: sex === 'male' ? i18n.t('programOnboarding.measurements.male') : sex === 'female' ? i18n.t('programOnboarding.measurements.female') : '—' },
     { label: i18n.t('programOnboarding.confirmation.weight'), value: weight ? `${weight} kg` : '—' },
     ...(priorityMuscles.length > 0
-      ? [{ label: i18n.t('programOnboarding.confirmation.priorities'), value: priorityMuscles.map((m) => getMuscleLabel(m)).join(', ') }]
+      ? [{ label: i18n.t('programOnboarding.confirmation.priorities'), value: priorityMuscles.map((pk) => {
+          const group = PRIORITY_GROUPS.find((g) => g.key === pk);
+          return group ? i18n.t(group.labelKey) : pk;
+        }).join(', ') }]
       : []),
   ];
 
@@ -1089,6 +1228,69 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
+  },
+
+  // Preferred days grid
+  daysGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+  },
+  dayColumn: {
+    alignItems: 'center',
+    gap: 10,
+  },
+  dayCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayCircleSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  dayCircleLabel: {
+    color: 'rgba(120,120,130,1)',
+    fontSize: 13,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+  },
+  dayCircleLabelSelected: {
+    color: Colors.primary,
+  },
+  daysPreview: {
+    color: 'rgba(255,255,255,0.35)',
+    fontSize: 13,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+
+  // Partial week nudge (start date step)
+  partialWeekNudge: {
+    flexDirection: 'row',
+    marginTop: 16,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  partialWeekAccent: {
+    width: 3,
+    borderRadius: 2,
+    backgroundColor: '#3B82F6',
+  },
+  partialWeekText: {
+    flex: 1,
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    lineHeight: 18,
   },
 
   generateButton: {

@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, AppState } from 'react-native';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { useRouter } from 'expo-router';
-import { Footprints } from 'lucide-react-native';
-import { Colors, Fonts } from '@/constants/theme';
+import { Footprints, ChevronRight } from 'lucide-react-native';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { getTodaySteps, watchTodaySteps } from '@/services/pedometer';
+
+const GOAL = 10000;
 
 export function StepsCard() {
   const router = useRouter();
@@ -21,12 +23,10 @@ export function StepsCard() {
   useEffect(() => {
     fetchSteps();
 
-    // Live updates — watchStepCount returns cumulative steps since subscription start
     const unsub = watchTodaySteps((stepsSinceSubscription) => {
       setSteps(baseStepsRef.current + stepsSinceSubscription);
     });
 
-    // Refresh when app comes to foreground
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') fetchSteps();
     });
@@ -41,51 +41,76 @@ export function StepsCard() {
     ? `${(steps / 1000).toFixed(1).replace(/\.0$/, '')}k`
     : steps.toLocaleString();
 
+  const pct = Math.min(steps / GOAL, 1);
+  const progressWidth = `${Math.round(pct * 100)}%`;
+
   return (
-    <PressableScale style={styles.card} onPress={() => router.push('/steps')}>
-      <View style={styles.cardHeader}>
-        <View style={styles.iconBox}>
-          <Footprints size={16} color="#3b82f6" strokeWidth={2.5} />
+    <View style={styles.container}>
+      <PressableScale activeScale={0.975} onPress={() => router.push('/steps')}>
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <View style={styles.iconBox}>
+              <Footprints size={18} color="#3b82f6" strokeWidth={2.5} />
+            </View>
+            <View style={styles.info}>
+              <View style={styles.topRow}>
+                <Text style={styles.label}>{i18n.t('home.stats.steps')}</Text>
+                <ChevronRight size={14} color="rgba(255,255,255,0.25)" strokeWidth={2} />
+              </View>
+              <View style={styles.valueRow}>
+                <Text style={styles.valueWhite}>{display}</Text>
+                <Text style={styles.unit}> /10k</Text>
+              </View>
+              <View style={styles.progressBg}>
+                <View style={[styles.progressFill, { width: progressWidth as any }]} />
+              </View>
+            </View>
+          </View>
         </View>
-        <Text style={styles.label}>{i18n.t('home.stats.steps')}</Text>
-      </View>
-      <View style={styles.valueRow}>
-        <Text style={styles.valueWhite}>{display}</Text>
-        <Text style={styles.unit}> /10k</Text>
-      </View>
-    </PressableScale>
+      </PressableScale>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    paddingHorizontal: Spacing.lg,
+  },
   card: {
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
-    padding: 18,
-    minHeight: 132,
-    justifyContent: 'space-between' as const,
+    padding: 16,
   },
-  cardHeader: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 14,
   },
   iconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: 'rgba(59, 130, 246, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  info: {
+    flex: 1,
+    gap: 4,
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   label: {
     color: 'rgba(156, 163, 175, 1)',
-    fontSize: 12,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    letterSpacing: 1.5,
+    fontSize: 11,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+    letterSpacing: 1.2,
   },
   valueRow: {
     flexDirection: 'row',
@@ -93,14 +118,26 @@ const styles = StyleSheet.create({
   },
   valueWhite: {
     color: Colors.text,
-    fontSize: 32,
+    fontSize: 26,
     fontFamily: Fonts?.bold,
     fontWeight: '700',
   },
   unit: {
     color: 'rgba(120, 120, 130, 1)',
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
+  },
+  progressBg: {
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginTop: 2,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#3b82f6',
+    borderRadius: 2,
   },
 });

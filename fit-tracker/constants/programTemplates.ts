@@ -289,6 +289,24 @@ export const GOAL_CONFIG: Record<string, GoalCategoryConfig> = {
 };
 
 /**
+ * Priority muscle groups for onboarding.
+ * Maps user-friendly region keys → internal RP muscle tracking keys.
+ * Used by onboarding selector + programGenerator volume expansion.
+ */
+export const PRIORITY_GROUPS: { key: string; labelKey: string; muscles: string[] }[] = [
+  { key: 'chest', labelKey: 'priorityGroups.chest', muscles: ['chest'] },
+  { key: 'back', labelKey: 'priorityGroups.back', muscles: ['upper back', 'lats'] },
+  { key: 'shoulders', labelKey: 'priorityGroups.shoulders', muscles: ['shoulders'] },
+  { key: 'biceps', labelKey: 'priorityGroups.biceps', muscles: ['biceps'] },
+  { key: 'triceps', labelKey: 'priorityGroups.triceps', muscles: ['triceps'] },
+  { key: 'quads', labelKey: 'priorityGroups.quads', muscles: ['quads'] },
+  { key: 'hamstrings', labelKey: 'priorityGroups.hamstrings', muscles: ['hamstrings'] },
+  { key: 'glutes', labelKey: 'priorityGroups.glutes', muscles: ['glutes'] },
+  { key: 'calves', labelKey: 'priorityGroups.calves', muscles: ['calves'] },
+  { key: 'abs', labelKey: 'priorityGroups.abs', muscles: ['abs', 'obliques'] },
+];
+
+/**
  * Mesocycle length by experience
  */
 export const MESO_LENGTH = {

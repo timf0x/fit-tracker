@@ -43,6 +43,7 @@ export default {
   tabs: {
     home: 'Accueil',
     workouts: 'Entraînements',
+    stats: 'Stats',
     settings: 'Réglages',
   },
 
@@ -203,6 +204,12 @@ export default {
     workoutCard: {
       mins: 'mins',
       kcal: 'kcal',
+    },
+    achievement: {
+      almostThere: 'Presque là !',
+      finalStretch: 'Dernière ligne droite',
+      keepGoing: '%{pct}% — continue comme ça',
+      complete: '%{pct}% accompli',
     },
   },
 
@@ -654,6 +661,7 @@ export default {
 
   // ─── Stats Screen ───
   stats: {
+    header: 'STATISTIQUES',
     title: 'Statistiques',
     noData: 'Aucune donnée',
     noDataDesc: 'Complète ta première séance pour voir tes statistiques ici.',
@@ -824,6 +832,16 @@ export default {
     secret: 'Secret',
     closeTo: 'Presque débloqué',
     unlockedOn: 'Débloqué le %{date}',
+    recentAchievements: 'DERNIERS EXPLOITS',
+    nextGoals: 'PROCHAINS OBJECTIFS',
+    noUnlocks: 'Complète une séance pour débloquer des badges',
+    noNextGoals: 'Continue à t\'entraîner pour progresser',
+    celebration: {
+      continue: 'Continuer',
+      next: 'Suivant',
+      newBadge: 'Nouveau',
+      badgeUnlocked: 'BADGE DÉBLOQUÉ',
+    },
   },
 
   // ─── Exercise Detail ───
@@ -904,6 +922,9 @@ export default {
   // ─── Recovery Card (Home) ───
   recoveryCard: {
     label: 'RÉCUP',
+    nudgeGood: 'Bonne récupération — prêt à pousser',
+    nudgeModerate: 'Récup partielle — reste attentif',
+    nudgeLow: 'Fatigue élevée — envisage un deload',
   },
 
   // ─── Smart Suggestion Card ───
@@ -998,6 +1019,81 @@ export default {
     fatigued: 'Fatigué',
     fresh: 'Frais',
     undertrained: 'Sous-entraîné',
+  },
+
+  // ─── Scheduling (Onboarding) ───
+  scheduling: {
+    preferredDaysTitle: 'Quels jours tu t\'entraînes ?',
+    preferredDaysSubtitle: 'Sélectionne exactement %{count} jours',
+    dayLabels: ['L', 'M', 'M', 'J', 'V', 'S', 'D'],
+    dayLabelsFull: ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'],
+    startDateTitle: 'Quand commences-tu ?',
+    startDateSubtitle: 'Tu pourras toujours ajuster plus tard',
+    today: 'Aujourd\'hui',
+    todayDesc: 'Commence dès maintenant',
+    nextMonday: 'Lundi prochain',
+    nextMondayDesc: 'Commence la semaine prochaine',
+    pickDate: 'Choisir une date',
+    pickDateDesc: 'Sélectionne un jour précis',
+    // Confirmation
+    confirmDays: 'Jours d\'entraînement',
+    confirmStart: 'Début',
+    daysFormat: '%{days}',
+    partialWeekNudge: 'En commençant aujourd\'hui, ta première semaine sera partielle. Ton programme s\'adapte automatiquement.',
+  },
+
+  // ─── Calendar Screen ───
+  calendar: {
+    title: 'CALENDRIER',
+    weekView: 'Semaine',
+    monthView: 'Mois',
+    weekOf: 'Sem. du %{date}',
+    // Day content
+    restDay: 'Repos programmé',
+    nothingPlanned: 'Rien de prévu',
+    longRest: 'Longue pause — tes muscles seront tous frais',
+    startSession: 'Commencer la séance',
+    nextSession: 'Prochaine séance',
+    todaySession: 'Séance prévue aujourd\'hui',
+    readinessLabel: 'Tes muscles sont à %{pct}% — prêt',
+    readinessLow: 'Attention : %{muscles} encore fatigués',
+    projectionFresh: 'Projection : %{muscles} frais',
+    // Month summary
+    monthSessions: '%{count} séances',
+    monthVolume: '%{volume}',
+    monthPRs: '%{count} PR',
+    // Smart nudges (home card)
+    thisWeek: 'CETTE SEMAINE',
+    todayNudge: 'Séance %{name} prévue aujourd\'hui',
+    nextNudge: 'Prochaine : %{day} — %{name}',
+    restNudge: 'Jour de repos — %{count} muscles en récupération',
+  },
+
+  // ─── Active Program Card — Schedule Additions ───
+  activeProgram_schedule: {
+    nextSessionDate: 'Prochaine séance : %{date} — %{name}',
+    todayScheduled: 'Séance prévue aujourd\'hui',
+    noSessionToday: 'Prochaine séance',
+  },
+
+  // ─── Program Overview — Schedule Additions ───
+  programOverview_schedule: {
+    scheduledDate: '%{date}',
+    nextSessionNudge: 'Prochaine séance : %{day}',
+  },
+
+  // ─── Priority Muscle Groups (Onboarding) ───
+  priorityGroups: {
+    chest: 'Pectoraux',
+    back: 'Dos',
+    shoulders: 'Épaules',
+    biceps: 'Biceps',
+    triceps: 'Triceps',
+    quads: 'Quadriceps',
+    hamstrings: 'Ischio-jambiers',
+    glutes: 'Fessiers',
+    calves: 'Mollets',
+    abs: 'Abdos',
   },
 
   // ─── Placeholders ───

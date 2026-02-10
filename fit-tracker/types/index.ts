@@ -182,12 +182,16 @@ export type BadgeCategory =
   | 'volume'
   | 'consistency'
   | 'strength'
+  | 'mastery'
+  | 'explorer'
+  | 'science'
+  | 'special'
+  // Legacy — kept for backward compat with stored data, hidden from display
   | 'muscles'
   | 'equipment'
   | 'variety'
   | 'social'
-  | 'ai_coach'
-  | 'special';
+  | 'ai_coach';
 
 export type BadgeTier = 'bronze' | 'silver' | 'gold' | 'platinum';
 

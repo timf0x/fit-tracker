@@ -37,6 +37,7 @@ import { VolumeSnapshot } from '@/components/program/VolumeSnapshot';
 import { buildProgramExercisesParam } from '@/lib/programSession';
 import { resolveDayLabel, resolveProgramName } from '@/lib/programLabels';
 import { computeReadinessScore, computeSessionAdjustments, applyAdjustmentsToExercises } from '@/lib/readinessEngine';
+import { getPlannedDayForDate, getNextScheduledDay, getTodayISO, formatScheduledDate } from '@/lib/scheduleEngine';
 
 export default function ProgramScreen() {
   const router = useRouter();
@@ -66,9 +67,27 @@ export default function ProgramScreen() {
   const deloadWeekNum = program.weeks.find((w) => w.isDeload)?.weekNumber;
   const isCurrentWeek = selectedWeek === activeState.currentWeek;
 
-  const todayDay = isCurrentWeek
-    ? currentWeekData?.days[activeState.currentDayIndex]
+  // Schedule-aware today detection
+  const todayISO = getTodayISO();
+  const scheduledToday = activeState.schedule
+    ? getPlannedDayForDate(activeState.schedule, todayISO)
     : null;
+
+  // Determine today's workout day
+  const todayDay = activeState.schedule
+    ? (scheduledToday && !scheduledToday.completedDate
+        ? currentWeekData?.days[scheduledToday.dayIndex]
+        : null)
+    : (isCurrentWeek
+        ? currentWeekData?.days[activeState.currentDayIndex]
+        : null);
+
+  // For schedule-aware: the today dayIndex in the selected week
+  const todayDayIndex = activeState.schedule
+    ? (scheduledToday && scheduledToday.weekNumber === selectedWeek
+        ? scheduledToday.dayIndex
+        : -1)
+    : (isCurrentWeek ? activeState.currentDayIndex : -1);
 
   const isDayDone = (dayIndex: number) =>
     activeState.completedDays.includes(`${selectedWeek}-${dayIndex}`);
@@ -339,9 +358,18 @@ export default function ProgramScreen() {
 
             {/* Day rows with separators */}
             {currentWeekData?.days.map((day, dayIdx, arr) => {
-              const isToday =
-                isCurrentWeek && dayIdx === activeState.currentDayIndex;
+              const isToday = dayIdx === todayDayIndex;
               const completed = isDayDone(dayIdx);
+
+              // Get scheduled date for this day if schedule exists
+              const scheduledDateStr = activeState.schedule
+                ? activeState.schedule.scheduledDays.find(
+                    (sd) => sd.weekNumber === selectedWeek && sd.dayIndex === dayIdx,
+                  )?.plannedDate
+                : undefined;
+              const formattedDate = scheduledDateStr
+                ? formatScheduledDate(scheduledDateStr, i18n.locale)
+                : undefined;
 
               return (
                 <Fragment key={dayIdx}>
@@ -351,6 +379,7 @@ export default function ProgramScreen() {
                     dayNumber={dayIdx + 1}
                     isToday={isToday}
                     isCompleted={completed}
+                    scheduledDate={formattedDate}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       router.push({
@@ -403,8 +432,8 @@ export default function ProgramScreen() {
 
         {/* ─── Bottom CTA ─── */}
         {todayDay &&
-          !isDayDone(activeState.currentDayIndex) &&
-          isCurrentWeek &&
+          todayDayIndex >= 0 &&
+          !isDayDone(todayDayIndex) &&
           !programComplete && (
             <View style={styles.bottomCta}>
               <AnimatedStartButton

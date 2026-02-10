@@ -8,21 +8,23 @@ import { Spacing } from '@/constants/theme';
 import { HeaderGreeting } from '@/components/home/HeaderGreeting';
 import { RecoveryCard } from '@/components/home/RecoveryCard';
 import { StepsCard } from '@/components/home/StepsCard';
-import { WeeklyActivity } from '@/components/home/WeeklyActivity';
+import { CalendarCard } from '@/components/home/CalendarCard';
 import { VolumeCard } from '@/components/home/VolumeCard';
 import { ActiveProgramCard } from '@/components/home/ActiveProgramCard';
+import { AchievementCard } from '@/components/home/AchievementCard';
 import { BrowseButton } from '@/components/home/BrowseButton';
 import { DraggableCardList } from '@/components/home/DraggableCardList';
 import { AmbientBackground } from '@/components/home/AmbientBackground';
 import { useWorkoutStore } from '@/stores/workoutStore';
 
 // Default card order — these keys match the cards map below
-const DEFAULT_ORDER = ['recovery', 'steps', 'volume', 'program', 'weekly'];
+const DEFAULT_ORDER = ['recovery', 'steps', 'achievement', 'volume', 'program', 'weekly'];
 
 // Card sizes: half cards pair side-by-side, full cards take the whole row
 const CARD_SIZES: Record<string, 'full' | 'half'> = {
-  recovery: 'half',
-  steps: 'half',
+  recovery: 'full',
+  steps: 'full',
+  achievement: 'full',
   weekly: 'full',
   program: 'full',
   volume: 'full',
@@ -31,7 +33,8 @@ const CARD_SIZES: Record<string, 'full' | 'half'> = {
 const CARD_COMPONENTS: Record<string, React.ReactNode> = {
   recovery: <RecoveryCard />,
   steps: <StepsCard />,
-  weekly: <WeeklyActivity />,
+  achievement: <AchievementCard />,
+  weekly: <CalendarCard />,
   program: <ActiveProgramCard />,
   volume: <VolumeCard />,
 };

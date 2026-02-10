@@ -1,3 +1,21 @@
+// ─── Schedule Types ───
+
+// Day-of-week (0=Mon, 1=Tue, ..., 6=Sun) — ISO week convention
+export type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+export interface ProgramSchedule {
+  preferredDays: WeekDay[];         // e.g. [0, 2, 4] for Mon/Wed/Fri
+  startDate: string;                // ISO date "2026-02-16"
+  scheduledDays: ScheduledDay[];    // pre-computed calendar mapping
+}
+
+export interface ScheduledDay {
+  weekNumber: number;               // program week (1-based)
+  dayIndex: number;                 // index within the week's days array
+  plannedDate: string;              // ISO date "2026-02-16"
+  completedDate?: string;           // actual completion ISO date (if done)
+}
+
 // ─── User Profile ───
 
 export type TrainingGoal = 'hypertrophy' | 'strength' | 'recomposition';
@@ -18,6 +36,7 @@ export interface UserProfile {
   trainingYears?: number; // years of consistent training (finer than experience level)
   equipment: EquipmentSetup;
   limitations?: JointKey[]; // joint areas with injuries/limitations
+  preferredDays?: WeekDay[]; // preferred training days (0=Mon..6=Sun)
   priorityMuscles: string[]; // 0-2 muscle keys from MUSCLE_LABELS_FR
   createdAt: string;
   updatedAt: string;
@@ -84,6 +103,7 @@ export interface ActiveProgramState {
   completedDays: string[]; // "week-day" keys
   startDate: string;
   lastCompletedAt?: string; // ISO date — for same-day pacing guard
+  schedule?: ProgramSchedule; // calendar mapping (optional for backward compat)
   sessionFeedback?: Record<string, SessionFeedback>; // key = "week-day"
   lastReadiness?: ReadinessCheck;
 }

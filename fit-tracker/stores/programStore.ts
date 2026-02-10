@@ -6,11 +6,20 @@ import {
   TrainingProgram,
   ActiveProgramState,
   ProgramExercise,
+  ProgramSchedule,
   SessionFeedback,
   ReadinessCheck,
+  WeekDay,
 } from '@/types/program';
 import { generateProgram } from '@/lib/programGenerator';
 import { computeFeedbackAdjustments } from '@/lib/feedbackAdaptation';
+import {
+  buildSchedule,
+  rescheduleForward,
+  getPlannedDayForDate,
+  getNextScheduledDay,
+  getTodayISO,
+} from '@/lib/scheduleEngine';
 
 interface ProgramStoreState {
   userProfile: UserProfile | null;
@@ -24,6 +33,7 @@ interface ProgramStoreState {
   // Program
   generateAndSetProgram: () => TrainingProgram | null;
   startProgram: () => void;
+  startProgramWithSchedule: (preferredDays: WeekDay[], startDate: string) => void;
   clearProgram: () => void;
 
   // Progress tracking
@@ -107,6 +117,27 @@ export const useProgramStore = create<ProgramStoreState>()(
         });
       },
 
+      startProgramWithSchedule: (preferredDays, startDate) => {
+        const { program } = get();
+        if (!program) return;
+
+        const schedule = buildSchedule(program, preferredDays, startDate);
+
+        const activeState: ActiveProgramState = {
+          programId: program.id,
+          currentWeek: 1,
+          currentDayIndex: 0,
+          completedDays: [],
+          startDate: new Date().toISOString(),
+          schedule,
+        };
+
+        set({
+          program: { ...program, startedAt: new Date().toISOString() },
+          activeState,
+        });
+      },
+
       clearProgram: () => {
         set({ program: null, activeState: null });
       },
@@ -118,11 +149,25 @@ export const useProgramStore = create<ProgramStoreState>()(
         const key = `${week}-${dayIndex}`;
         if (activeState.completedDays.includes(key)) return;
 
+        const todayISO = getTodayISO();
+
+        // Update schedule if it exists — reschedule future days
+        let updatedSchedule = activeState.schedule;
+        if (updatedSchedule) {
+          updatedSchedule = rescheduleForward(
+            updatedSchedule,
+            week,
+            dayIndex,
+            todayISO,
+          );
+        }
+
         set({
           activeState: {
             ...activeState,
             completedDays: [...activeState.completedDays, key],
             lastCompletedAt: new Date().toISOString(),
+            schedule: updatedSchedule,
           },
         });
 
@@ -322,6 +367,19 @@ export const useProgramStore = create<ProgramStoreState>()(
       getTodayWorkout: () => {
         const { activeState } = get();
         if (!activeState) return null;
+
+        // If schedule exists, use it for date-aware lookup
+        if (activeState.schedule) {
+          const todayISO = getTodayISO();
+          const planned = getPlannedDayForDate(activeState.schedule, todayISO);
+          if (planned && !planned.completedDate) {
+            return { week: planned.weekNumber, dayIndex: planned.dayIndex };
+          }
+          // No session scheduled today
+          return null;
+        }
+
+        // Legacy fallback: use raw currentWeek/currentDayIndex
         return {
           week: activeState.currentWeek,
           dayIndex: activeState.currentDayIndex,
@@ -336,7 +394,7 @@ export const useProgramStore = create<ProgramStoreState>()(
     }),
     {
       name: 'onset-program-storage',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         userProfile: state.userProfile,
@@ -345,6 +403,7 @@ export const useProgramStore = create<ProgramStoreState>()(
       }),
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
+        // v2→v3: no structural changes needed, schedule field is optional
         if (version < 2) {
           // Migrate reps → minReps=maxReps=reps for existing programs
           const program = state.program as TrainingProgram | null;

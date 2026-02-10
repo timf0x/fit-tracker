@@ -15,6 +15,7 @@ import {
   SPLIT_TEMPLATES,
   GOAL_CONFIG,
   MESO_LENGTH,
+  PRIORITY_GROUPS,
   SplitDayTemplate,
 } from '@/constants/programTemplates';
 import { Equipment } from '@/types';
@@ -217,7 +218,10 @@ function getVolumeRange(
   const landmarks = RP_VOLUME_LANDMARKS[muscle];
   if (!landmarks) return { start: 0, end: 0, deload: 0 };
 
-  const isPriority = profile.priorityMuscles.includes(muscle);
+  const isPriority = profile.priorityMuscles.some((pk) => {
+    const group = PRIORITY_GROUPS.find((g) => g.key === pk);
+    return group ? group.muscles.includes(muscle) : pk === muscle;
+  });
   const bonus = isPriority ? 2 : 0;
 
   let start: number;

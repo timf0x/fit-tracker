@@ -43,6 +43,7 @@ export default {
   tabs: {
     home: 'Home',
     workouts: 'Workouts',
+    stats: 'Stats',
     settings: 'Settings',
   },
 
@@ -203,6 +204,12 @@ export default {
     workoutCard: {
       mins: 'mins',
       kcal: 'kcal',
+    },
+    achievement: {
+      almostThere: 'Almost there!',
+      finalStretch: 'Final stretch',
+      keepGoing: '%{pct}% — keep going',
+      complete: '%{pct}% complete',
     },
   },
 
@@ -654,6 +661,7 @@ export default {
 
   // ─── Stats Screen ───
   stats: {
+    header: 'STATISTICS',
     title: 'Statistics',
     noData: 'No data',
     noDataDesc: 'Complete your first session to see your statistics here.',
@@ -824,6 +832,16 @@ export default {
     secret: 'Secret',
     closeTo: 'Almost unlocked',
     unlockedOn: 'Unlocked on %{date}',
+    recentAchievements: 'RECENT ACHIEVEMENTS',
+    nextGoals: 'NEXT GOALS',
+    noUnlocks: 'Complete a session to unlock badges',
+    noNextGoals: 'Keep training to progress',
+    celebration: {
+      continue: 'Continue',
+      next: 'Next',
+      newBadge: 'New',
+      badgeUnlocked: 'BADGE UNLOCKED',
+    },
   },
 
   // ─── Exercise Detail ───
@@ -904,6 +922,9 @@ export default {
   // ─── Recovery Card (Home) ───
   recoveryCard: {
     label: 'RECOVERY',
+    nudgeGood: 'Well recovered — ready to push',
+    nudgeModerate: 'Partial recovery — stay attentive',
+    nudgeLow: 'High fatigue — consider a deload',
   },
 
   // ─── Smart Suggestion Card ───
@@ -998,6 +1019,81 @@ export default {
     fatigued: 'Fatigued',
     fresh: 'Fresh',
     undertrained: 'Undertrained',
+  },
+
+  // ─── Scheduling (Onboarding) ───
+  scheduling: {
+    preferredDaysTitle: 'Which days do you train?',
+    preferredDaysSubtitle: 'Select exactly %{count} days',
+    dayLabels: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+    dayLabelsFull: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+    startDateTitle: 'When do you start?',
+    startDateSubtitle: 'You can always adjust later',
+    today: 'Today',
+    todayDesc: 'Start right now',
+    nextMonday: 'Next Monday',
+    nextMondayDesc: 'Start next week',
+    pickDate: 'Pick a date',
+    pickDateDesc: 'Choose a specific day',
+    // Confirmation
+    confirmDays: 'Training days',
+    confirmStart: 'Start date',
+    daysFormat: '%{days}',
+    partialWeekNudge: 'Starting today means your first week will be partial. Your program adjusts automatically.',
+  },
+
+  // ─── Calendar Screen ───
+  calendar: {
+    title: 'CALENDAR',
+    weekView: 'Week',
+    monthView: 'Month',
+    weekOf: 'Week of %{date}',
+    // Day content
+    restDay: 'Scheduled rest',
+    nothingPlanned: 'Nothing planned',
+    longRest: 'Long break — your muscles will be fully fresh',
+    startSession: 'Start session',
+    nextSession: 'Next session',
+    todaySession: 'Session planned today',
+    readinessLabel: 'Your muscles are at %{pct}% — ready',
+    readinessLow: 'Warning: %{muscles} still fatigued',
+    projectionFresh: 'Projection: %{muscles} fresh',
+    // Month summary
+    monthSessions: '%{count} sessions',
+    monthVolume: '%{volume}',
+    monthPRs: '%{count} PR',
+    // Smart nudges (home card)
+    thisWeek: 'THIS WEEK',
+    todayNudge: '%{name} session planned today',
+    nextNudge: 'Next: %{day} — %{name}',
+    restNudge: 'Rest day — %{count} muscles recovering',
+  },
+
+  // ─── Active Program Card — Schedule Additions ───
+  activeProgram_schedule: {
+    nextSessionDate: 'Next session: %{date} — %{name}',
+    todayScheduled: 'Session planned today',
+    noSessionToday: 'Next session',
+  },
+
+  // ─── Program Overview — Schedule Additions ───
+  programOverview_schedule: {
+    scheduledDate: '%{date}',
+    nextSessionNudge: 'Next session: %{day}',
+  },
+
+  // ─── Priority Muscle Groups (Onboarding) ───
+  priorityGroups: {
+    chest: 'Chest',
+    back: 'Back',
+    shoulders: 'Shoulders',
+    biceps: 'Biceps',
+    triceps: 'Triceps',
+    quads: 'Quads',
+    hamstrings: 'Hamstrings',
+    glutes: 'Glutes',
+    calves: 'Calves',
+    abs: 'Abs',
   },
 
   // ─── Placeholders ───

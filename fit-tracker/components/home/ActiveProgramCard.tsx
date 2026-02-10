@@ -41,6 +41,7 @@ import { ConfirmModal } from '@/components/program/ConfirmModal';
 import type { ReadinessCheck as ReadinessCheckType } from '@/types/program';
 import i18n from '@/lib/i18n';
 import { resolveDayLabel } from '@/lib/programLabels';
+import { getNextScheduledDay, formatScheduledDate, getPlannedDayForDate, getTodayISO } from '@/lib/scheduleEngine';
 
 const SPLIT_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   ppl: { label: i18n.t('activeProgram.splitLabels.ppl'), color: '#FF6B35', bg: 'rgba(255,107,53,0.15)' },
@@ -214,7 +215,22 @@ export function ActiveProgramCard() {
   const currentWeek = program.weeks.find(
     (w) => w.weekNumber === activeState.currentWeek
   );
-  const todayDay = currentWeek?.days[activeState.currentDayIndex];
+
+  // Schedule-aware today detection
+  const todayISO = getTodayISO();
+  const scheduledToday = activeState.schedule
+    ? getPlannedDayForDate(activeState.schedule, todayISO)
+    : null;
+  const nextScheduled = activeState.schedule
+    ? getNextScheduledDay(activeState.schedule)
+    : null;
+
+  // Determine the day to show — schedule-aware or legacy
+  const todayDay = activeState.schedule
+    ? (scheduledToday && !scheduledToday.completedDate
+        ? program.weeks.find((w) => w.weekNumber === scheduledToday.weekNumber)?.days[scheduledToday.dayIndex]
+        : null)
+    : currentWeek?.days[activeState.currentDayIndex];
 
   const exercisePreview = useMemo(() => {
     if (!todayDay) return [];
@@ -233,9 +249,11 @@ export function ActiveProgramCard() {
   }, [todayDay]);
 
   const duration = todayDay ? estimateDuration(todayDay) : 0;
-  const isDayDone = activeState.completedDays.includes(
-    `${activeState.currentWeek}-${activeState.currentDayIndex}`
-  );
+  const isDayDone = activeState.schedule
+    ? (scheduledToday ? !!scheduledToday.completedDate : false)
+    : activeState.completedDays.includes(
+        `${activeState.currentWeek}-${activeState.currentDayIndex}`
+      );
 
   const splitStyle = SPLIT_LABELS[program.splitType] || SPLIT_LABELS.ppl;
 
@@ -306,6 +324,30 @@ export function ActiveProgramCard() {
           ]}
           onPress={() => router.push('/program')}
         >
+          {/* Next session nudge — when schedule exists and no session today */}
+          {!todayDay && activeState.schedule && nextScheduled && (() => {
+            const nextDayData = program.weeks
+              .find((w) => w.weekNumber === nextScheduled.weekNumber)
+              ?.days[nextScheduled.dayIndex];
+            const dateStr = formatScheduledDate(nextScheduled.plannedDate, i18n.locale);
+            const label = nextDayData ? resolveDayLabel(nextDayData) : '';
+            return (
+              <View style={styles.sessionHeader}>
+                <View style={styles.sessionTitleRow}>
+                  <View style={[styles.focusDot, { backgroundColor: splitStyle.color }]} />
+                  <Text style={styles.sessionName}>
+                    {i18n.t('activeProgram_schedule.noSessionToday')}
+                  </Text>
+                  <View style={{ flex: 1 }} />
+                  <ChevronRight size={16} color="rgba(120,120,130,1)" />
+                </View>
+                <Text style={styles.sessionMeta}>
+                  {dateStr} — {label}
+                </Text>
+              </View>
+            );
+          })()}
+
           {/* Session header — typography only, no pills */}
           {todayDay && (
             <View style={styles.sessionHeader}>

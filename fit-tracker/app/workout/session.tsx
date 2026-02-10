@@ -76,6 +76,8 @@ import {
 } from '@/lib/postSessionEngine';
 import { ExerciseSwapSheet } from '@/components/program/ExerciseSwapSheet';
 import { SessionFeedbackForm } from '@/components/session/SessionFeedbackForm';
+import { BadgeCelebration } from '@/components/badges/BadgeCelebration';
+import { useBadgeStore } from '@/stores/badgeStore';
 import { getExerciseName, getExerciseDescription, getExerciseInstructions, getTargetLabel, getSecondaryMusclesLabel } from '@/lib/exerciseLocale';
 import type { CompletedSet, CompletedExercise, BodyPart } from '@/types';
 import { DEFAULT_SET_TIME } from '@/types';
@@ -178,6 +180,7 @@ export default function WorkoutSessionScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const store = useWorkoutStore();
+  const badgeStore = useBadgeStore();
   const allowNavRef = useRef(false);
   const { workoutId, workoutName, sessionId: sessionIdParam, exercises: exercisesParam } = useLocalSearchParams<{
     workoutId: string;
@@ -302,6 +305,8 @@ export default function WorkoutSessionScreen() {
     jointPain: false,
   });
   const [reviewExpanded, setReviewExpanded] = useState(false);
+  const [showBadgeCelebration, setShowBadgeCelebration] = useState(false);
+  const [celebrationBadgeIds, setCelebrationBadgeIds] = useState<string[]>([]);
 
   // ─── Sheet (exercise list bottom drawer) ───
   const sheetClosedY = SCREEN_HEIGHT - SHEET_HANDLE_HEIGHT - insets.bottom;
@@ -318,6 +323,7 @@ export default function WorkoutSessionScreen() {
   const pauseStartRef = useRef<number | null>(null);
   const hapticFiredRef = useRef(false);
   const handlePhaseCompleteRef = useRef<() => void>(() => {});
+  const pendingNavRef = useRef(false);
 
   const currentExercise = sessionExercises[exerciseIndex];
   const totalExercises = sessionExercises.length;
@@ -445,6 +451,7 @@ export default function WorkoutSessionScreen() {
   const finishWorkout = useCallback(() => {
     setPhase('finished');
     announcePhase('finished');
+    // Badge celebration is handled in handleFinish() — after session data is saved
   }, []);
 
   const handlePhaseComplete = useCallback(() => {
@@ -696,6 +703,13 @@ export default function WorkoutSessionScreen() {
     setIsPaused(false);
   }, []);
 
+  const navigateHome = useCallback(() => {
+    cleanupAudio();
+    allowNavRef.current = true;
+    router.dismissAll();
+    router.replace('/(tabs)');
+  }, [router]);
+
   const handleFinish = useCallback(() => {
     const durationSeconds = Math.floor((Date.now() - sessionStartRef.current) / 1000);
     const completedExercises: CompletedExercise[] = sessionExercises.map((ex, idx) => ({
@@ -710,11 +724,18 @@ export default function WorkoutSessionScreen() {
         feedback: sessionFeedback,
       });
     }
-    cleanupAudio();
-    allowNavRef.current = true;
-    router.dismissAll();
-    router.replace('/(tabs)');
-  }, [completedSets, sessionExercises, store, router, sessionFeedback]);
+
+    // Check for badges unlocked by this session (endSession triggers checkBadges synchronously)
+    const newBadges = useBadgeStore.getState().lastUnlockedBadgeIds;
+    if (newBadges.length > 0) {
+      setCelebrationBadgeIds(newBadges);
+      setShowBadgeCelebration(true);
+      pendingNavRef.current = true;
+      return; // Don't navigate — celebration dismissal will
+    }
+
+    navigateHome();
+  }, [completedSets, sessionExercises, store, sessionFeedback, navigateHome]);
 
   // ─── Per-Set Editing Handlers ───
 
@@ -1411,6 +1432,20 @@ export default function WorkoutSessionScreen() {
             <Text style={s.finishButtonText}>{i18n.t('workoutSession.finish')}</Text>
           </Pressable>
         </View>
+
+        {/* Badge Celebration Overlay */}
+        <BadgeCelebration
+          badgeIds={celebrationBadgeIds}
+          visible={showBadgeCelebration}
+          onDismiss={() => {
+            setShowBadgeCelebration(false);
+            badgeStore.clearLastUnlocked();
+            if (pendingNavRef.current) {
+              pendingNavRef.current = false;
+              navigateHome();
+            }
+          }}
+        />
       </View>
     );
   }
