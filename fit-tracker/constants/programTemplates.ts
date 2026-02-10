@@ -70,6 +70,12 @@ export const EXERCISE_POOLS: Record<string, string[]> = {
     'ex_006', // Seated Cable Row
     'ex_085', // Inverted Row
     'ex_086', // Band Pull-Apart
+    'ex_018', // Face Pull (rear delts)
+    'ex_019', // Upright Row (traps)
+    'ex_020', // DB Shrugs (traps)
+    'ex_021', // Barbell Shrugs (traps)
+    'ex_022', // Reverse Pec Deck (rear delts)
+    'ex_092', // Band Pull-Apart Overhead (rear delts)
   ],
   // Lower back
   'lower back': [
@@ -83,13 +89,9 @@ export const EXERCISE_POOLS: Record<string, string[]> = {
     'ex_017', // DB Shoulder Press
     'ex_013', // Lateral Raise
     'ex_015', // Arnold Press
-    'ex_018', // Face Pull
     'ex_089', // Cable Lateral Raise
-    'ex_022', // Reverse Pec Deck
     'ex_091', // Machine Shoulder Press
     'ex_090', // Pike Push-Up
-    'ex_020', // DB Shrugs
-    'ex_092', // Band Pull-Apart Overhead
   ],
   // Biceps
   biceps: [
@@ -184,6 +186,7 @@ export const EXERCISE_POOLS: Record<string, string[]> = {
     'ex_120', // Lying Leg Raise
     'ex_122', // Hollow Body Hold
     'ex_074', // Mountain Climber
+    'ex_119', // Flutter Kicks
   ],
   // Obliques
   obliques: [
@@ -192,7 +195,6 @@ export const EXERCISE_POOLS: Record<string, string[]> = {
     'ex_075', // Side Plank
     'ex_117', // Cable Woodchopper
     'ex_116', // Pallof Press
-    'ex_119', // Flutter Kicks
   ],
 };
 

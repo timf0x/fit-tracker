@@ -16,12 +16,12 @@ export const TARGET_TO_MUSCLE: Record<string, string> = {
   'upper back': 'upper back',
   'middle back': 'upper back',
   'lower back': 'lower back',
-  'rear delts': 'shoulders',
+  'rear delts': 'upper back',
   // Shoulders
   delts: 'shoulders',
   'front delts': 'shoulders',
   'lateral delts': 'shoulders',
-  traps: 'shoulders',
+  traps: 'upper back',
   // Arms
   biceps: 'biceps',
   brachialis: 'biceps',

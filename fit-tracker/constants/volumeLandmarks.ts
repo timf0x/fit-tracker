@@ -20,7 +20,7 @@ export type VolumeLandmarkZone = 'below_mv' | 'mv_mev' | 'mev_mav' | 'mav_mrv' |
 
 export const RP_VOLUME_LANDMARKS: Record<string, VolumeLandmarks> = {
   chest:        { mv: 8,  mev: 10, mavLow: 12, mavHigh: 20, mrv: 22 },
-  'upper back': { mv: 4,  mev: 5,  mavLow: 6,  mavHigh: 10, mrv: 12 },
+  'upper back': { mv: 6,  mev: 8,  mavLow: 10, mavHigh: 18, mrv: 22 },
   lats:         { mv: 6,  mev: 8,  mavLow: 10, mavHigh: 16, mrv: 20 },
   'lower back': { mv: 2,  mev: 3,  mavLow: 4,  mavHigh: 8,  mrv: 10 },
   shoulders:    { mv: 6,  mev: 8,  mavLow: 16, mavHigh: 22, mrv: 26 },
