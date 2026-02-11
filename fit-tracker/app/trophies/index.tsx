@@ -18,7 +18,7 @@ import Animated, {
   interpolate,
   Easing,
 } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -320,6 +320,7 @@ function CategoryHeader({
 // ============================================
 
 export default function TrophiesScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [detailBadge, setDetailBadge] = useState<BadgeProgress | null>(null);
   const [showDetail, setShowDetail] = useState(false);
@@ -524,7 +525,7 @@ export default function TrophiesScreen() {
       <Animated.View style={[styles.orbBronze, orbBronzeStyle]} pointerEvents="none" />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]}>
           {/* ── Header ── */}
           <View style={styles.header}>
             <Pressable style={styles.backButton} onPress={() => router.back()}>
@@ -809,9 +810,7 @@ const styles = StyleSheet.create({
     shadowRadius: 80,
   },
 
-  scrollContent: {
-    paddingBottom: 40,
-  },
+  scrollContent: {},
 
   // ── Header ──
   header: {

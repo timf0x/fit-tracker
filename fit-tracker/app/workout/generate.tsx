@@ -379,7 +379,7 @@ export default function GenerateWorkoutScreen() {
 
           <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]}
             showsVerticalScrollIndicator={false}
           >
             {/* Equipment — plain text tabs */}
@@ -876,7 +876,6 @@ const styles = StyleSheet.create({
 
   scrollContent: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: 140,
     gap: 24,
   },
 

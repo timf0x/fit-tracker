@@ -7,7 +7,7 @@ import {
   Pressable,
   LayoutAnimation,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Svg, {
   Polyline,
@@ -16,10 +16,10 @@ import Svg, {
   Text as SvgText,
 } from 'react-native-svg';
 import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { Fonts } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { getExerciseById } from '@/data/exercises';
-import { ExerciseIcon } from '@/components/ExerciseIcon';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import {
   getExerciseAllTimeStats,
@@ -202,6 +202,7 @@ function LineChart({
 // ─── Main Screen ───
 
 export default function ExerciseDetailScreen() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { history } = useWorkoutStore();
@@ -255,20 +256,13 @@ export default function ExerciseDetailScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]}
         >
           {/* Header */}
           <View style={styles.header}>
             <Pressable style={styles.backButton} onPress={() => router.back()}>
               <ArrowLeft size={22} color="#fff" strokeWidth={2} />
             </Pressable>
-            <ExerciseIcon
-              exerciseName={exercise.name}
-              bodyPart={exercise.bodyPart}
-              gifUrl={exercise.gifUrl}
-              size={18}
-              containerSize={36}
-            />
             <View style={styles.headerText}>
               <Text style={styles.headerTitle} numberOfLines={1}>
                 {exercise.nameFr}
@@ -280,26 +274,26 @@ export default function ExerciseDetailScreen() {
           </View>
 
           {/* Period Picker */}
-          <View style={styles.periodRow}>
-            {PERIODS.map((p) => (
-              <Pressable
-                key={p.key}
-                style={[
-                  styles.periodChip,
-                  period === p.key && styles.periodChipActive,
-                ]}
-                onPress={() => setPeriod(p.key)}
-              >
-                <Text
-                  style={[
-                    styles.periodChipText,
-                    period === p.key && styles.periodChipTextActive,
-                  ]}
+          <View style={styles.filterRow}>
+            {PERIODS.map((p) => {
+              const isActive = period === p.key;
+              return (
+                <Pressable
+                  key={p.key}
+                  style={styles.filterItem}
+                  onPress={() => {
+                    setPeriod(p.key);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
                 >
-                  {p.label}
-                </Text>
-              </Pressable>
-            ))}
+                  <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
+                    {p.label}
+                  </Text>
+                  <View style={[styles.filterTick, isActive && styles.filterTickActive]} />
+                  {isActive && <View style={styles.filterAccent} />}
+                </Pressable>
+              );
+            })}
           </View>
 
           {!hasData && allTimeStats.totalSessions === 0 ? (
@@ -496,7 +490,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 120,
   },
-  scrollContent: { paddingBottom: 40 },
+  scrollContent: {},
 
   // Header
   header: {
@@ -535,33 +529,50 @@ const styles = StyleSheet.create({
   },
 
   // Period Picker
-  periodRow: {
+  filterRow: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    gap: 8,
+    justifyContent: 'center',
+    gap: 32,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.04)',
+    paddingBottom: 8,
     marginTop: 12,
     marginBottom: 20,
   },
-  periodChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+  filterItem: {
+    alignItems: 'center',
+    paddingTop: 4,
+    paddingBottom: 2,
   },
-  periodChipActive: {
-    backgroundColor: 'rgba(255,107,53,0.15)',
-    borderColor: 'rgba(255,107,53,0.3)',
-  },
-  periodChipText: {
-    color: 'rgba(160,150,140,1)',
+  filterText: {
+    color: 'rgba(100,100,110,1)',
     fontSize: 13,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    marginBottom: 6,
   },
-  periodChipTextActive: {
-    color: '#FF6B35',
+  filterTextActive: {
+    color: '#fff',
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+  },
+  filterTick: {
+    width: 1,
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+  },
+  filterTickActive: {
+    width: 2,
+    height: 8,
+    backgroundColor: '#FF6B35',
+    borderRadius: 1,
+  },
+  filterAccent: {
+    width: 24,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#FF6B35',
+    marginTop: 3,
   },
 
   // Charts

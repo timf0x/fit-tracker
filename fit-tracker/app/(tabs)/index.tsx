@@ -71,7 +71,7 @@ export default function HomeScreen() {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 80 }]}
         showsVerticalScrollIndicator={false}
         scrollEnabled={!isDragging}
       >
@@ -132,6 +132,6 @@ const styles = StyleSheet.create({
   },
   content: {
     gap: Spacing.md,
-    paddingBottom: 120,
+    // paddingBottom set dynamically via insets.bottom + 80
   },
 });

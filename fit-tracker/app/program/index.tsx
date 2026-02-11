@@ -7,7 +7,7 @@ import {
   Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
@@ -41,6 +41,7 @@ import { computeReadinessScore, computeSessionAdjustments, applyAdjustmentsToExe
 import { getPlannedDayForDate, getNextScheduledDay, getTodayISO, formatScheduledDate } from '@/lib/scheduleEngine';
 
 export default function ProgramScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const {
     program, activeState, clearProgram, isProgramComplete,
@@ -331,7 +332,7 @@ export default function ProgramScreen() {
         {/* ─── Week card: header + day rows ─── */}
         <ScrollView
           style={styles.body}
-          contentContainerStyle={styles.bodyContent}
+          contentContainerStyle={[styles.bodyContent, { paddingBottom: insets.bottom + 40 }]}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.weekCard}>
@@ -662,7 +663,6 @@ const styles = StyleSheet.create({
   bodyContent: {
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 120,
     gap: 24,
   },
 

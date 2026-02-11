@@ -495,7 +495,7 @@ export default function WorkoutDetailScreen() {
 
         <ScrollView
           style={s.exerciseList}
-          contentContainerStyle={{ paddingBottom: 140 }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
           showsVerticalScrollIndicator={false}
         >
           <Text style={s.resultCount}>{i18n.t('workoutCreate.exerciseCount', { count: filteredExercises.length })}</Text>
@@ -764,7 +764,7 @@ export default function WorkoutDetailScreen() {
           onDragEnd={handleDragEnd}
           keyExtractor={(item) => item.uid}
           containerStyle={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: 140, paddingTop: 8 }}
+          contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: insets.bottom + 40, paddingTop: 8 }}
           showsVerticalScrollIndicator={false}
           renderItem={renderEditableItem}
           ListHeaderComponent={<SessionInsights data={insightsData} />}
@@ -785,7 +785,7 @@ export default function WorkoutDetailScreen() {
         // Preset workouts — row pattern matching program day
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: 140, paddingTop: 8 }}
+          contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: insets.bottom + 40, paddingTop: 8 }}
           showsVerticalScrollIndicator={false}
         >
           <SessionInsights data={insightsData} />

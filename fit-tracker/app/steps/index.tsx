@@ -16,7 +16,7 @@ import {
   AppState,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Target } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -53,6 +53,7 @@ const TIME_FILTERS: { value: TimeFilter; label: string; days: number }[] = [
 ];
 
 export default function StepsScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('week');
   const [stepsData, setStepsData] = useState<DailySteps[]>([]);
@@ -190,7 +191,7 @@ export default function StepsScreen() {
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]}
         >
           {/* ── Unavailable notice ── */}
           {!available && !loading && (
@@ -506,7 +507,6 @@ const styles = StyleSheet.create({
 
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
   },
 
   // Unavailable notice

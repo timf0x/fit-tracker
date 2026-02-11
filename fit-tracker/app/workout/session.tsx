@@ -1113,7 +1113,7 @@ export default function WorkoutSessionScreen() {
         <Stack.Screen options={{ gestureEnabled: false, presentation: 'fullScreenModal' }} />
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: 100 }}
+          contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: insets.bottom + 40 }}
           showsVerticalScrollIndicator={false}
         >
           {/* ─── Header ─── */}

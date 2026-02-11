@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
@@ -56,6 +56,7 @@ function getMonthLabel(year: number, month: number): string {
 }
 
 export default function CalendarScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const history = useWorkoutStore((s) => s.history);
   const startSession = useWorkoutStore((s) => s.startSession);
@@ -273,7 +274,7 @@ export default function CalendarScreen() {
         {viewMode === 'week' ? (
           <ScrollView
             style={styles.body}
-            contentContainerStyle={styles.bodyContent}
+            contentContainerStyle={[styles.bodyContent, { paddingBottom: insets.bottom + 40 }]}
             showsVerticalScrollIndicator={false}
           >
             {/* Week navigation */}
@@ -318,7 +319,7 @@ export default function CalendarScreen() {
         ) : (
           <ScrollView
             style={styles.body}
-            contentContainerStyle={styles.bodyContent}
+            contentContainerStyle={[styles.bodyContent, { paddingBottom: insets.bottom + 40 }]}
             showsVerticalScrollIndicator={false}
           >
             {/* Month navigation */}
@@ -481,7 +482,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bodyContent: {
-    paddingBottom: 100,
     gap: 8,
   },
 

@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
@@ -48,6 +48,7 @@ import type { ProgramExercise } from '@/types/program';
 
 // Focus color mapping
 export default function ProgramDayScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{ week: string; day: string }>();
   const weekNum = parseInt(params.week || '1', 10);
@@ -602,7 +603,7 @@ export default function ProgramDayScreen() {
         {/* Exercise list */}
         <ScrollView
           style={styles.body}
-          contentContainerStyle={styles.bodyContent}
+          contentContainerStyle={[styles.bodyContent, { paddingBottom: insets.bottom + 40 }]}
           showsVerticalScrollIndicator={false}
         >
           {/* Session insights panel */}
@@ -1012,7 +1013,6 @@ const styles = StyleSheet.create({
   },
   bodyContent: {
     paddingHorizontal: 20,
-    paddingBottom: 120,
   },
 
   // Exercise rows (no card bg)

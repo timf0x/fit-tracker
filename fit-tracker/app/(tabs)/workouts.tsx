@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Modal } from 'react-native';
 import { Plus, Dumbbell, Trash2 } from 'lucide-react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
@@ -12,6 +12,7 @@ import { computeSmartSuggestion } from '@/lib/smartWorkout';
 import i18n from '@/lib/i18n';
 
 export default function WorkoutsScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const history = useWorkoutStore((s) => s.history);
   const customWorkouts = useWorkoutStore((s) => s.customWorkouts);
@@ -71,7 +72,7 @@ export default function WorkoutsScreen() {
       {/* Scrollable Content */}
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 80 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -192,7 +193,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: 8,
-    paddingBottom: 120,
+    // paddingBottom set dynamically via insets
     gap: 24,
   },
 

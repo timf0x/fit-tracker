@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   ArrowLeft,
@@ -38,6 +38,7 @@ const ZONE_LABELS: Record<VolumeLandmarkZone, string> = {
 };
 
 export default function MuscleDetailScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { muscle } = useLocalSearchParams<{ muscle: string }>();
   const { history } = useWorkoutStore();
@@ -137,7 +138,7 @@ export default function MuscleDetailScreen() {
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]}
         >
           {/* Advice Card */}
           <View style={[styles.adviceCard, { backgroundColor: zoneColor + '0F' }]}>
@@ -326,7 +327,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 4,
-    paddingBottom: 40,
   },
 
   // Header

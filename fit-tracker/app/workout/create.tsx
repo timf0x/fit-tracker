@@ -284,7 +284,7 @@ export default function CreateWorkoutScreen() {
         </View>
 
         {/* Exercise list */}
-        <ScrollView style={s.exerciseList} contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
+        <ScrollView style={s.exerciseList} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
           <Text style={s.resultCount}>{i18n.t('workoutCreate.exerciseCount', { count: filteredExercises.length })}</Text>
           {filteredExercises.map((exercise) => {
             const isSelected = tempSelected.some((e) => e.id === exercise.id);
@@ -386,7 +386,7 @@ export default function CreateWorkoutScreen() {
           onDragEnd={handleDragEnd}
           keyExtractor={(item) => item.uid}
           containerStyle={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: 120 }}
+          contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: insets.bottom + 40 }}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             <>

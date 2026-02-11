@@ -7,7 +7,7 @@ import {
   TextInput,
   FlatList,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Search } from 'lucide-react-native';
 import { Fonts } from '@/constants/theme';
@@ -40,6 +40,7 @@ interface ExerciseRowData {
 }
 
 export default function ExerciseListScreen() {
+  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
   const { history } = useWorkoutStore();
@@ -195,7 +196,7 @@ export default function ExerciseListScreen() {
           data={filteredRows}
           keyExtractor={(item) => item.exercise.id}
           renderItem={renderRow}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 40 }]}
           showsVerticalScrollIndicator={false}
           keyboardDismissMode="on-drag"
         />
@@ -290,7 +291,6 @@ const styles = StyleSheet.create({
   // List
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
   },
   exerciseRow: {
     flexDirection: 'row',

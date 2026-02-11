@@ -7,7 +7,7 @@ import {
   Pressable,
   FlatList,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Svg, {
   Line as SvgLine,
@@ -96,6 +96,7 @@ function getShortWeekLabel(offset: number): string {
 }
 
 export default function StatsScreen() {
+  const insets = useSafeAreaInsets();
   const [weekOffset, setWeekOffset] = useState(0);
   const router = useRouter();
   const { history } = useWorkoutStore();
@@ -258,7 +259,7 @@ export default function StatsScreen() {
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 80 }]}
         >
           <Text style={styles.weekLabel}>{currentWeekLabel}</Text>
 
@@ -621,7 +622,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 120,
   },
-  scrollContent: { paddingBottom: 120 },
+  scrollContent: {},
 
   // Header
   header: {

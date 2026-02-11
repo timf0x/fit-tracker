@@ -9,7 +9,7 @@ import {
   PanResponder,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
   User,
@@ -163,6 +163,7 @@ function InlineSelector<T extends string>({
 // ─── Main Screen ───
 
 export default function SettingsScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const userProfile = useProgramStore((s) => s.userProfile);
 
@@ -199,7 +200,7 @@ export default function SettingsScreen() {
       <View style={s.topGradient} pointerEvents="none" />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent} scrollEnabled={scrollEnabled}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 80 }]} scrollEnabled={scrollEnabled}>
           {/* Header */}
           <View style={s.header}>
             <Text style={s.headerTitle}>{i18n.t('settings.title')}</Text>
@@ -397,7 +398,7 @@ const s = StyleSheet.create({
     height: 200,
     backgroundColor: 'rgba(255,107,53,0.03)',
   },
-  scrollContent: { paddingBottom: 40 },
+  scrollContent: {},
 
   // Header
   header: {
