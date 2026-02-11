@@ -7,7 +7,7 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
   ArrowLeft,
@@ -64,6 +64,7 @@ export default function VolumeScreen() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [showInfo, setShowInfo] = useState(false);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { history, muscleOrder, setMuscleOrder } = useWorkoutStore();
   const weekStripRef = useRef<FlatList>(null);
 
@@ -374,19 +375,20 @@ export default function VolumeScreen() {
         </View>
 
         {/* Muscle List — Draggable */}
-        <DraggableFlatList
-          data={muscleRows}
-          keyExtractor={(item) => item.muscle}
-          renderItem={renderMuscleRow}
-          onDragEnd={handleDragEnd}
-          onDragBegin={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          }}
-          activationDistance={20}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          ListFooterComponent={<View style={{ height: 40 }} />}
-        />
+        <View style={{ flex: 1 }}>
+          <DraggableFlatList
+            data={muscleRows}
+            keyExtractor={(item) => item.muscle}
+            renderItem={renderMuscleRow}
+            onDragEnd={handleDragEnd}
+            onDragBegin={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            }}
+            activationDistance={20}
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]}
+            showsVerticalScrollIndicator={false}
+          />
+        </View>
       </SafeAreaView>
 
       {/* Volume Info Modal */}

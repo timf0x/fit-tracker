@@ -262,24 +262,20 @@ export default function ExerciseDetailScreen() {
             <Pressable style={styles.backButton} onPress={() => router.back()}>
               <ArrowLeft size={22} color="#fff" strokeWidth={2} />
             </Pressable>
-            <View style={styles.headerInfo}>
-              <ExerciseIcon
-                exerciseName={exercise.name}
-                bodyPart={exercise.bodyPart}
-                gifUrl={exercise.gifUrl}
-                size={22}
-                containerSize={44}
-              />
-              <View style={styles.headerText}>
-                <Text style={styles.headerTitle} numberOfLines={2}>
-                  {exercise.nameFr}
-                </Text>
-                <View style={styles.targetPill}>
-                  <Text style={styles.targetPillText}>
-                    {BODY_PART_FR[exercise.bodyPart] || exercise.bodyPart}
-                  </Text>
-                </View>
-              </View>
+            <ExerciseIcon
+              exerciseName={exercise.name}
+              bodyPart={exercise.bodyPart}
+              gifUrl={exercise.gifUrl}
+              size={18}
+              containerSize={36}
+            />
+            <View style={styles.headerText}>
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                {exercise.nameFr}
+              </Text>
+              <Text style={styles.headerSub}>
+                {BODY_PART_FR[exercise.bodyPart] || exercise.bodyPart}
+              </Text>
             </View>
           </View>
 
@@ -519,34 +515,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
   headerText: {
     flex: 1,
-    gap: 4,
   },
   headerTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-  targetPill: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,107,53,0.12)',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  targetPillText: {
-    color: '#FF6B35',
-    fontSize: 11,
+    color: 'rgba(200,200,210,1)',
+    fontSize: 12,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
+  headerSub: {
+    color: 'rgba(120,120,130,1)',
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    marginTop: 2,
   },
 
   // Period Picker

@@ -525,17 +525,15 @@ const styles = StyleSheet.create({
     paddingLeft: 2,
   },
 
-  // Compact muscle dot grid (for trained days)
+  // Muscle list (for trained days)
   muscleDotGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    gap: 2,
     marginTop: 4,
   },
   muscleDotItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '50%',
-    gap: 6,
+    gap: 8,
     paddingVertical: 4,
   },
   muscleDot: {
@@ -555,7 +553,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
-    marginRight: 8,
   },
 
   // PR detail row

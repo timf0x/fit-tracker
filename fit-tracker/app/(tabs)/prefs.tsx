@@ -202,7 +202,6 @@ export default function SettingsScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent} scrollEnabled={scrollEnabled}>
           {/* Header */}
           <View style={s.header}>
-            <Text style={s.headerLabel}>{i18n.t('settings.header')}</Text>
             <Text style={s.headerTitle}>{i18n.t('settings.title')}</Text>
           </View>
 
@@ -402,23 +401,20 @@ const s = StyleSheet.create({
 
   // Header
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 12,
     paddingBottom: 8,
   },
-  headerLabel: {
-    color: 'rgba(160,150,140,1)',
-    fontSize: 11,
+  headerTitle: {
+    flex: 1,
+    color: 'rgba(200,200,210,1)',
+    fontSize: 12,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
     letterSpacing: 1.5,
-    marginBottom: 4,
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 28,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
+    textTransform: 'uppercase',
   },
 
   // Profile hero card

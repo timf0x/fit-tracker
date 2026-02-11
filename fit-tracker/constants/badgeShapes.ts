@@ -1,5 +1,5 @@
 /**
- * SVG path data for badge shapes, laurel wreaths, and decorative elements.
+ * SVG path data for badge shapes.
  * All paths are normalized to a 0-100 viewport and scaled at render time.
  */
 
@@ -73,53 +73,3 @@ export const TIER_GRADIENTS: Record<string, TierGradient> = {
   gold: { primary: '#FFD700', secondary: '#B8860B', glow: '#FFD700' },
   platinum: { primary: '#E5E4E2', secondary: '#B8B8C0', glow: '#E5E4E2' },
 };
-
-// ── Decorative Elements ──
-
-/** Laurel wreath left branch (normalized 0-100, placed around center icon) */
-export const LAUREL_LEFT_PATH =
-  'M30 70 Q25 60 28 50 Q30 42 26 35 M28 50 Q22 48 20 44 M28 55 Q21 54 18 50 M28 60 Q22 60 19 56 M28 44 Q23 40 22 36 M28 38 Q25 32 25 28';
-
-/** Laurel wreath right branch (mirrored) */
-export const LAUREL_RIGHT_PATH =
-  'M70 70 Q75 60 72 50 Q70 42 74 35 M72 50 Q78 48 80 44 M72 55 Q79 54 82 50 M72 60 Q78 60 81 56 M72 44 Q77 40 78 36 M72 38 Q75 32 75 28';
-
-/** Radiating lines for platinum tier (8 lines from center outward) */
-export function getRadiatingLines(cx: number, cy: number, innerR: number, outerR: number): Array<{ x1: number; y1: number; x2: number; y2: number }> {
-  const lines: Array<{ x1: number; y1: number; x2: number; y2: number }> = [];
-  for (let i = 0; i < 8; i++) {
-    const angle = (i / 8) * Math.PI * 2 - Math.PI / 2;
-    lines.push({
-      x1: cx + Math.cos(angle) * innerR,
-      y1: cy + Math.sin(angle) * innerR,
-      x2: cx + Math.cos(angle) * outerR,
-      y2: cy + Math.sin(angle) * outerR,
-    });
-  }
-  return lines;
-}
-
-/** Corner dots for silver tier (4 dots at corners of shape) */
-export function getCornerDots(cx: number, cy: number, radius: number): Array<{ x: number; y: number }> {
-  return [
-    { x: cx, y: cy - radius },
-    { x: cx + radius, y: cy },
-    { x: cx, y: cy + radius },
-    { x: cx - radius, y: cy },
-  ];
-}
-
-/** Particle dots for platinum tier (12 dots scattered around) */
-export function getParticleDots(cx: number, cy: number, radius: number): Array<{ x: number; y: number; size: number }> {
-  const dots: Array<{ x: number; y: number; size: number }> = [];
-  for (let i = 0; i < 12; i++) {
-    const angle = (i / 12) * Math.PI * 2 + Math.PI / 6;
-    const r = radius * (0.85 + (i % 3) * 0.1);
-    dots.push({
-      x: cx + Math.cos(angle) * r,
-      y: cy + Math.sin(angle) * r,
-      size: i % 3 === 0 ? 2 : 1.2,
-    });
-  }
-  return dots;
-}

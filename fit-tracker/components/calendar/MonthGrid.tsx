@@ -104,7 +104,7 @@ export function MonthGrid({ year, month, monthData, onSelectDate }: MonthGridPro
   );
 }
 
-const CIRCLE_SIZE = 38;
+const CIRCLE_SIZE = 34;
 
 const styles = StyleSheet.create({
   container: {
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   dayCell: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 2,
+    paddingVertical: 6,
   },
   circle: {
     width: CIRCLE_SIZE,

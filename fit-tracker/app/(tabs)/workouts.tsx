@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Modal } from 'react-native';
 import { Plus, Dumbbell, Trash2 } from 'lucide-react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
@@ -12,7 +12,6 @@ import { computeSmartSuggestion } from '@/lib/smartWorkout';
 import i18n from '@/lib/i18n';
 
 export default function WorkoutsScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const history = useWorkoutStore((s) => s.history);
   const customWorkouts = useWorkoutStore((s) => s.customWorkouts);
@@ -59,18 +58,15 @@ export default function WorkoutsScreen() {
       <View style={styles.orbOrange} />
       <View style={styles.orbBlue} />
 
-      {/* Fixed Header */}
-      <View style={[styles.headerArea, { paddingTop: insets.top + 16 }]}>
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.headerLabel}>{i18n.t('workouts.header')}</Text>
-            <Text style={styles.headerTitle}>{i18n.t('workouts.title')}</Text>
-          </View>
+      {/* Header */}
+      <SafeAreaView edges={['top']}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>{i18n.t('workouts.title')}</Text>
           <Pressable style={styles.addButton} onPress={handleAdd}>
             <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
           </Pressable>
         </View>
-      </View>
+      </SafeAreaView>
 
       {/* Scrollable Content */}
       <ScrollView
@@ -201,32 +197,22 @@ const styles = StyleSheet.create({
   },
 
   // Header
-  headerArea: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: 0,
-    paddingBottom: 12,
-    position: 'relative',
-    overflow: 'visible',
-  },
-  headerRow: {
+  header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  headerLabel: {
-    color: 'rgba(160, 150, 140, 1)',
-    fontSize: 11,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    letterSpacing: 2,
-    marginBottom: 4,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+    gap: 12,
   },
   headerTitle: {
-    color: Colors.text,
-    fontSize: 26,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    letterSpacing: -0.5,
+    flex: 1,
+    color: 'rgba(200,200,210,1)',
+    fontSize: 12,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
   addButton: {
     width: 44,

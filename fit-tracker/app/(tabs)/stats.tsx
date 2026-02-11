@@ -625,15 +625,18 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 12,
     paddingBottom: 8,
   },
   headerTitle: {
-    color: '#fff',
-    fontSize: 13,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
+    flex: 1,
+    color: 'rgba(200,200,210,1)',
+    fontSize: 12,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
