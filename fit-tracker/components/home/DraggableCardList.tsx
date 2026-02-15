@@ -170,10 +170,12 @@ export function DraggableCardList({
   const layoutReadyRef = useRef(false);
   const skipNextOrderEffect = useRef(false);
 
-  // Keep refs in sync with props
-  useEffect(() => { orderRef.current = order; }, [order]);
-  useEffect(() => { sizesRef.current = sizes; }, [sizes]);
-  useEffect(() => { layoutReadyRef.current = layoutReady; }, [layoutReady]);
+  // Keep refs in sync with props (single effect to avoid race conditions)
+  useEffect(() => {
+    orderRef.current = order;
+    sizesRef.current = sizes;
+    layoutReadyRef.current = layoutReady;
+  }, [order, sizes, layoutReady]);
 
   /* ---- Container measurement ---- */
 

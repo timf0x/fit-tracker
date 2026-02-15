@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { Colors, Fonts } from '@/constants/theme';
+import { Fonts } from '@/constants/theme';
 import { MonthDayData } from '@/lib/timelineEngine';
 import i18n from '@/lib/i18n';
 
@@ -7,7 +7,8 @@ interface MonthGridProps {
   year: number;
   month: number; // 0-indexed
   monthData: MonthDayData[];
-  onSelectDate: (date: string) => void;
+  selectedDate?: string;
+  onSelectDate?: (date: string) => void;
 }
 
 /** Map totalSets → heatmap background opacity */
@@ -20,7 +21,7 @@ function getHeatmapBg(totalSets: number, type: MonthDayData['type']): string {
   return 'rgba(255,107,53,0.65)';
 }
 
-export function MonthGrid({ year, month, monthData, onSelectDate }: MonthGridProps) {
+export function MonthGrid({ year, month, monthData, selectedDate, onSelectDate }: MonthGridProps) {
   const dayLabels = i18n.t('scheduling.dayLabels') as unknown as string[];
 
   // Build the grid: first day of month's weekday (Mon=0)
@@ -56,7 +57,7 @@ export function MonthGrid({ year, month, monthData, onSelectDate }: MonthGridPro
         ))}
       </View>
 
-      {/* Grid rows — no gap, cells use flex:1 for even spacing */}
+      {/* Grid rows */}
       {rows.map((row, rowIdx) => (
         <View key={rowIdx} style={styles.gridRow}>
           {row.map((cell, colIdx) => {
@@ -68,13 +69,14 @@ export function MonthGrid({ year, month, monthData, onSelectDate }: MonthGridPro
             const isToday = cell.type === 'today';
             const isTrained = cell.type === 'trained';
             const isScheduled = cell.type === 'scheduled';
+            const isSelected = selectedDate === cell.date && !isToday;
             const heatBg = getHeatmapBg(cell.totalSets, cell.type);
 
             return (
               <Pressable
                 key={colIdx}
                 style={styles.dayCell}
-                onPress={() => onSelectDate(cell.date)}
+                onPress={onSelectDate ? () => onSelectDate(cell.date) : undefined}
               >
                 <View
                   style={[
@@ -82,6 +84,7 @@ export function MonthGrid({ year, month, monthData, onSelectDate }: MonthGridPro
                     { backgroundColor: heatBg },
                     isToday && styles.circleToday,
                     isScheduled && styles.circleScheduled,
+                    isSelected && styles.circleSelected,
                   ]}
                 >
                   <Text
@@ -104,7 +107,7 @@ export function MonthGrid({ year, month, monthData, onSelectDate }: MonthGridPro
   );
 }
 
-const CIRCLE_SIZE = 34;
+const CIRCLE_SIZE = 36;
 
 const styles = StyleSheet.create({
   container: {
@@ -130,7 +133,7 @@ const styles = StyleSheet.create({
   dayCell: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: 3,
   },
   circle: {
     width: CIRCLE_SIZE,
@@ -140,27 +143,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   circleToday: {
-    borderWidth: 2,
-    borderColor: '#4ADE80',
+    backgroundColor: '#4ADE80',
   },
   circleScheduled: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: 'rgba(255,107,53,0.25)',
+    borderColor: 'rgba(255,107,53,0.3)',
+  },
+  circleSelected: {
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.25)',
   },
   dateText: {
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: 14,
+    color: 'rgba(255,255,255,0.35)',
+    fontSize: 15,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
   },
   dateTextToday: {
-    color: '#4ADE80',
+    color: '#050505',
     fontFamily: Fonts?.bold,
     fontWeight: '700',
   },
   dateTextTrained: {
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255,255,255,0.8)',
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
   },

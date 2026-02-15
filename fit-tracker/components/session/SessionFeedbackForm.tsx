@@ -205,7 +205,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 6,
+    paddingVertical: 14,
+    minHeight: 48,
   },
   jointLeft: {
     flexDirection: 'row',

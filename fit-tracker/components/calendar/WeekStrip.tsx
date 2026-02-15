@@ -61,18 +61,18 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
   },
   dayColumn: {
     alignItems: 'center',
     flex: 1,
     gap: 8,
-    paddingVertical: 4,
+    paddingVertical: 6,
   },
   dayLabel: {
     color: 'rgba(120,120,130,1)',
-    fontSize: 11,
+    fontSize: 13,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
   },
@@ -80,9 +80,9 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
   dateCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -90,12 +90,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
   },
   dateCircleToday: {
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderColor: Colors.primary,
   },
   dateNum: {
     color: 'rgba(255,255,255,0.7)',
-    fontSize: 14,
+    fontSize: 20,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
   },
@@ -108,5 +108,4 @@ const styles = StyleSheet.create({
   dateNumDim: {
     color: 'rgba(255,255,255,0.3)',
   },
-
 });

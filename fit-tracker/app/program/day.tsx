@@ -5,29 +5,20 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
-  Repeat,
-  Timer,
   Weight,
   Check,
   Zap,
   Target,
-  Minus,
-  Plus,
-  RotateCcw,
   Clock,
   Calendar,
-  TrendingUp,
-  TrendingDown,
   AlertTriangle,
-  Info,
 } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/theme';
 import i18n from '@/lib/i18n';
-import { formatWeight, getWeightUnitLabel } from '@/stores/settingsStore';
 import { useProgramStore } from '@/stores/programStore';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { getExerciseById } from '@/data/exercises';
-import { ExerciseIcon } from '@/components/ExerciseIcon';
+import { ExerciseRow } from '@/components/exercises/ExerciseRow';
 import { ConfirmModal } from '@/components/program/ConfirmModal';
 import { ExerciseSwapSheet } from '@/components/program/ExerciseSwapSheet';
 import { ExerciseInfoSheet } from '@/components/ExerciseInfoSheet';
@@ -62,6 +53,7 @@ export default function ProgramDayScreen() {
   const saveSessionReadiness = useWorkoutStore((s) => s.saveSessionReadiness);
   const history = useWorkoutStore((s) => s.history);
 
+  const [expandedIndices, setExpandedIndices] = useState<Set<number>>(new Set());
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [manualOverloads, setManualOverloads] = useState<Record<string, 'bump' | 'hold' | 'drop'>>({});
   const [showPacingWarning, setShowPacingWarning] = useState(false);
@@ -307,11 +299,26 @@ export default function ProgramDayScreen() {
     return day.muscleTargets;
   }, [swapExerciseIndex, day.muscleTargets]);
 
+  const toggleExpand = (idx: number) => {
+    setExpandedIndices((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) {
+        next.delete(idx);
+        if (editingIndex === idx) setEditingIndex(null);
+      } else {
+        next.add(idx);
+      }
+      return next;
+    });
+  };
+
+  const toggleEdit = (idx: number) => {
+    setEditingIndex(editingIndex === idx ? null : idx);
+  };
+
   const renderExercise = (pex: ProgramExercise, globalIdx: number, isLast: boolean) => {
     const ex = getExerciseById(pex.exerciseId);
     if (!ex) return null;
-    const compound = isCompound(pex.exerciseId);
-    const isEditing = editingIndex === globalIdx;
     const suggestion = suggestions[pex.exerciseId];
     const lastPerf = lastPerformance[pex.exerciseId];
     const progWeight = progressiveWeights[pex.exerciseId];
@@ -322,206 +329,57 @@ export default function ProgramDayScreen() {
       (manualOverloads[pex.exerciseId] || progWeight?.action || 'none') as 'bump' | 'hold' | 'drop' | 'none';
 
     return (
-      <View key={`${pex.exerciseId}-${globalIdx}`}>
-        <Pressable
-          style={[styles.exRow, isEditing && styles.exRowEditing]}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setEditingIndex(isEditing ? null : globalIdx);
-          }}
-          onLongPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            setSwapExerciseIndex(globalIdx);
-            setShowSwapSheet(true);
-          }}
-        >
-          {/* Exercise number */}
-          <View style={styles.exNumber}>
-            <Text style={styles.exNumberText}>
-              {String(globalIdx + 1).padStart(2, '0')}
-            </Text>
-          </View>
-
-          <ExerciseIcon
-            exerciseName={ex.name}
-            bodyPart={ex.bodyPart}
-            gifUrl={ex.gifUrl}
-            size={20}
-            containerSize={44}
-          />
-
-          <View style={styles.exInfo}>
-            <Text style={styles.exName} numberOfLines={1}>
-              {ex.nameFr}
-            </Text>
-
-            {lastPerf && (
-              <Text style={styles.lastPerfText}>
-                {i18n.t('programDay.lastTime')} : {lastPerf.weight > 0 ? `${formatWeight(lastPerf.weight)}${getWeightUnitLabel()} x ` : ''}{lastPerf.reps} {i18n.t('common.reps')}
-              </Text>
-            )}
-
-            <View style={styles.exMeta}>
-              <View style={styles.exMetaPill}>
-                <Repeat size={10} color="rgba(255,255,255,0.4)" />
-                <Text style={styles.exMetaText}>
-                  {pex.sets} x {pex.minReps && pex.minReps !== pex.maxReps
-                    ? `${pex.minReps}-${pex.maxReps}`
-                    : pex.maxReps || pex.reps}
-                </Text>
-              </View>
-              {displayWeight > 0 && (
-                <View style={[styles.exMetaPill, styles.exWeightPill]}>
-                  <Weight size={10} color={Colors.primary} />
-                  <Text style={[styles.exMetaText, styles.exWeightText]}>
-                    {formatWeight(displayWeight)}{getWeightUnitLabel()}
-                  </Text>
-                </View>
-              )}
-              {overloadAction === 'bump' && (
-                <View style={[styles.exMetaPill, { backgroundColor: 'rgba(74,222,128,0.10)' }]}>
-                  <Text style={[styles.exMetaText, { color: '#4ADE80' }]}>↑</Text>
-                </View>
-              )}
-              {overloadAction === 'drop' && (
-                <View style={[styles.exMetaPill, { backgroundColor: 'rgba(251,191,36,0.10)' }]}>
-                  <Text style={[styles.exMetaText, { color: '#FBBF24' }]}>↓</Text>
-                </View>
-              )}
-            </View>
-          </View>
-
-          {/* Info button */}
-          <Pressable
-            style={styles.infoButton}
-            onPress={() => setInfoExercise(ex)}
-            hitSlop={8}
-          >
-            <Info size={16} color="rgba(255,255,255,0.25)" />
-          </Pressable>
-        </Pressable>
-
-        {/* Inline editor */}
-        {isEditing && (
-          <View style={styles.editorPanel}>
-            {/* Overload context in editor */}
-            {overloadAction === 'bump' && (
-              <View style={[styles.overloadRow, { backgroundColor: 'rgba(74,222,128,0.08)', borderColor: 'rgba(74,222,128,0.15)' }]}>
-                <TrendingUp size={12} color="#4ADE80" />
-                <Text style={[styles.overloadText, { color: '#4ADE80' }]}>{i18n.t('programDay.overloadBump', { weight: displayWeight })}</Text>
-              </View>
-            )}
-            {overloadAction === 'drop' && (
-              <View style={[styles.overloadRow, { backgroundColor: 'rgba(251,191,36,0.08)', borderColor: 'rgba(251,191,36,0.15)' }]}>
-                <TrendingDown size={12} color="#FBBF24" />
-                <Text style={[styles.overloadText, { color: '#FBBF24' }]}>{i18n.t('programDay.overloadDrop')}</Text>
-              </View>
-            )}
-            {overloadAction === 'hold' && (
-              <View style={styles.overloadRow}>
-                <TrendingUp size={12} color={Colors.primary} />
-                <Text style={styles.overloadText}>{i18n.t('programDay.overloadHold')}</Text>
-              </View>
-            )}
-            {overloadAction === 'none' ? (
-              suggestion ? (
-                <View style={styles.overloadRow}>
-                  <TrendingUp size={12} color={Colors.primary} />
-                  <Text style={styles.overloadText}>{i18n.t('programDay.suggestion', { suggestion })}</Text>
-                </View>
-              ) : null
-            ) : null}
-
-            <Text style={styles.editorLabel}>{i18n.t('programDay.adjustTip')}</Text>
-
-            <View style={styles.editorRow}>
-              <Text style={styles.editorFieldLabel}>{i18n.t('programDay.sets')}</Text>
-              <View style={styles.stepperRow}>
-                <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'sets', -1)}>
-                  <Minus size={14} color="#fff" />
-                </Pressable>
-                <Text style={styles.stepperValue}>{pex.sets}</Text>
-                <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'sets', 1)}>
-                  <Plus size={14} color="#fff" />
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={styles.editorRow}>
-              <View>
-                <Text style={styles.editorFieldLabel}>{i18n.t('programDay.repsMax')}</Text>
-                {pex.minReps > 0 && pex.minReps !== (pex.maxReps || pex.reps) && (
-                  <Text style={styles.editorFieldHint}>{i18n.t('programDay.minReps', { min: pex.minReps })}</Text>
-                )}
-              </View>
-              <View style={styles.stepperRow}>
-                <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'maxReps', -1)}>
-                  <Minus size={14} color="#fff" />
-                </Pressable>
-                <Text style={styles.stepperValue}>{pex.maxReps || pex.reps}</Text>
-                <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'maxReps', 1)}>
-                  <Plus size={14} color="#fff" />
-                </Pressable>
-              </View>
-            </View>
-
-            {(pex.suggestedWeight || 0) >= 0 && (
-              <View style={styles.editorRow}>
-                <Text style={styles.editorFieldLabel}>{i18n.t('programDay.weight')}</Text>
-                <View style={styles.stepperRow}>
-                  <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'suggestedWeight', -1)}>
-                    <Minus size={14} color="#fff" />
-                  </Pressable>
-                  <Text style={styles.stepperValue}>{pex.suggestedWeight || 0}</Text>
-                  <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'suggestedWeight', 1)}>
-                    <Plus size={14} color="#fff" />
-                  </Pressable>
-                </View>
-              </View>
-            )}
-
-            <View style={styles.editorRow}>
-              <Text style={styles.editorFieldLabel}>{i18n.t('programDay.rest')}</Text>
-              <View style={styles.stepperRow}>
-                <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'restTime', -1)}>
-                  <Minus size={14} color="#fff" />
-                </Pressable>
-                <Text style={styles.stepperValue}>{pex.restTime}</Text>
-                <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'restTime', 1)}>
-                  <Plus size={14} color="#fff" />
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={styles.editorRow}>
-              <Text style={styles.editorFieldLabel}>{i18n.t('programDay.timePerSet')}</Text>
-              <View style={styles.stepperRow}>
-                <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'setTime', -1)}>
-                  <Minus size={14} color="#fff" />
-                </Pressable>
-                <Text style={styles.stepperValue}>{pex.setTime || 35}</Text>
-                <Pressable style={styles.stepperBtn} onPress={() => handleEditField(globalIdx, 'setTime', 1)}>
-                  <Plus size={14} color="#fff" />
-                </Pressable>
-              </View>
-            </View>
-
-            <Pressable
-              style={styles.resetButton}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                resetExerciseOverrides(weekNum, dayIdx, globalIdx);
-              }}
-            >
-              <RotateCcw size={12} color="rgba(255,255,255,0.4)" />
-              <Text style={styles.resetText}>{i18n.t('programDay.reset')}</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {/* Separator between exercises (not after last) */}
-        {!isEditing && !isLast && <View style={styles.exSeparator} />}
-      </View>
+      <ExerciseRow
+        key={`${pex.exerciseId}-${globalIdx}`}
+        index={globalIdx}
+        exerciseName={ex.nameFr}
+        exerciseIconName={ex.name}
+        bodyPart={ex.bodyPart}
+        gifUrl={ex.gifUrl}
+        sets={pex.sets}
+        reps={pex.maxReps || pex.reps}
+        minReps={pex.minReps && pex.minReps !== (pex.maxReps || pex.reps) ? pex.minReps : undefined}
+        weight={displayWeight}
+        restTime={pex.restTime}
+        setTime={pex.setTime}
+        overloadAction={overloadAction}
+        lastPerformance={lastPerf}
+        overloadMessages={{
+          bump: i18n.t('programDay.overloadBump', { weight: displayWeight }),
+          drop: i18n.t('programDay.overloadDrop'),
+          hold: i18n.t('programDay.overloadHold'),
+          suggestion: suggestion ? i18n.t('programDay.suggestion', { suggestion }) : undefined,
+        }}
+        editorTip={i18n.t('programDay.adjustTip')}
+        editorWeight={pex.suggestedWeight || 0}
+        showMinRepsHint={pex.minReps > 0 && pex.minReps !== (pex.maxReps || pex.reps) ? { min: pex.minReps } : undefined}
+        isExpanded={expandedIndices.has(globalIdx)}
+        isEditing={editingIndex === globalIdx}
+        isLast={isLast}
+        onToggleExpand={() => toggleExpand(globalIdx)}
+        onToggleEdit={() => toggleEdit(globalIdx)}
+        onEditField={(field, delta) => {
+          // Map ExerciseRow field names to ProgramExercise fields
+          const fieldMap: Record<string, keyof ProgramExercise> = {
+            sets: 'sets',
+            reps: 'maxReps',
+            weight: 'suggestedWeight',
+            restTime: 'restTime',
+            setTime: 'setTime',
+          };
+          const pexField = fieldMap[field];
+          if (pexField) handleEditField(globalIdx, pexField, delta);
+        }}
+        onInfoPress={() => setInfoExercise(ex)}
+        onLongPress={() => {
+          setSwapExerciseIndex(globalIdx);
+          setShowSwapSheet(true);
+        }}
+        onReset={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          resetExerciseOverrides(weekNum, dayIdx, globalIdx);
+        }}
+      />
     );
   };
 
@@ -840,9 +698,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1013,182 +871,6 @@ const styles = StyleSheet.create({
   },
   bodyContent: {
     paddingHorizontal: 20,
-  },
-
-  // Exercise rows (no card bg)
-  exRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 10,
-  },
-  exRowEditing: {
-    backgroundColor: 'rgba(255,107,53,0.04)',
-    borderRadius: 14,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    paddingHorizontal: 10,
-    marginHorizontal: -10,
-  },
-  infoButton: {
-    padding: 6,
-    borderRadius: 12,
-  },
-  exSeparator: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    marginLeft: 82,
-  },
-  exNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  exNumberText: {
-    color: 'rgba(120,120,130,1)',
-    fontSize: 11,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-  exInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  exName: {
-    color: '#fff',
-    fontSize: 14,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-  },
-  lastPerfText: {
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: 11,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    fontStyle: 'italic',
-  },
-  exMeta: {
-    flexDirection: 'row',
-    gap: 6,
-    flexWrap: 'wrap',
-    alignItems: 'center',
-  },
-  exMetaPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-  },
-  exWeightPill: {
-    backgroundColor: 'rgba(255,107,53,0.1)',
-  },
-  exMetaText: {
-    color: 'rgba(255,255,255,0.45)',
-    fontSize: 11,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-  exWeightText: {
-    color: Colors.primary,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-  },
-
-  // Overload (inside editor now)
-  overloadRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255,107,53,0.1)',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,107,53,0.2)',
-  },
-  overloadText: {
-    color: Colors.primary,
-    fontSize: 12,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-  },
-
-  // Inline editor
-  editorPanel: {
-    backgroundColor: 'rgba(255,107,53,0.04)',
-    borderWidth: 1,
-    borderTopWidth: 0,
-    borderColor: 'rgba(255,107,53,0.15)',
-    borderBottomLeftRadius: 14,
-    borderBottomRightRadius: 14,
-    padding: 14,
-    marginHorizontal: -10,
-    gap: 10,
-  },
-  editorLabel: {
-    color: 'rgba(255,255,255,0.35)',
-    fontSize: 11,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  editorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  editorFieldLabel: {
-    color: 'rgba(255,255,255,0.55)',
-    fontSize: 13,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-  editorFieldHint: {
-    color: 'rgba(255,255,255,0.25)',
-    fontSize: 10,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    marginTop: 1,
-  },
-  stepperRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  stepperBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepperValue: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    minWidth: 40,
-    textAlign: 'center',
-  },
-  resetButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingTop: 4,
-  },
-  resetText: {
-    color: 'rgba(255,255,255,0.4)',
-    fontSize: 12,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
   },
 
   // Deload warning banner (from deload detection engine)

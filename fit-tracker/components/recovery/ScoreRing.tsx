@@ -28,11 +28,12 @@ export function ScoreRing({ score, size = 100 }: ScoreRingProps) {
   const [displayScore, setDisplayScore] = useState(0);
 
   useEffect(() => {
+    progress.setValue(0);
     const listener = progress.addListener(({ value }) => {
       setDisplayScore(Math.round((value * score) / 100));
     });
 
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       Animated.timing(progress, {
         toValue: 100,
         duration: 1400,
@@ -41,7 +42,11 @@ export function ScoreRing({ score, size = 100 }: ScoreRingProps) {
       }).start();
     }, 300);
 
-    return () => progress.removeListener(listener);
+    return () => {
+      clearTimeout(timeoutId);
+      progress.stopAnimation();
+      progress.removeListener(listener);
+    };
   }, [score]);
 
   const strokeDashoffset = progress.interpolate({

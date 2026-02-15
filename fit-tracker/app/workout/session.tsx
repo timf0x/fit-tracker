@@ -2247,9 +2247,9 @@ const s = StyleSheet.create({
     letterSpacing: 0.5,
   },
   swapBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.06)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -3010,9 +3010,9 @@ const s = StyleSheet.create({
     color: Colors.text,
   },
   soundModalClose: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.06)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -3022,6 +3022,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 12,
+    minHeight: 56,
   },
   soundModalRowLeft: {
     flexDirection: 'row',

@@ -94,7 +94,7 @@ export function ActiveProgramCard() {
     if (program && activeState?.schedule) {
       reconcileSchedule(workoutHistory);
     }
-  }, [workoutHistory.length, activeState?.schedule, program]);
+  }, [workoutHistory, activeState?.schedule, program]);
 
   const handleResolution = useCallback((action: ResolutionAction) => {
     resolveAndApply(action, workoutHistory);

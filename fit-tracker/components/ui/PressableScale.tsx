@@ -7,6 +7,7 @@ import Animated, {
   withSpring,
   interpolate,
 } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 
 interface PressableScaleProps extends Omit<PressableProps, 'style'> {
   /** Scale factor on press (default 0.975) */
@@ -37,6 +38,7 @@ export function PressableScale({
     <Pressable
       onPressIn={(e) => {
         pressed.value = withTiming(1, { duration: 80 });
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onPressIn?.(e);
       }}
       onPressOut={(e) => {

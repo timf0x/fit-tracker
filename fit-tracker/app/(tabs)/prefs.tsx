@@ -8,6 +8,7 @@ import {
   Linking,
   PanResponder,
   Image,
+  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -23,11 +24,13 @@ import {
   Smartphone,
   Info,
   MessageCircle,
+  Trash2,
 } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { useProgramStore } from '@/stores/programStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useWorkoutStore } from '@/stores/workoutStore';
 import { AnimatedToggle } from '@/components/ui/AnimatedToggle';
 import * as Haptics from 'expo-haptics';
 import Constants from 'expo-constants';
@@ -185,8 +188,28 @@ export default function SettingsScreen() {
     setLanguage(lang);
   }, [setLanguage]);
 
+  const clearHistory = useWorkoutStore((s) => s.clearHistory);
+
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
+
+  const handleClearHistory = useCallback(() => {
+    Alert.alert(
+      i18n.t('settings.clearHistoryConfirmTitle'),
+      i18n.t('settings.clearHistoryConfirmMsg'),
+      [
+        { text: i18n.t('settings.clearHistoryCancel'), style: 'cancel' },
+        {
+          text: i18n.t('settings.clearHistoryConfirmBtn'),
+          style: 'destructive',
+          onPress: () => {
+            clearHistory();
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          },
+        },
+      ],
+    );
+  }, [clearHistory]);
 
   // Profile display data
   const profileSub = useMemo(() => {
@@ -350,6 +373,20 @@ export default function SettingsScreen() {
                   activeColor="#FBBF24"
                 />
               }
+            />
+          </View>
+
+          {/* ── Data ── */}
+          <SectionHeader title={i18n.t('settings.dataSection')} />
+          <View style={s.sectionCard}>
+            <SettingsRow
+              icon={Trash2}
+              iconColor="#EF4444"
+              iconBg="rgba(239,68,68,0.12)"
+              label={i18n.t('settings.clearHistory')}
+              description={i18n.t('settings.clearHistoryDesc')}
+              right={<ChevronRight size={18} color="rgba(120,120,130,1)" strokeWidth={2} />}
+              onPress={handleClearHistory}
             />
           </View>
 
@@ -536,6 +573,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     gap: 14,
+    minHeight: 56,
   },
   rowIconBox: {
     width: 36,
@@ -599,7 +637,7 @@ const s = StyleSheet.create({
   },
   sliderTrack: {
     flex: 1,
-    height: 28,
+    height: 44,
     justifyContent: 'center',
     position: 'relative',
   },
@@ -607,6 +645,7 @@ const s = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
+    top: 20,
     height: 4,
     borderRadius: 2,
     backgroundColor: 'rgba(255,255,255,0.08)',
@@ -614,18 +653,19 @@ const s = StyleSheet.create({
   sliderFill: {
     position: 'absolute',
     left: 0,
+    top: 20,
     height: 4,
     borderRadius: 2,
     backgroundColor: Colors.primary,
   },
   sliderThumb: {
     position: 'absolute',
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: '#fff',
-    marginLeft: -9,
-    top: 5,
+    marginLeft: -12,
+    top: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
@@ -642,8 +682,9 @@ const s = StyleSheet.create({
   },
   inlineOption: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 10,
     borderRadius: 6,
+    minHeight: 36,
   },
   inlineOptionActive: {
     backgroundColor: 'rgba(255,255,255,0.10)',

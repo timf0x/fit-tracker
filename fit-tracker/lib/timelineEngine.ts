@@ -286,6 +286,81 @@ export function predictRecoveryForDate(
   return { freshMuscles, fatiguedMuscles, overallReadiness };
 }
 
+// ─── Build Single Day Detail ───
+
+export function buildDayDetail(
+  history: WorkoutSession[],
+  schedule: ProgramSchedule | null,
+  program: TrainingProgram | null,
+  dateISO: string,
+): TimelineDay {
+  const todayISO = toISODate(new Date());
+  const date = parseDate(dateISO);
+  const isPast = dateISO < todayISO;
+  const isToday = dateISO === todayISO;
+  const dayOfWeek = getWeekDay(date) as WeekDay;
+
+  // Find sessions for this date
+  const sessions = history.filter((s) => {
+    if (!s.endTime) return false;
+    return toISODate(new Date(s.startTime)) === dateISO;
+  });
+
+  const musclesTrained: string[] = [];
+  let totalSets = 0;
+  let totalVolume = 0;
+  let prs = 0;
+
+  const sortedHistory = [...history]
+    .filter((s) => s.endTime)
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+  for (const session of sessions) {
+    musclesTrained.push(...getSessionMuscles(session));
+    totalSets += getSessionSets(session);
+    totalVolume += getSessionVolume(session);
+
+    const priorHistory = sortedHistory.filter(
+      (s) => new Date(s.startTime).getTime() < new Date(session.startTime).getTime(),
+    );
+    prs += detectPRs(session, priorHistory).length;
+  }
+
+  // Scheduled day
+  let scheduledDay: ScheduledDay | undefined;
+  if (schedule) {
+    scheduledDay = schedule.scheduledDays.find((sd) => sd.plannedDate === dateISO);
+  }
+
+  let programDay: ProgramDay | undefined;
+  if (scheduledDay && program) {
+    const week = program.weeks.find((w) => w.weekNumber === scheduledDay!.weekNumber);
+    programDay = week?.days[scheduledDay.dayIndex];
+  }
+
+  // Recovery projection for future/today days
+  let recoveryProjection: TimelineDay['recoveryProjection'];
+  if (!isPast) {
+    recoveryProjection = predictRecoveryForDate(history, schedule, dateISO);
+  }
+
+  return {
+    date: dateISO,
+    dayOfWeek,
+    isPast,
+    isToday,
+    sessions,
+    totalSets,
+    totalVolume,
+    musclesTrained: [...new Set(musclesTrained)],
+    prs,
+    scheduledDay,
+    programDay,
+    recoveryProjection,
+    isSkipped: !!scheduledDay?.skippedDate,
+  };
+}
+
 // ─── Month Summary ───
 
 export function buildMonthSummary(

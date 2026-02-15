@@ -1,8 +1,8 @@
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { StyleSheet, View, Text } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import {
   useFonts,
@@ -20,6 +20,35 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { useSettingsStore } from '@/stores/settingsStore';
+
+// ─── Error Boundary ───
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: Error) {
+    console.error('[Onset] Uncaught error:', error);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, backgroundColor: '#0C0C0C', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <Text style={{ color: '#EF4444', fontSize: 18, fontWeight: '700', marginBottom: 8 }}>
+            Something went wrong
+          </Text>
+          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, textAlign: 'center', lineHeight: 20 }}>
+            Please restart the app. If the problem persists, try clearing the app data.
+          </Text>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 SplashScreen.preventAutoHideAsync();
 
@@ -56,7 +85,14 @@ export default function RootLayout() {
         useSettingsStore.getState().applyAudioSettings();
         setSettingsReady(true);
       }
-      return () => { unsub(); };
+      // Safety timeout: if hydration never completes (corrupted storage), proceed anyway
+      const timeout = setTimeout(() => {
+        if (!useSettingsStore.persist.hasHydrated()) {
+          console.warn('[Onset] Settings hydration timed out, proceeding with defaults');
+          setSettingsReady(true);
+        }
+      }, 3000);
+      return () => { unsub(); clearTimeout(timeout); };
     }
   }, [fontsLoaded]);
 
@@ -101,21 +137,22 @@ export default function RootLayout() {
   }
 
   return (
+    <ErrorBoundary>
     <View style={styles.root}>
       <GestureHandlerRootView style={styles.root} key={settingsKey}>
         <ThemeProvider value={OnsetDarkTheme}>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="recovery" options={{ headerShown: false }} />
-            <Stack.Screen name="steps" options={{ headerShown: false }} />
-            <Stack.Screen name="workout" options={{ headerShown: false, gestureEnabled: false, presentation: 'fullScreenModal' }} />
-            <Stack.Screen name="trophies" options={{ headerShown: false }} />
-            <Stack.Screen name="stats" options={{ headerShown: false }} />
-            <Stack.Screen name="volume" options={{ headerShown: false }} />
-            <Stack.Screen name="exercise" options={{ headerShown: false }} />
-            <Stack.Screen name="program" options={{ headerShown: false }} />
-            <Stack.Screen name="calendar" options={{ headerShown: false }} />
-            <Stack.Screen name="settings" options={{ headerShown: false }} />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="recovery" />
+            <Stack.Screen name="steps" />
+            <Stack.Screen name="workout" options={{ gestureEnabled: false, presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="trophies" />
+            <Stack.Screen name="stats" />
+            <Stack.Screen name="volume" />
+            <Stack.Screen name="exercise" />
+            <Stack.Screen name="program" />
+            <Stack.Screen name="calendar" />
+            <Stack.Screen name="settings" />
           </Stack>
           <StatusBar style="light" />
         </ThemeProvider>
@@ -126,6 +163,7 @@ export default function RootLayout() {
         <Animated.View style={[styles.overlay, overlayStyle]} pointerEvents="none" />
       )}
     </View>
+    </ErrorBoundary>
   );
 }
 

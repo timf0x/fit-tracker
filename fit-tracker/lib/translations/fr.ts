@@ -894,6 +894,15 @@ export default {
     keepAwake: 'Écran actif en séance',
     keepAwakeDesc: "L'écran reste allumé pendant l'entraînement",
 
+    // Data
+    dataSection: 'Données',
+    clearHistory: "Réinitialiser l'historique",
+    clearHistoryDesc: 'Supprimer toutes les séances enregistrées',
+    clearHistoryConfirmTitle: 'Réinitialiser ?',
+    clearHistoryConfirmMsg: 'Toutes tes séances seront supprimées définitivement. Cette action est irréversible.',
+    clearHistoryConfirmBtn: 'Supprimer tout',
+    clearHistoryCancel: 'Annuler',
+
     // About
     aboutSection: 'À propos',
     version: 'Version',
@@ -1227,6 +1236,20 @@ export default {
     glutes: 'Fessiers',
     calves: 'Mollets',
     abs: 'Abdos',
+  },
+
+  // ─── Exercise Row (shared component) ───
+  exerciseRow: {
+    restSuffix: 'repos',
+    lastTime: 'Dernière fois',
+    sets: 'Séries',
+    reps: 'Répétitions',
+    weight: 'Poids',
+    rest: 'Repos',
+    timePerSet: 'Temps/série',
+    minReps: 'Min : %{min} reps',
+    remove: 'Supprimer',
+    reset: 'Réinitialiser',
   },
 
   // ─── Placeholders ───

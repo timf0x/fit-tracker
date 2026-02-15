@@ -517,9 +517,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -690,6 +690,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: 12,
     gap: 10,
+    minHeight: 56,
   },
   muscleStatusDot: {
     width: 8,
@@ -896,9 +897,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   infoModalClose: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',

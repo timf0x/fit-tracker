@@ -12,7 +12,6 @@ import { CalendarCard } from '@/components/home/CalendarCard';
 import { VolumeCard } from '@/components/home/VolumeCard';
 import { ActiveProgramCard } from '@/components/home/ActiveProgramCard';
 import { AchievementCard } from '@/components/home/AchievementCard';
-import { BrowseButton } from '@/components/home/BrowseButton';
 import { DraggableCardList } from '@/components/home/DraggableCardList';
 import { AmbientBackground } from '@/components/home/AmbientBackground';
 import { useWorkoutStore } from '@/stores/workoutStore';
@@ -87,8 +86,6 @@ export default function HomeScreen() {
           onDragStateChange={setIsDragging}
         />
 
-        {/* Browse button always at bottom */}
-        <BrowseButton />
       </ScrollView>
 
       {/* Gradient-masked blur behind status bar / notch */}

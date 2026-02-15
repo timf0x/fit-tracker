@@ -5,14 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
-  Repeat,
-  Weight,
-  Minus,
-  Plus,
-  Info,
   Timer,
   Bookmark,
-  TrendingUp,
   Check,
   Sparkles,
 } from 'lucide-react-native';
@@ -21,8 +15,8 @@ import i18n from '@/lib/i18n';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { useProgramStore } from '@/stores/programStore';
 import { getExerciseById } from '@/data/exercises';
-import { ExerciseIcon } from '@/components/ExerciseIcon';
 import { ExerciseInfoSheet } from '@/components/ExerciseInfoSheet';
+import { ExerciseRow } from '@/components/exercises/ExerciseRow';
 import { ExerciseSwapSheet } from '@/components/program/ExerciseSwapSheet';
 import { ReadinessCheck } from '@/components/program/ReadinessCheck';
 import { ConfirmModal } from '@/components/program/ConfirmModal';
@@ -92,6 +86,7 @@ export default function GenerateWorkoutScreen() {
   );
   const [targetDuration, setTargetDuration] = useState(60);
   const [generatedExercises, setGeneratedExercises] = useState<GeneratedExercise[]>([]);
+  const [expandedIndices, setExpandedIndices] = useState<Set<number>>(new Set());
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [showSwap, setShowSwap] = useState<{ index: number; exerciseId: string } | null>(null);
   const [infoExercise, setInfoExercise] = useState<Exercise | null>(null);
@@ -353,6 +348,24 @@ export default function GenerateWorkoutScreen() {
     });
   }, [generatedExercises, sessionLabel, startSession, saveSessionReadiness]);
 
+  // Expand / edit toggles
+  const toggleExpand = useCallback((idx: number) => {
+    setExpandedIndices((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) {
+        next.delete(idx);
+        if (editingIndex === idx) setEditingIndex(null);
+      } else {
+        next.add(idx);
+      }
+      return next;
+    });
+  }, [editingIndex]);
+
+  const toggleEdit = useCallback((idx: number) => {
+    setEditingIndex(editingIndex === idx ? null : idx);
+  }, [editingIndex]);
+
   // Get muscle targets for swap sheet
   const swapMuscleTargets = useMemo(() => {
     if (!showSwap) return [];
@@ -579,155 +592,46 @@ export default function GenerateWorkoutScreen() {
           {generatedExercises.map((ge, idx) => {
             const ex = getExerciseById(ge.exerciseId);
             if (!ex) return null;
-            const isEditing = editingIndex === idx;
             const isLast = idx === generatedExercises.length - 1;
             const overloadTip = overloadTipMap[ge.exerciseId];
 
             return (
-              <View key={`${ge.exerciseId}-${idx}`}>
-                <Pressable
-                  style={[styles.exRow, isEditing && styles.exRowEditing]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setEditingIndex(isEditing ? null : idx);
-                  }}
-                  onLongPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-                    setShowSwap({ index: idx, exerciseId: ge.exerciseId });
-                  }}
-                >
-                  {/* Number badge */}
-                  <View style={styles.exNumber}>
-                    <Text style={styles.exNumberText}>
-                      {String(idx + 1).padStart(2, '0')}
-                    </Text>
-                  </View>
-
-                  <ExerciseIcon
-                    exerciseName={ex.name}
-                    bodyPart={ex.bodyPart}
-                    gifUrl={ex.gifUrl}
-                    size={20}
-                    containerSize={44}
-                  />
-
-                  <View style={styles.exInfo}>
-                    <Text style={styles.exName} numberOfLines={1}>
-                      {ex.nameFr}
-                    </Text>
-                    <View style={styles.exMeta}>
-                      <View style={styles.exMetaPill}>
-                        <Repeat size={10} color="rgba(255,255,255,0.4)" />
-                        <Text style={styles.exMetaText}>
-                          {ge.sets} x {ge.minReps !== ge.maxReps
-                            ? `${ge.minReps}-${ge.maxReps}`
-                            : ge.maxReps}
-                        </Text>
-                      </View>
-                      {ge.suggestedWeight > 0 && (
-                        <View style={[styles.exMetaPill, styles.exWeightPill]}>
-                          <Weight size={10} color={Colors.primary} />
-                          <Text style={[styles.exMetaText, styles.exWeightText]}>
-                            {ge.suggestedWeight}kg
-                          </Text>
-                        </View>
-                      )}
-                      <View style={styles.exMetaPill}>
-                        <Timer size={10} color="rgba(255,255,255,0.3)" />
-                        <Text style={styles.exMetaText}>{ge.restTime}s</Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  <Pressable
-                    style={styles.infoButton}
-                    onPress={() => setInfoExercise(ex)}
-                    hitSlop={8}
-                  >
-                    <Info size={16} color="rgba(255,255,255,0.25)" />
-                  </Pressable>
-                </Pressable>
-
-                {/* Inline overload tip */}
-                {!isEditing && overloadTip && (
-                  <View style={styles.inlineTip}>
-                    <TrendingUp size={11} color={Colors.primary} />
-                    <Text style={styles.inlineTipText} numberOfLines={1}>{overloadTip}</Text>
-                  </View>
-                )}
-
-                {/* Inline editor */}
-                {isEditing && (
-                  <View style={styles.editorPanel}>
-                    <View style={styles.editorRow}>
-                      <Text style={styles.editorFieldLabel}>{i18n.t('workoutDetail.sets')}</Text>
-                      <View style={styles.stepperRow}>
-                        <Pressable style={styles.stepperBtn} onPress={() => handleEditField(idx, 'sets', -1)}>
-                          <Minus size={14} color="#fff" />
-                        </Pressable>
-                        <Text style={styles.stepperValue}>{ge.sets}</Text>
-                        <Pressable style={styles.stepperBtn} onPress={() => handleEditField(idx, 'sets', 1)}>
-                          <Plus size={14} color="#fff" />
-                        </Pressable>
-                      </View>
-                    </View>
-
-                    <View style={styles.editorRow}>
-                      <Text style={styles.editorFieldLabel}>{i18n.t('workoutDetail.reps')}</Text>
-                      <View style={styles.stepperRow}>
-                        <Pressable style={styles.stepperBtn} onPress={() => handleEditField(idx, 'reps', -1)}>
-                          <Minus size={14} color="#fff" />
-                        </Pressable>
-                        <Text style={styles.stepperValue}>{ge.maxReps}</Text>
-                        <Pressable style={styles.stepperBtn} onPress={() => handleEditField(idx, 'reps', 1)}>
-                          <Plus size={14} color="#fff" />
-                        </Pressable>
-                      </View>
-                    </View>
-
-                    <View style={styles.editorRow}>
-                      <Text style={styles.editorFieldLabel}>{i18n.t('workoutDetail.weight')}</Text>
-                      <View style={styles.stepperRow}>
-                        <Pressable style={styles.stepperBtn} onPress={() => handleEditField(idx, 'weight', -1)}>
-                          <Minus size={14} color="#fff" />
-                        </Pressable>
-                        <Text style={styles.stepperValue}>{ge.suggestedWeight}</Text>
-                        <Pressable style={styles.stepperBtn} onPress={() => handleEditField(idx, 'weight', 1)}>
-                          <Plus size={14} color="#fff" />
-                        </Pressable>
-                      </View>
-                    </View>
-
-                    <View style={styles.editorRow}>
-                      <Text style={styles.editorFieldLabel}>{i18n.t('workoutDetail.rest')}</Text>
-                      <View style={styles.stepperRow}>
-                        <Pressable style={styles.stepperBtn} onPress={() => handleEditField(idx, 'rest', -1)}>
-                          <Minus size={14} color="#fff" />
-                        </Pressable>
-                        <Text style={styles.stepperValue}>{ge.restTime}</Text>
-                        <Pressable style={styles.stepperBtn} onPress={() => handleEditField(idx, 'rest', 1)}>
-                          <Plus size={14} color="#fff" />
-                        </Pressable>
-                      </View>
-                    </View>
-
-                    <View style={styles.editorRow}>
-                      <Text style={styles.editorFieldLabel}>{i18n.t('workoutDetail.timePerSet')}</Text>
-                      <View style={styles.stepperRow}>
-                        <Pressable style={styles.stepperBtn} onPress={() => handleEditField(idx, 'setTime', -1)}>
-                          <Minus size={14} color="#fff" />
-                        </Pressable>
-                        <Text style={styles.stepperValue}>{ge.setTime}</Text>
-                        <Pressable style={styles.stepperBtn} onPress={() => handleEditField(idx, 'setTime', 1)}>
-                          <Plus size={14} color="#fff" />
-                        </Pressable>
-                      </View>
-                    </View>
-                  </View>
-                )}
-
-                {!isEditing && !isLast && <View style={styles.exSeparator} />}
-              </View>
+              <ExerciseRow
+                key={`${ge.exerciseId}-${idx}`}
+                index={idx}
+                exerciseName={ex.nameFr}
+                exerciseIconName={ex.name}
+                bodyPart={ex.bodyPart}
+                gifUrl={ex.gifUrl}
+                sets={ge.sets}
+                reps={ge.maxReps}
+                minReps={ge.minReps !== ge.maxReps ? ge.minReps : undefined}
+                weight={ge.suggestedWeight}
+                restTime={ge.restTime}
+                setTime={ge.setTime}
+                overloadTip={overloadTip}
+                editorWeight={ge.suggestedWeight}
+                isExpanded={expandedIndices.has(idx)}
+                isEditing={editingIndex === idx}
+                isLast={isLast}
+                onToggleExpand={() => toggleExpand(idx)}
+                onToggleEdit={() => toggleEdit(idx)}
+                onEditField={(field, delta) => {
+                  // Map field names: reps→reps, weight→weight, restTime→rest
+                  const fieldMap: Record<string, string> = {
+                    sets: 'sets',
+                    reps: 'reps',
+                    weight: 'weight',
+                    restTime: 'rest',
+                    setTime: 'setTime',
+                  };
+                  handleEditField(idx, fieldMap[field] || field, delta);
+                }}
+                onInfoPress={() => setInfoExercise(ex)}
+                onLongPress={() => {
+                  setShowSwap({ index: idx, exerciseId: ge.exerciseId });
+                }}
+              />
             );
           })}
         </ScrollView>
@@ -850,9 +754,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.06)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1045,136 +949,4 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(12,12,12,0.95)',
   },
 
-  // Exercise row
-  exRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    gap: 10,
-  },
-  exRowEditing: {
-    backgroundColor: 'rgba(255,255,255,0.02)',
-  },
-  exNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  exNumberText: {
-    color: 'rgba(255,255,255,0.35)',
-    fontSize: 11,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-  },
-  exInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  exName: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-  },
-  exMeta: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  exMetaPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  exMetaText: {
-    color: 'rgba(255,255,255,0.4)',
-    fontSize: 11,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-  exWeightPill: {
-    backgroundColor: 'rgba(255,107,53,0.08)',
-  },
-  exWeightText: {
-    color: Colors.primary,
-  },
-  infoButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  exSeparator: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    marginLeft: 52,
-  },
-
-  // Editor
-  editorPanel: {
-    paddingHorizontal: 14,
-    paddingBottom: 14,
-    paddingTop: 4,
-    gap: 10,
-    backgroundColor: 'rgba(255,255,255,0.02)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.04)',
-  },
-  editorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  editorFieldLabel: {
-    color: 'rgba(255,255,255,0.45)',
-    fontSize: 13,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-  stepperRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  stepperBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepperValue: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    minWidth: 36,
-    textAlign: 'center',
-  },
-
-  // Inline overload tip (under exercise row)
-  inlineTip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingLeft: 52,
-    paddingBottom: 8,
-  },
-  inlineTipText: {
-    color: 'rgba(255,107,53,0.7)',
-    fontSize: 11,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    flex: 1,
-  },
 });

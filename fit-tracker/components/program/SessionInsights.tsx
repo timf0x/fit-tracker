@@ -1,10 +1,17 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, LayoutAnimation, Pressable } from 'react-native';
-import { BarChart3, ChevronDown, ChevronUp, TrendingUp } from 'lucide-react-native';
+import { BarChart3, ChevronDown, TrendingUp } from 'lucide-react-native';
 import { Fonts } from '@/constants/theme';
 import type { SessionInsightsData, MuscleImpact } from '@/lib/sessionInsights';
 import type { VolumeLandmarkZone } from '@/constants/volumeLandmarks';
 import i18n from '@/lib/i18n';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  interpolate,
+} from 'react-native-reanimated';
+import { useEffect } from 'react';
 
 const ZONE_LABEL: Record<VolumeLandmarkZone, string> = {
   below_mv: i18n.t('zones.belowMv'),
@@ -57,11 +64,9 @@ function MuscleRow({ impact }: { impact: MuscleImpact }) {
             ]}
           />
         </View>
-        {/* MEV marker */}
         {mevPct > 0 && mevPct < 1 && (
           <View style={[styles.barMarker, { left: `${mevPct * 100}%` }]} />
         )}
-        {/* MAV high marker */}
         {mavHighPct > 0 && mavHighPct < 1 && (
           <View style={[styles.barMarker, { left: `${mavHighPct * 100}%` }]} />
         )}
@@ -71,7 +76,18 @@ function MuscleRow({ impact }: { impact: MuscleImpact }) {
 }
 
 export function SessionInsights({ data }: Props) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+
+  // Animated chevron rotation
+  const chevronRotation = useSharedValue(0);
+
+  useEffect(() => {
+    chevronRotation.value = withTiming(expanded ? 1 : 0, { duration: 200 });
+  }, [expanded]);
+
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${interpolate(chevronRotation.value, [0, 1], [0, 180])}deg` }],
+  }));
 
   const toggleExpanded = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -80,22 +96,27 @@ export function SessionInsights({ data }: Props) {
 
   if (data.muscleImpacts.length === 0) return null;
 
+  // Summary for collapsed state: count of muscles + dominant zone
+  const muscleCount = data.muscleImpacts.length;
+
   return (
-    <View style={styles.card}>
-      {/* Header */}
+    <View style={styles.container}>
+      {/* Tappable header row — flat, no card */}
       <Pressable style={styles.header} onPress={toggleExpanded}>
-        <BarChart3 size={14} color="rgba(160,150,140,1)" />
+        <BarChart3 size={13} color="rgba(160,150,140,0.7)" />
         <Text style={styles.headerText}>{i18n.t('sessionInsights.weeklyVolume')}</Text>
+        <Text style={styles.headerCount}>
+          {muscleCount} {i18n.t('common.musclesUnit')}
+        </Text>
         <View style={{ flex: 1 }} />
-        {expanded ? (
-          <ChevronUp size={16} color="rgba(160,150,140,0.6)" />
-        ) : (
-          <ChevronDown size={16} color="rgba(160,150,140,0.6)" />
-        )}
+        <Animated.View style={chevronStyle}>
+          <ChevronDown size={14} color="rgba(255,255,255,0.15)" strokeWidth={2} />
+        </Animated.View>
       </Pressable>
 
+      {/* Expanded content */}
       {expanded && (
-        <>
+        <View style={styles.expandedContent}>
           {/* Muscle rows */}
           <View style={styles.muscleList}>
             {data.muscleImpacts.map((impact) => (
@@ -116,35 +137,43 @@ export function SessionInsights({ data }: Props) {
               ))}
             </View>
           )}
-        </>
+        </View>
       )}
+
+      {/* Bottom separator */}
+      <View style={styles.separator} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    padding: 14,
-    marginBottom: 16,
+  container: {
+    marginBottom: 4,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    paddingVertical: 14,
+    minHeight: 48,
   },
   headerText: {
-    color: 'rgba(160,150,140,1)',
+    color: 'rgba(160,150,140,0.7)',
     fontSize: 11,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
     letterSpacing: 1,
   },
+  headerCount: {
+    color: 'rgba(255,255,255,0.2)',
+    fontSize: 11,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+  },
+  expandedContent: {
+    paddingBottom: 6,
+  },
   muscleList: {
-    marginTop: 12,
     gap: 8,
   },
   muscleRow: {
@@ -219,16 +248,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(255,107,53,0.08)',
+    backgroundColor: 'rgba(255,107,53,0.06)',
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 10,
   },
   tipText: {
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(255,255,255,0.5)',
     fontSize: 12,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
     flex: 1,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.04)',
   },
 });

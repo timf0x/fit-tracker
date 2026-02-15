@@ -67,6 +67,7 @@ export default function VolumeScreen() {
   const insets = useSafeAreaInsets();
   const { history, muscleOrder, setMuscleOrder } = useWorkoutStore();
   const weekStripRef = useRef<FlatList>(null);
+  const isInitialMount = useRef(true);
 
   // Generate weeks array: [0, -1, -2, ..., -(WEEKS_AVAILABLE-1)]
   const weeks = useMemo(
@@ -136,8 +137,12 @@ export default function VolumeScreen() {
     setWeekOffset(offset);
   }, []);
 
-  // Scroll the week strip to selected week when it changes
+  // Scroll the week strip to selected week when user taps a different week
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     const index = weeks.indexOf(weekOffset);
     if (index >= 0) {
       weekStripRef.current?.scrollToIndex({
@@ -520,9 +525,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -556,8 +561,9 @@ const styles = StyleSheet.create({
   weekChip: {
     width: 56,
     alignItems: 'center',
-    paddingTop: 6,
-    paddingBottom: 2,
+    paddingTop: 8,
+    paddingBottom: 4,
+    minHeight: 48,
   },
   weekChipText: {
     color: 'rgba(100,100,110,1)',
@@ -786,9 +792,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   modalClose: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',

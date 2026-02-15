@@ -4,6 +4,7 @@ import { BlurView } from 'expo-blur';
 import { Flame, Dumbbell, TrendingUp, Settings } from 'lucide-react-native';
 import { Fonts } from '@/constants/theme';
 import i18n from '@/lib/i18n';
+import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import Animated, {
@@ -96,6 +97,7 @@ function DockBar({ state, navigation }: BottomTabBarProps) {
               canPreventDefault: true,
             });
             if (!isFocused && !event.defaultPrevented) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               navigation.navigate(route.name);
             }
           };

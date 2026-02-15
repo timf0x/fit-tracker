@@ -28,6 +28,9 @@ interface WorkoutStoreState {
   saveSessionReadiness: (sessionId: string, readiness: ReadinessCheck) => void;
   setHistoryFilter: (filter: HistoryFilter) => void;
 
+  // Data management
+  clearHistory: () => void;
+
   // Preferences
   setMuscleOrder: (order: string[]) => void;
   setHomeCardOrder: (order: string[]) => void;
@@ -183,6 +186,10 @@ export const useWorkoutStore = create<WorkoutStoreState>()(
       },
 
       setHistoryFilter: (filter) => set({ historyFilter: filter }),
+
+      clearHistory: () => {
+        set({ history: [], stats: initialStats });
+      },
 
       setMuscleOrder: (order) => set({ muscleOrder: order }),
       setHomeCardOrder: (order) => set({ homeCardOrder: order }),

@@ -894,6 +894,15 @@ export default {
     keepAwake: 'Keep screen on',
     keepAwakeDesc: 'Screen stays on during workouts',
 
+    // Data
+    dataSection: 'Data',
+    clearHistory: 'Reset workout history',
+    clearHistoryDesc: 'Delete all recorded sessions',
+    clearHistoryConfirmTitle: 'Reset history?',
+    clearHistoryConfirmMsg: 'All your workout sessions will be permanently deleted. This cannot be undone.',
+    clearHistoryConfirmBtn: 'Delete all',
+    clearHistoryCancel: 'Cancel',
+
     // About
     aboutSection: 'About',
     version: 'Version',
@@ -1227,6 +1236,20 @@ export default {
     glutes: 'Glutes',
     calves: 'Calves',
     abs: 'Abs',
+  },
+
+  // ─── Exercise Row (shared component) ───
+  exerciseRow: {
+    restSuffix: 'rest',
+    lastTime: 'Last time',
+    sets: 'Sets',
+    reps: 'Reps',
+    weight: 'Weight',
+    rest: 'Rest',
+    timePerSet: 'Time/set',
+    minReps: 'Min: %{min} reps',
+    remove: 'Remove',
+    reset: 'Reset',
   },
 
   // ─── Placeholders ───

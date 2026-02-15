@@ -68,7 +68,7 @@ export function AnimatedToggle({
   };
 
   return (
-    <Pressable onPress={handlePress} hitSlop={8} style={style}>
+    <Pressable onPress={handlePress} hitSlop={12} style={style}>
       <Animated.View style={[styles.track, trackStyle]}>
         <Animated.View style={[styles.thumb, thumbStyle]} />
       </Animated.View>

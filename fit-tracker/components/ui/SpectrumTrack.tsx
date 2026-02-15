@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   },
   trackBg: {
     position: 'absolute',
-    top: 12,
+    top: 20,
     left: 0,
     right: 0,
     height: 2,
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   },
   trackFill: {
     position: 'absolute',
-    top: 12,
+    top: 20,
     left: 0,
     height: 2,
     borderRadius: 1,
@@ -179,8 +179,9 @@ const styles = StyleSheet.create({
   nodeHitArea: {
     alignItems: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 0,
+    paddingVertical: 8,
     minWidth: 64,
+    minHeight: 48,
   },
   node: {
     width: 18,

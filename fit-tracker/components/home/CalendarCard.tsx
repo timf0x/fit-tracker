@@ -186,12 +186,12 @@ const styles = StyleSheet.create({
   },
   dayColumn: {
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   dayCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: 'transparent',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.12)',

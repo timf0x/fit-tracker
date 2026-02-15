@@ -764,8 +764,9 @@ const styles = StyleSheet.create({
   weekChip: {
     width: 56,
     alignItems: 'center',
-    paddingTop: 6,
-    paddingBottom: 2,
+    paddingTop: 8,
+    paddingBottom: 4,
+    minHeight: 48,
   },
   weekChipText: {
     color: 'rgba(100,100,110,1)',

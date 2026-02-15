@@ -2,58 +2,68 @@ import { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSequence,
+  runOnJS,
+  Easing,
+} from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  Zap,
 } from 'lucide-react-native';
-import { Colors, Fonts } from '@/constants/theme';
+import { Fonts } from '@/constants/theme';
 import i18n from '@/lib/i18n';
-import { formatWeight, getWeightUnitLabel } from '@/stores/settingsStore';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { useProgramStore } from '@/stores/programStore';
-import { WeekStrip } from '@/components/calendar/WeekStrip';
-import { DayContentCard } from '@/components/calendar/DayContentCard';
 import { MonthGrid } from '@/components/calendar/MonthGrid';
+import { DayContentCard } from '@/components/calendar/DayContentCard';
 import {
-  buildWeekTimeline,
   buildMonthSummary,
+  buildDayDetail,
 } from '@/lib/timelineEngine';
-import { getWeekBounds, getSetsForWeek } from '@/lib/weeklyVolume';
-import { getPeriodPRs } from '@/lib/statsHelpers';
+import { getSetsForWeek } from '@/lib/weeklyVolume';
 import { buildProgramExercisesParam } from '@/lib/programSession';
 import { getProgressiveWeight } from '@/lib/weightEstimation';
-import { getMuscleLabel, MUSCLE_TO_BODYPART, TARGET_TO_MUSCLE } from '@/lib/muscleMapping';
-import { BODY_ICONS } from '@/components/home/ActiveProgramCard';
 import { exercises } from '@/data/exercises';
 
 const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
 
-type ViewMode = 'week' | 'month';
-
-function toISODate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function getWeekLabel(weekOffset: number): string {
-  const { start } = getWeekBounds(weekOffset);
-  const day = start.getDate();
-  const locale = i18n.locale === 'fr' ? 'fr-FR' : 'en-US';
-  const month = start.toLocaleDateString(locale, { month: 'long' });
-  return i18n.t('calendar.weekOf', { date: `${day} ${month}` });
-}
-
-function getMonthLabel(year: number, month: number): string {
+function getMonthName(year: number, month: number): string {
   const locale = i18n.locale === 'fr' ? 'fr-FR' : 'en-US';
   const d = new Date(year, month, 1);
   const monthName = d.toLocaleDateString(locale, { month: 'long' });
   return `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${year}`;
 }
+
+/** Compute week offset from today for a given ISO date */
+function getWeekOffsetForDate(dateISO: string): number {
+  const [y, m, d] = dateISO.split('-').map(Number);
+  const target = new Date(y, m - 1, d);
+  const targetDay = target.getDay();
+  const targetMonday = new Date(target);
+  targetMonday.setDate(target.getDate() - (targetDay === 0 ? 6 : targetDay - 1));
+  targetMonday.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  const todayDay = today.getDay();
+  const todayMonday = new Date(today);
+  todayMonday.setDate(today.getDate() - (todayDay === 0 ? 6 : todayDay - 1));
+  todayMonday.setHours(0, 0, 0, 0);
+
+  return Math.round(
+    (targetMonday.getTime() - todayMonday.getTime()) / (7 * 24 * 60 * 60 * 1000),
+  );
+}
+
+const SWIPE_THRESHOLD = 50;
+const VELOCITY_THRESHOLD = 600;
+const SLIDE_OUT_MS = 120;
+const SLIDE_IN_MS = 180;
+const GRID_SLIDE_DISTANCE = 80;
 
 export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
@@ -62,22 +72,118 @@ export default function CalendarScreen() {
   const startSession = useWorkoutStore((s) => s.startSession);
   const { program, activeState } = useProgramStore();
 
-  const [viewMode, setViewMode] = useState<ViewMode>('week');
-  const [weekOffset, setWeekOffset] = useState(0);
-  const [selectedDate, setSelectedDate] = useState(toISODate(new Date()));
-
-  // Month navigation
   const now = new Date();
   const [monthYear, setMonthYear] = useState(now.getFullYear());
   const [monthMonth, setMonthMonth] = useState(now.getMonth());
+  const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const [selectedDate, setSelectedDate] = useState(todayISO);
 
   const schedule = activeState?.schedule || null;
 
-  // Build week timeline
-  const weekDays = useMemo(
-    () => buildWeekTimeline(history, schedule, program || null, weekOffset),
-    [history, schedule, program, weekOffset],
-  );
+  // ─── Swipe animation shared values ───
+  const translateY = useSharedValue(0);
+  const gridOpacity = useSharedValue(1);
+
+  const gridAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+    opacity: gridOpacity.value,
+  }));
+
+  // ─── Month change handler (called from gesture worklet via runOnJS) ───
+  const handleMonthSwipe = useCallback((direction: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    let newMonth = monthMonth + direction;
+    let newYear = monthYear;
+    if (newMonth < 0) {
+      newYear -= 1;
+      newMonth = 11;
+    } else if (newMonth > 11) {
+      newYear += 1;
+      newMonth = 0;
+    }
+
+    setMonthYear(newYear);
+    setMonthMonth(newMonth);
+
+    // Auto-select: today if in the new month, otherwise 1st
+    const todayDate = new Date();
+    if (todayDate.getFullYear() === newYear && todayDate.getMonth() === newMonth) {
+      setSelectedDate(todayISO);
+    } else {
+      setSelectedDate(
+        `${newYear}-${String(newMonth + 1).padStart(2, '0')}-01`,
+      );
+    }
+  }, [monthMonth, monthYear, todayISO]);
+
+  // ─── Pan gesture on grid ───
+  const panGesture = useMemo(() =>
+    Gesture.Pan()
+      .activeOffsetY([-15, 15])
+      .failOffsetX([-25, 25])
+      .onUpdate((e) => {
+        translateY.value = e.translationY * 0.4;
+      })
+      .onEnd((e) => {
+        const shouldSwipe =
+          Math.abs(e.translationY) > SWIPE_THRESHOLD ||
+          Math.abs(e.velocityY) > VELOCITY_THRESHOLD;
+
+        if (shouldSwipe) {
+          const direction = e.translationY < 0 ? 1 : -1; // swipe up = next month
+          const exitY = direction * -GRID_SLIDE_DISTANCE;
+          const entryY = direction * GRID_SLIDE_DISTANCE;
+
+          // Slide out
+          translateY.value = withTiming(exitY, {
+            duration: SLIDE_OUT_MS,
+            easing: Easing.out(Easing.quad),
+          });
+          gridOpacity.value = withTiming(0, {
+            duration: SLIDE_OUT_MS,
+            easing: Easing.out(Easing.quad),
+          });
+
+          // After exit completes: change month, then slide in
+          translateY.value = withSequence(
+            withTiming(exitY, {
+              duration: SLIDE_OUT_MS,
+              easing: Easing.out(Easing.quad),
+            }),
+            withTiming(entryY, { duration: 0 }),
+            withTiming(0, {
+              duration: SLIDE_IN_MS,
+              easing: Easing.out(Easing.quad),
+            }),
+          );
+          gridOpacity.value = withSequence(
+            withTiming(0, {
+              duration: SLIDE_OUT_MS,
+              easing: Easing.out(Easing.quad),
+            }),
+            withTiming(0, { duration: 0 }),
+            withTiming(1, {
+              duration: SLIDE_IN_MS,
+              easing: Easing.out(Easing.quad),
+            }),
+          );
+
+          // Change month data after exit animation
+          runOnJS(handleMonthSwipe)(direction);
+        } else {
+          // Snap back
+          translateY.value = withTiming(0, { duration: 200 });
+          gridOpacity.value = withTiming(1, { duration: 200 });
+        }
+      })
+      .onFinalize((_e, success) => {
+        if (!success) {
+          translateY.value = 0;
+          gridOpacity.value = 1;
+        }
+      }),
+  [handleMonthSwipe]);
 
   // Build month summary
   const monthData = useMemo(
@@ -85,73 +191,28 @@ export default function CalendarScreen() {
     [history, schedule, monthYear, monthMonth],
   );
 
-  // Get selected day data
+  // Build detail for selected day
   const selectedDay = useMemo(
-    () => weekDays.find((d) => d.date === selectedDate) || null,
-    [weekDays, selectedDate],
+    () => buildDayDetail(history, schedule, program || null, selectedDate),
+    [history, schedule, program, selectedDate],
   );
 
+  // Weekly sets for the selected date's week (for zone coloring in DayContentCard)
   const weeklySets = useMemo(
-    () => getSetsForWeek(history, weekOffset),
-    [history, weekOffset],
+    () => getSetsForWeek(history, getWeekOffsetForDate(selectedDate)),
+    [history, selectedDate],
   );
 
-  // Month stats (expanded: sessions, volume, PRs, avg duration)
-  const monthStats = useMemo(() => {
-    let sessions = 0;
-    let totalVolume = 0;
-    let totalSeconds = 0;
-    const monthSessions: typeof history = [];
-
-    for (const s of history) {
-      if (!s.endTime) continue;
-      const d = new Date(s.startTime);
-      if (d.getFullYear() === monthYear && d.getMonth() === monthMonth) {
-        sessions++;
-        totalSeconds += s.durationSeconds || 0;
-        monthSessions.push(s);
-        for (const ex of s.completedExercises) {
-          for (const set of ex.sets) {
-            if (set.completed) totalVolume += (set.weight || 0) * set.reps;
-          }
-        }
-      }
-    }
-
-    // Compute PRs for the month
-    const prData = getPeriodPRs(history, monthSessions);
-
-    // Top muscles
-    const muscleSets: Record<string, number> = {};
-    for (const s of monthSessions) {
-      for (const compEx of s.completedExercises) {
-        const ex = exerciseMap.get(compEx.exerciseId);
-        if (!ex) continue;
-        const muscle = TARGET_TO_MUSCLE[ex.target];
-        if (!muscle) continue;
-        muscleSets[muscle] = (muscleSets[muscle] || 0) +
-          compEx.sets.filter((set) => set.completed).length;
-      }
-    }
-    const topMuscles = Object.entries(muscleSets)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3);
-
-    return {
-      sessions,
-      totalVolume: Math.round(totalVolume),
-      avgMinutes: sessions > 0 ? Math.round(totalSeconds / 60 / sessions) : 0,
-      prs: prData.total,
-      topMuscles,
-    };
-  }, [history, monthYear, monthMonth]);
+  // Check if there's something to show for the selected day
+  const hasDayContent = selectedDay.sessions.length > 0 ||
+    selectedDay.programDay !== undefined ||
+    selectedDay.isSkipped;
 
   // ─── Start Session Handler ───
   const handleStartSession = useCallback(() => {
-    const today = weekDays.find((d) => d.isToday);
-    if (!today?.programDay || !program) return;
+    if (!selectedDay?.programDay || !program) return;
 
-    const day = today.programDay;
+    const day = selectedDay.programDay;
 
     // Compute progressive weight overrides
     const weightOverrides: Record<string, { weight: number; action: string }> = {};
@@ -184,241 +245,63 @@ export default function CalendarScreen() {
         sessionId,
       },
     });
-  }, [weekDays, program, history, startSession, router]);
+  }, [selectedDay, program, history, startSession, router]);
 
-  const handleWeekNav = useCallback((direction: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setWeekOffset((prev) => prev + direction);
-  }, []);
+  // Can start session: selected day is today, has scheduled workout, no completed sessions
+  const canStartSession = selectedDay.isToday &&
+    !!selectedDay.programDay &&
+    selectedDay.sessions.length === 0;
 
-  const handleMonthNav = useCallback((direction: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setMonthMonth((prev) => {
-      const newMonth = prev + direction;
-      if (newMonth < 0) {
-        setMonthYear((y) => y - 1);
-        return 11;
-      }
-      if (newMonth > 11) {
-        setMonthYear((y) => y + 1);
-        return 0;
-      }
-      return newMonth;
-    });
-  }, []);
-
-  const handleMonthDateSelect = useCallback((date: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const [y, m, d] = date.split('-').map(Number);
-    const selected = new Date(y, m - 1, d);
-
-    // Find Monday of selected date's week
-    const selDay = selected.getDay();
-    const selMonday = new Date(selected);
-    selMonday.setDate(selected.getDate() - (selDay === 0 ? 6 : selDay - 1));
-    selMonday.setHours(0, 0, 0, 0);
-
-    // Find Monday of current week
-    const today = new Date();
-    const todayDay = today.getDay();
-    const todayMonday = new Date(today);
-    todayMonday.setDate(today.getDate() - (todayDay === 0 ? 6 : todayDay - 1));
-    todayMonday.setHours(0, 0, 0, 0);
-
-    // Week offset = difference in Mondays / 7
-    const diffWeeks = Math.round(
-      (selMonday.getTime() - todayMonday.getTime()) / (7 * 24 * 60 * 60 * 1000),
-    );
-
-    setWeekOffset(diffWeeks);
-    setSelectedDate(date);
-    setViewMode('week');
-  }, []);
-
-  // Check if there's a scheduled session today that hasn't been done
-  const hasTodayScheduled = useMemo(() => {
-    const today = weekDays.find((d) => d.isToday);
-    return today?.programDay && today.sessions.length === 0;
-  }, [weekDays]);
+  const headerMonthName = getMonthName(monthYear, monthMonth);
 
   return (
     <View style={styles.screen}>
-
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        {/* ─── Header ─── */}
+        {/* Header with month name */}
         <View style={styles.header}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <ArrowLeft size={22} color="#fff" strokeWidth={2} />
           </Pressable>
           <Text style={styles.headerTitle}>{i18n.t('calendar.title')}</Text>
-          <View style={styles.viewToggle}>
-            <Pressable
-              style={[styles.viewTab, viewMode === 'week' && styles.viewTabActive]}
-              onPress={() => setViewMode('week')}
-            >
-              <Text style={[styles.viewTabText, viewMode === 'week' && styles.viewTabTextActive]}>
-                {i18n.t('calendar.weekView')}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.viewTab, viewMode === 'month' && styles.viewTabActive]}
-              onPress={() => setViewMode('month')}
-            >
-              <Text style={[styles.viewTabText, viewMode === 'month' && styles.viewTabTextActive]}>
-                {i18n.t('calendar.monthView')}
-              </Text>
-            </Pressable>
-          </View>
+          <View style={styles.headerPipe} />
+          <Text style={styles.headerMonth}>{headerMonthName}</Text>
         </View>
 
-        {viewMode === 'week' ? (
-          <ScrollView
-            style={styles.body}
-            contentContainerStyle={[styles.bodyContent, { paddingBottom: insets.bottom + 40 }]}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Week navigation */}
-            <View style={styles.weekNav}>
-              <Pressable onPress={() => handleWeekNav(-1)} hitSlop={12}>
-                <ChevronLeft size={20} color="rgba(255,255,255,0.5)" />
-              </Pressable>
-              <Text style={styles.weekLabel}>{getWeekLabel(weekOffset)}</Text>
-              <Pressable onPress={() => handleWeekNav(1)} hitSlop={12}>
-                <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
-              </Pressable>
-            </View>
-
-            {/* Week strip */}
-            <WeekStrip
-              days={weekDays}
+        {/* Fixed grid area with swipe gesture */}
+        <GestureDetector gesture={panGesture}>
+          <Animated.View style={[styles.gridWrapper, gridAnimStyle]}>
+            <MonthGrid
+              year={monthYear}
+              month={monthMonth}
+              monthData={monthData}
               selectedDate={selectedDate}
               onSelectDate={(date) => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setSelectedDate(date);
               }}
             />
+          </Animated.View>
+        </GestureDetector>
 
-            {/* Day content */}
+        {/* Scrollable bottom area */}
+        <ScrollView
+          style={styles.body}
+          contentContainerStyle={[styles.bodyContent, { paddingBottom: insets.bottom + 40 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Day content — shows detail for the tapped date */}
+          {hasDayContent && (
             <View style={styles.dayContent}>
-              {selectedDay ? (
-                <DayContentCard
-                  day={selectedDay}
-                  weekHistory={history}
-                  weeklySets={weeklySets}
-                  onStartSession={
-                    hasTodayScheduled && selectedDay.isToday
-                      ? handleStartSession
-                      : undefined
-                  }
-                />
-              ) : (
-                <Text style={styles.emptyText}>{i18n.t('calendar.nothingPlanned')}</Text>
-              )}
+              <DayContentCard
+                day={selectedDay}
+                weekHistory={history}
+                weeklySets={weeklySets}
+                onStartSession={canStartSession ? handleStartSession : undefined}
+              />
             </View>
-          </ScrollView>
-        ) : (
-          <ScrollView
-            style={styles.body}
-            contentContainerStyle={[styles.bodyContent, { paddingBottom: insets.bottom + 40 }]}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Month navigation */}
-            <View style={styles.weekNav}>
-              <Pressable onPress={() => handleMonthNav(-1)} hitSlop={12}>
-                <ChevronLeft size={20} color="rgba(255,255,255,0.5)" />
-              </Pressable>
-              <Text style={styles.weekLabel}>{getMonthLabel(monthYear, monthMonth)}</Text>
-              <Pressable onPress={() => handleMonthNav(1)} hitSlop={12}>
-                <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
-              </Pressable>
-            </View>
+          )}
 
-            {/* Month grid */}
-            <MonthGrid
-              year={monthYear}
-              month={monthMonth}
-              monthData={monthData}
-              onSelectDate={handleMonthDateSelect}
-            />
-
-            {/* Month summary stats — 4 metrics */}
-            <View style={styles.monthStats}>
-              <View style={styles.monthStat}>
-                <Text style={styles.monthStatValue}>{monthStats.sessions}</Text>
-                <Text style={styles.monthStatLabel}>{i18n.t('calendar.sessions')}</Text>
-              </View>
-
-              {monthStats.totalVolume > 0 && (
-                <>
-                  <View style={styles.monthStatDivider} />
-                  <View style={styles.monthStat}>
-                    <Text style={styles.monthStatValue}>
-                      {monthStats.totalVolume >= 1000
-                        ? `${(monthStats.totalVolume / 1000).toFixed(1)}t`
-                        : `${formatWeight(monthStats.totalVolume)}${getWeightUnitLabel()}`}
-                    </Text>
-                    <Text style={styles.monthStatLabel}>{i18n.t('calendar.volume')}</Text>
-                  </View>
-                </>
-              )}
-
-              {monthStats.prs > 0 && (
-                <>
-                  <View style={styles.monthStatDivider} />
-                  <View style={styles.monthStat}>
-                    <View style={styles.prStatRow}>
-                      <Zap size={12} color={Colors.primary} strokeWidth={2.5} />
-                      <Text style={[styles.monthStatValue, { color: Colors.primary }]}>
-                        {monthStats.prs}
-                      </Text>
-                    </View>
-                    <Text style={styles.monthStatLabel}>{i18n.t('calendar.prs')}</Text>
-                  </View>
-                </>
-              )}
-
-              {monthStats.avgMinutes > 0 && (
-                <>
-                  <View style={styles.monthStatDivider} />
-                  <View style={styles.monthStat}>
-                    <Text style={styles.monthStatValue}>
-                      {monthStats.avgMinutes}{i18n.t('common.minAbbr')}
-                    </Text>
-                    <Text style={styles.monthStatLabel}>{i18n.t('calendar.avgDuration')}</Text>
-                  </View>
-                </>
-              )}
-            </View>
-
-            {/* Top muscles */}
-            {monthStats.topMuscles.length > 0 && (
-              <View style={styles.topMuscles}>
-                <Text style={styles.topMusclesLabel}>{i18n.t('calendar.topMuscles')}</Text>
-                {monthStats.topMuscles.map(([muscle, sets], idx) => {
-                  const bodyPart = MUSCLE_TO_BODYPART[muscle] || 'waist';
-                  const iconData = BODY_ICONS[bodyPart] || BODY_ICONS.waist;
-                  const Icon = iconData.Icon;
-                  const rankColors = ['#FF6B35', '#4ADE80', '#3B82F6'];
-
-                  return (
-                    <View key={muscle} style={styles.topMuscleRow}>
-                      <Text style={[styles.topMuscleRank, { color: rankColors[idx] || 'rgba(255,255,255,0.3)' }]}>
-                        {idx + 1}.
-                      </Text>
-                      <Icon size={14} color={rankColors[idx] || 'rgba(255,255,255,0.3)'} strokeWidth={2} />
-                      <Text style={styles.topMuscleName} numberOfLines={1}>
-                        {getMuscleLabel(muscle)}
-                      </Text>
-                      <Text style={styles.topMuscleSets}>
-                        {i18n.t('calendar.setsCount', { count: sets })}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-          </ScrollView>
-        )}
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -440,9 +323,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -454,28 +337,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 1.5,
     textTransform: 'uppercase',
-    flex: 1,
   },
-  viewToggle: {
-    flexDirection: 'row',
-    gap: 4,
+  headerPipe: {
+    width: 1,
+    height: 14,
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
-  viewTab: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  viewTabActive: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  viewTabText: {
-    color: 'rgba(255,255,255,0.35)',
-    fontSize: 13,
+  headerMonth: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 12,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    flex: 1,
   },
-  viewTabTextActive: {
-    color: '#FFFFFF',
+
+  gridWrapper: {
+    overflow: 'hidden',
+    paddingVertical: 8,
   },
 
   body: {
@@ -485,107 +365,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
-  weekNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  weekLabel: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 14,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-  },
-
   dayContent: {
     paddingHorizontal: 20,
-    paddingTop: 4,
+    paddingTop: 8,
   },
 
-  emptyText: {
-    color: 'rgba(255,255,255,0.2)',
-    fontSize: 14,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    textAlign: 'center',
-    paddingVertical: 40,
-  },
-
-  // Month stats
-  monthStats: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 24,
-    gap: 20,
-  },
-  monthStat: {
-    alignItems: 'center',
-    gap: 2,
-  },
-  monthStatValue: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-  monthStatLabel: {
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: 10,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-  monthStatDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  prStatRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-
-  // Top muscles
-  topMuscles: {
-    paddingHorizontal: 20,
-    gap: 8,
-    paddingBottom: 12,
-  },
-  topMusclesLabel: {
-    color: 'rgba(255,255,255,0.25)',
-    fontSize: 10,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  topMuscleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 4,
-  },
-  topMuscleRank: {
-    fontSize: 13,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-    width: 18,
-  },
-  topMuscleName: {
-    flex: 1,
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 14,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-  topMuscleSets: {
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: 12,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
 });
