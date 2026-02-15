@@ -25,11 +25,12 @@ import {
   X,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { Colors, Fonts } from '@/constants/theme';
+import { Colors, Fonts, GlassStyle, Header, PageLayout, IconStroke, SectionLabel as SectionLabelTokens, CTAButton } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { useProgramStore } from '@/stores/programStore';
-import { PRIORITY_GROUPS } from '@/constants/programTemplates';
+import { PRIORITY_GROUPS, EQUIPMENT_BY_SETUP, EQUIPMENT_ITEMS, getPresetForEquipment } from '@/constants/programTemplates';
 import { getMuscleLabel } from '@/lib/muscleMapping';
+import type { Equipment } from '@/types';
 import * as Haptics from 'expo-haptics';
 import type {
   TrainingGoal,
@@ -103,7 +104,7 @@ function Stepper({
         }}
         hitSlop={6}
       >
-        <Minus size={14} color={value <= min ? 'rgba(255,255,255,0.15)' : '#fff'} strokeWidth={2.5} />
+        <Minus size={14} color={value <= min ? 'rgba(255,255,255,0.15)' : '#fff'} strokeWidth={IconStroke.emphasis} />
       </Pressable>
       <Text style={s.stepValue}>
         {value}{unit ? ` ${unit}` : ''}
@@ -118,7 +119,7 @@ function Stepper({
         }}
         hitSlop={6}
       >
-        <Plus size={14} color={value >= max ? 'rgba(255,255,255,0.15)' : '#fff'} strokeWidth={2.5} />
+        <Plus size={14} color={value >= max ? 'rgba(255,255,255,0.15)' : '#fff'} strokeWidth={IconStroke.emphasis} />
       </Pressable>
     </View>
   );
@@ -139,7 +140,7 @@ function TappableRow({ label, selected, onToggle }: { label: string; selected: b
   return (
     <Pressable style={s.tappableRow} onPress={onToggle}>
       <Text style={[s.tappableLabel, selected && s.tappableLabelActive]}>{label}</Text>
-      {selected && <Check size={16} color={Colors.primary} strokeWidth={2.5} />}
+      {selected && <Check size={16} color={Colors.primary} strokeWidth={IconStroke.emphasis} />}
     </Pressable>
   );
 }
@@ -173,6 +174,9 @@ export default function ProfileEditScreen() {
   const [daysPerWeek, setDaysPerWeek] = useState<3 | 4 | 5 | 6>(existingProfile?.daysPerWeek ?? 4);
   const [limitations, setLimitations] = useState<JointKey[]>(existingProfile?.limitations ?? []);
   const [priorityMuscles, setPriorityMuscles] = useState<string[]>(existingProfile?.priorityMuscles ?? []);
+  const [ownedEquipment, setOwnedEquipment] = useState<Equipment[]>(
+    existingProfile?.ownedEquipment ?? EQUIPMENT_BY_SETUP[existingProfile?.equipment ?? 'full_gym'],
+  );
   const [emailError, setEmailError] = useState(false);
 
   // Re-sync local state when screen gains focus (handles cached mount)
@@ -194,18 +198,23 @@ export default function ProfileEditScreen() {
       setDaysPerWeek(p.daysPerWeek ?? 4);
       setLimitations(p.limitations ?? []);
       setPriorityMuscles(p.priorityMuscles ?? []);
+      setOwnedEquipment(p.ownedEquipment ?? EQUIPMENT_BY_SETUP[p.equipment ?? 'full_gym']);
     }, []),
   );
 
   const programFieldsChanged = useMemo(() => {
     if (!existingProfile) return false;
+    const oldOwned = existingProfile.ownedEquipment ?? EQUIPMENT_BY_SETUP[existingProfile.equipment];
+    const equipChanged = ownedEquipment.length !== oldOwned.length ||
+      ownedEquipment.some((e) => !oldOwned.includes(e));
     return (
       goal !== existingProfile.goal ||
       daysPerWeek !== existingProfile.daysPerWeek ||
       equipment !== existingProfile.equipment ||
-      experience !== existingProfile.experience
+      experience !== existingProfile.experience ||
+      equipChanged
     );
-  }, [goal, daysPerWeek, equipment, experience, existingProfile]);
+  }, [goal, daysPerWeek, equipment, experience, ownedEquipment, existingProfile]);
 
   // ─── Photo picker ───
 
@@ -242,6 +251,30 @@ export default function ProfileEditScreen() {
     });
   };
 
+  // Equipment toggle handler
+  const toggleEquipmentItem = (eq: Equipment) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setOwnedEquipment((prev) => {
+      const next = prev.includes(eq) ? prev.filter((e) => e !== eq) : [...prev, eq];
+      // Always keep body weight
+      if (!next.includes('body weight')) next.push('body weight');
+      // Sync preset tabs: if toggles now match a preset, update the tier
+      const matched = getPresetForEquipment(next);
+      if (matched) setEquipment(matched);
+      return next;
+    });
+  };
+
+  // Preset quick-select: sets ownedEquipment to the tier's defaults
+  const handleEquipmentPreset = (tier: EquipmentSetup) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setEquipment(tier);
+    setOwnedEquipment([...EQUIPMENT_BY_SETUP[tier]]);
+  };
+
+  // Derive active preset from ownedEquipment
+  const activePreset = useMemo(() => getPresetForEquipment(ownedEquipment), [ownedEquipment]);
+
   const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
   const handleSave = () => {
@@ -273,6 +306,7 @@ export default function ProfileEditScreen() {
       age: age > 0 ? age : undefined,
       trainingYears: existingProfile?.trainingYears,
       equipment,
+      ownedEquipment,
       limitations: limitations.length > 0 ? limitations : undefined,
       preferredDays: existingProfile?.preferredDays,
       priorityMuscles,
@@ -291,7 +325,7 @@ export default function ProfileEditScreen() {
         {/* Header */}
         <View style={s.header}>
           <Pressable style={s.backBtn} onPress={() => router.back()} hitSlop={12}>
-            <ArrowLeft size={22} color="#fff" strokeWidth={2} />
+            <ArrowLeft size={22} color="#fff" strokeWidth={IconStroke.default} />
           </Pressable>
           <Text style={s.headerTitle}>{i18n.t('settings.profileTitle')}</Text>
           <View style={{ width: 36 }} />
@@ -318,12 +352,12 @@ export default function ProfileEditScreen() {
                     <Image source={{ uri: profileImageUri }} style={s.avatarImg} />
                   ) : (
                     <View style={s.avatarFallback}>
-                      <User size={32} color="rgba(255,255,255,0.25)" strokeWidth={1.5} />
+                      <User size={32} color="rgba(255,255,255,0.25)" strokeWidth={IconStroke.light} />
                     </View>
                   )}
                 </View>
                 <View style={s.cameraBtn}>
-                  <Camera size={12} color="#fff" strokeWidth={2.5} />
+                  <Camera size={12} color="#fff" strokeWidth={IconStroke.emphasis} />
                 </View>
               </Pressable>
 
@@ -349,7 +383,7 @@ export default function ProfileEditScreen() {
                 />
                 {name.length > 0 && (
                   <Pressable onPress={() => setName('')} hitSlop={8} style={s.clearBtn}>
-                    <X size={14} color="rgba(255,255,255,0.3)" strokeWidth={2.5} />
+                    <X size={14} color="rgba(255,255,255,0.3)" strokeWidth={IconStroke.emphasis} />
                   </Pressable>
                 )}
               </View>
@@ -369,7 +403,7 @@ export default function ProfileEditScreen() {
                 />
                 {username.length > 0 && (
                   <Pressable onPress={() => setUsername('')} hitSlop={8} style={s.clearBtn}>
-                    <X size={14} color="rgba(255,255,255,0.3)" strokeWidth={2.5} />
+                    <X size={14} color="rgba(255,255,255,0.3)" strokeWidth={IconStroke.emphasis} />
                   </Pressable>
                 )}
               </View>
@@ -392,7 +426,7 @@ export default function ProfileEditScreen() {
                 />
                 {email.length > 0 && (
                   <Pressable onPress={() => { setEmail(''); if (emailError) setEmailError(false); }} hitSlop={8} style={s.clearBtn}>
-                    <X size={14} color="rgba(255,255,255,0.3)" strokeWidth={2.5} />
+                    <X size={14} color="rgba(255,255,255,0.3)" strokeWidth={IconStroke.emphasis} />
                   </Pressable>
                 )}
               </View>
@@ -460,10 +494,39 @@ export default function ProfileEditScreen() {
                   { key: 'home_dumbbell' as const, label: i18n.t('programOnboarding.equipment.homeDumbbell') },
                   { key: 'bodyweight' as const, label: i18n.t('programOnboarding.equipment.bodyweight') },
                 ]}
-                value={equipment}
-                onSelect={setEquipment}
+                value={activePreset ?? equipment}
+                onSelect={handleEquipmentPreset}
               />
             </FieldRow>
+
+            {/* ── Equipment toggle grid ── */}
+            <Text style={s.equipmentSubtitle}>{i18n.t('settings.profileEquipmentDetail')}</Text>
+            <View style={s.equipGrid}>
+              {/* Body weight — always on */}
+              <View style={[s.equipRow, s.equipRowFirst]}>
+                <Text style={s.equipLabelAlwaysOn}>{i18n.t('equipment.bodyWeight')}</Text>
+                <Text style={s.equipAlwaysOnHint}>{i18n.t('settings.profileEquipmentAlwaysOn')}</Text>
+              </View>
+
+              {EQUIPMENT_ITEMS.map((item, idx) => {
+                const active = ownedEquipment.includes(item.equipment);
+                return (
+                  <Pressable
+                    key={item.equipment}
+                    style={[
+                      s.equipRow,
+                      idx === EQUIPMENT_ITEMS.length - 1 && s.equipRowLast,
+                    ]}
+                    onPress={() => toggleEquipmentItem(item.equipment)}
+                  >
+                    <Text style={[s.equipLabel, active && s.equipLabelActive]}>
+                      {i18n.t(item.labelKey)}
+                    </Text>
+                    {active && <Check size={16} color={Colors.primary} strokeWidth={IconStroke.emphasis} />}
+                  </Pressable>
+                );
+              })}
+            </View>
             <FieldRow label={i18n.t('settings.profileDays')}>
               <Stepper
                 value={daysPerWeek}
@@ -498,7 +561,7 @@ export default function ProfileEditScreen() {
             {/* Warning */}
             {programFieldsChanged && (
               <View style={s.warningBanner}>
-                <AlertTriangle size={16} color="#FBBF24" strokeWidth={2} />
+                <AlertTriangle size={16} color="#FBBF24" strokeWidth={IconStroke.default} />
                 <Text style={s.warningText}>{i18n.t('settings.profileWarning')}</Text>
               </View>
             )}
@@ -510,7 +573,7 @@ export default function ProfileEditScreen() {
         {/* Fixed bottom save button */}
         <View style={s.bottomBar}>
           <LinearGradient
-            colors={['transparent', '#0C0C0C']}
+            colors={['transparent', Colors.background]}
             style={s.bottomFade}
             pointerEvents="none"
           />
@@ -528,20 +591,17 @@ export default function ProfileEditScreen() {
 const s = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingVertical: 12,
   },
   backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    ...Header.backButton,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -604,7 +664,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#0C0C0C',
+    borderColor: Colors.background,
   },
   heroChangeText: {
     color: 'rgba(255,255,255,0.3)',
@@ -616,11 +676,9 @@ const s = StyleSheet.create({
 
   // Section labels
   sectionLabel: {
-    color: 'rgba(160,150,140,1)',
-    fontSize: 11,
+    ...SectionLabelTokens,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    letterSpacing: 1.2,
     textTransform: 'uppercase',
     marginTop: 28,
     marginBottom: 12,
@@ -749,6 +807,59 @@ const s = StyleSheet.create({
     color: '#fff',
   },
 
+  // Equipment grid
+  equipmentSubtitle: {
+    color: 'rgba(255,255,255,0.3)',
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  equipGrid: {
+    ...GlassStyle.card,
+    overflow: 'hidden',
+  },
+  equipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 56,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.04)',
+  },
+  equipRowFirst: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  equipRowLast: {
+    borderBottomWidth: 0,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+  },
+  equipLabel: {
+    color: 'rgba(255,255,255,0.35)',
+    fontSize: 15,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+  },
+  equipLabelActive: {
+    color: '#FFFFFF',
+  },
+  equipLabelAlwaysOn: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 15,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+  },
+  equipAlwaysOnHint: {
+    color: 'rgba(255,255,255,0.2)',
+    fontSize: 11,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+  },
+
   // Warning
   warningBanner: {
     flexDirection: 'row',
@@ -778,7 +889,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 36,
     paddingTop: 16,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: Colors.background,
   },
   bottomFade: {
     position: 'absolute',
@@ -789,13 +900,14 @@ const s = StyleSheet.create({
   },
   saveBtn: {
     backgroundColor: Colors.primary,
-    borderRadius: 14,
-    paddingVertical: 16,
+    borderRadius: CTAButton.borderRadius,
+    height: CTAButton.height,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   saveBtnText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: CTAButton.fontSize,
     fontFamily: Fonts?.bold,
     fontWeight: '700',
   },

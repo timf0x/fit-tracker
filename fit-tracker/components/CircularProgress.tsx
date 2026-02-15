@@ -14,6 +14,7 @@ interface CircularProgressProps {
   strokeWidth?: number;
   progress: number; // 0-1
   color: string;
+  animationKey?: number;
 }
 
 export function CircularProgress({
@@ -21,6 +22,7 @@ export function CircularProgress({
   strokeWidth = 14,
   progress,
   color,
+  animationKey,
 }: CircularProgressProps) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -29,8 +31,13 @@ export function CircularProgress({
   const animatedProgress = useSharedValue(progress);
 
   useEffect(() => {
-    animatedProgress.value = withTiming(progress, { duration: 400 });
-  }, [progress]);
+    if (animationKey && animationKey > 0) {
+      animatedProgress.value = 0;
+      animatedProgress.value = withTiming(progress, { duration: 900 });
+    } else {
+      animatedProgress.value = withTiming(progress, { duration: 400 });
+    }
+  }, [progress, animationKey]);
 
   const animatedProps = useAnimatedProps(() => ({
     strokeDashoffset: circumference * (1 - animatedProgress.value),

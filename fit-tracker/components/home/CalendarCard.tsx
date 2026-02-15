@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { useRouter } from 'expo-router';
@@ -11,16 +11,96 @@ import { buildWeekTimeline } from '@/lib/timelineEngine';
 import { getHomeCalendarNudge } from '@/lib/timelineNudges';
 import i18n from '@/lib/i18n';
 import { formatWeight, getWeightUnitLabel } from '@/stores/settingsStore';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withDelay,
+  interpolate,
+  Easing,
+} from 'react-native-reanimated';
+import type { SharedValue } from 'react-native-reanimated';
+import { useHomeRefreshKey } from '@/lib/refreshContext';
 
 function formatVolume(kg: number): string {
   if (kg >= 1000) return `${(kg / 1000).toFixed(1)}t`;
   return `${formatWeight(kg)}${getWeightUnitLabel()}`;
 }
 
+function AnimatedDayColumn({
+  index,
+  dotStagger,
+  hasSessions,
+  isToday,
+  isScheduled,
+  label,
+}: {
+  index: number;
+  dotStagger: SharedValue<number>;
+  hasSessions: boolean;
+  isToday: boolean;
+  isScheduled: boolean;
+  label: string;
+}) {
+  const animStyle = useAnimatedStyle(() => {
+    const progress = interpolate(
+      dotStagger.value,
+      [index, index + 1],
+      [0, 1],
+      'clamp',
+    );
+    return {
+      opacity: progress,
+      transform: [{ scale: interpolate(progress, [0, 1], [0.4, 1]) }],
+    };
+  });
+
+  return (
+    <Animated.View style={[styles.dayColumn, animStyle]}>
+      <View
+        style={[
+          styles.dayCircle,
+          hasSessions && styles.dayCompleted,
+          isToday && !hasSessions && styles.dayToday,
+          !hasSessions && !isToday && isScheduled && styles.dayScheduled,
+        ]}
+      />
+      <Text
+        style={[
+          styles.dayLabel,
+          hasSessions && styles.dayLabelActive,
+          isToday && styles.dayLabelToday,
+        ]}
+      >
+        {label}
+      </Text>
+    </Animated.View>
+  );
+}
+
 export function CalendarCard() {
   const router = useRouter();
   const { history, stats } = useWorkoutStore();
   const { program, activeState } = useProgramStore();
+
+  const refreshKey = useHomeRefreshKey();
+
+  const dotStagger = useSharedValue(7);
+  const chipsAnim = useSharedValue(1);
+
+  useEffect(() => {
+    if (refreshKey > 0) {
+      dotStagger.value = 0;
+      chipsAnim.value = 0;
+      dotStagger.value = withDelay(100, withTiming(7, { duration: 420, easing: Easing.out(Easing.quad) }));
+      chipsAnim.value = withDelay(300, withTiming(1, { duration: 400, easing: Easing.out(Easing.quad) }));
+    }
+  }, [refreshKey]);
+
+  const chipsAnimStyle = useAnimatedStyle(() => ({
+    opacity: chipsAnim.value,
+    transform: [{ translateY: interpolate(chipsAnim.value, [0, 1], [6, 0]) }],
+  }));
 
   const schedule = activeState?.schedule || null;
 
@@ -71,44 +151,33 @@ export function CalendarCard() {
           {weekDays.map((day, index) => {
             const hasSessions = day.sessions.length > 0;
             const isScheduled = !!day.scheduledDay && !day.scheduledDay.completedDate;
-            const dateNum = parseInt(day.date.split('-')[2], 10);
 
             return (
-              <View key={day.date} style={styles.dayColumn}>
-                <View
-                  style={[
-                    styles.dayCircle,
-                    hasSessions && styles.dayCompleted,
-                    day.isToday && !hasSessions && styles.dayToday,
-                    !hasSessions && !day.isToday && isScheduled && styles.dayScheduled,
-                  ]}
-                />
-                <Text
-                  style={[
-                    styles.dayLabel,
-                    hasSessions && styles.dayLabelActive,
-                    day.isToday && styles.dayLabelToday,
-                  ]}
-                >
-                  {dayLabels[index]}
-                </Text>
-              </View>
+              <AnimatedDayColumn
+                key={day.date}
+                index={index}
+                dotStagger={dotStagger}
+                hasSessions={hasSessions}
+                isToday={day.isToday}
+                isScheduled={isScheduled}
+                label={dayLabels[index]}
+              />
             );
           })}
         </View>
 
         {/* Smart nudge */}
         {nudge && (
-          <View style={styles.nudgeRow}>
+          <Animated.View style={[styles.nudgeRow, chipsAnimStyle]}>
             <View style={[styles.nudgeAccent, { backgroundColor: nudge.color }]} />
             <Text style={[styles.nudgeText, { color: nudge.color }]} numberOfLines={1}>
               {nudge.text}
             </Text>
-          </View>
+          </Animated.View>
         )}
 
         {/* Stats Chips Row */}
-        <View style={styles.chipsRow}>
+        <Animated.View style={[styles.chipsRow, chipsAnimStyle]}>
           {hasRealData && (
             <>
               <View style={styles.chip}>
@@ -136,7 +205,7 @@ export function CalendarCard() {
               </Text>
             </View>
           )}
-        </View>
+        </Animated.View>
       </View>
     </PressableScale>
   );
@@ -186,12 +255,12 @@ const styles = StyleSheet.create({
   },
   dayColumn: {
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   dayCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: 'transparent',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.12)',

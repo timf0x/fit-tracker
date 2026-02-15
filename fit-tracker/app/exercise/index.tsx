@@ -10,7 +10,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Search } from 'lucide-react-native';
-import { Fonts } from '@/constants/theme';
+import * as Haptics from 'expo-haptics';
+import { Fonts, Colors, GlassStyle, Header, PageLayout, IconStroke } from '@/constants/theme';
 import { exercises } from '@/data/exercises';
 import { ExerciseIcon } from '@/components/ExerciseIcon';
 import { ExerciseSparkline } from '@/components/ExerciseSparkline';
@@ -111,7 +112,10 @@ export default function ExerciseListScreen() {
       return (
         <Pressable
           style={styles.exerciseRow}
-          onPress={() => router.push(`/exercise/${exercise.id}`)}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push(`/exercise/${exercise.id}`);
+          }}
         >
           <ExerciseIcon
             exerciseName={exercise.name}
@@ -171,7 +175,7 @@ export default function ExerciseListScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={22} color="#fff" strokeWidth={2} />
+            <ArrowLeft size={22} color="#fff" strokeWidth={IconStroke.default} />
           </Pressable>
           <Text style={styles.headerTitle}>Exercices</Text>
           <View style={{ width: 40 }} />
@@ -179,7 +183,7 @@ export default function ExerciseListScreen() {
 
         {/* Search */}
         <View style={styles.searchContainer}>
-          <Search size={16} color="rgba(120,120,130,1)" strokeWidth={2} />
+          <Search size={16} color="rgba(120,120,130,1)" strokeWidth={IconStroke.default} />
           <TextInput
             style={styles.searchInput}
             placeholder="Rechercher un exercice..."
@@ -208,7 +212,7 @@ export default function ExerciseListScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: Colors.background,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -243,16 +247,13 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingTop: 12,
     paddingBottom: 8,
     gap: 12,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    ...Header.backButton,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -268,13 +269,11 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 20,
+    marginHorizontal: PageLayout.paddingHorizontal,
     marginTop: 8,
     marginBottom: 12,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    ...GlassStyle.card,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
     paddingHorizontal: 14,
     gap: 10,
     height: 44,
@@ -290,15 +289,13 @@ const styles = StyleSheet.create({
 
   // List
   listContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
   },
   exerciseRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    ...GlassStyle.card,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
     paddingHorizontal: 12,
     paddingVertical: 12,
     gap: 10,

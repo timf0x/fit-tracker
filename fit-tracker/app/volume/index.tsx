@@ -22,7 +22,7 @@ import DraggableFlatList, {
   ScaleDecorator,
   RenderItemParams,
 } from 'react-native-draggable-flatlist';
-import { Fonts } from '@/constants/theme';
+import { Colors, Fonts, GlassStyle, Header, SectionLabel, PageLayout, IconStroke } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { MUSCLE_LABELS_FR } from '@/lib/muscleMapping';
@@ -244,9 +244,9 @@ export default function VolumeScreen() {
                   ]}
                 >
                   {trend.direction === 1 ? (
-                    <TrendingUp size={10} color="#4ADE80" strokeWidth={2.5} />
+                    <TrendingUp size={10} color="#4ADE80" strokeWidth={IconStroke.emphasis} />
                   ) : (
-                    <TrendingDown size={10} color="#EF4444" strokeWidth={2.5} />
+                    <TrendingDown size={10} color="#EF4444" strokeWidth={IconStroke.emphasis} />
                   )}
                   <Text
                     style={[
@@ -336,7 +336,7 @@ export default function VolumeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={22} color="#fff" strokeWidth={2} />
+            <ArrowLeft size={22} color="#fff" strokeWidth={IconStroke.default} />
           </Pressable>
           <Text style={styles.headerTitle}>{i18n.t('volume.title')}</Text>
           <Pressable
@@ -439,14 +439,14 @@ export default function VolumeScreen() {
               </Text>
               <View style={styles.trendExplainRow}>
                 <View style={[styles.trendExplainBadge, { backgroundColor: 'rgba(74,222,128,0.12)' }]}>
-                  <TrendingUp size={10} color="#4ADE80" strokeWidth={2.5} />
+                  <TrendingUp size={10} color="#4ADE80" strokeWidth={IconStroke.emphasis} />
                   <Text style={{ color: '#4ADE80', fontSize: 10, fontFamily: Fonts?.bold, fontWeight: '700' }}>+3</Text>
                 </View>
                 <Text style={styles.trendExplainLabel}>{i18n.t('volume.trends.volumeUp')}</Text>
               </View>
               <View style={styles.trendExplainRow}>
                 <View style={[styles.trendExplainBadge, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
-                  <TrendingDown size={10} color="#EF4444" strokeWidth={2.5} />
+                  <TrendingDown size={10} color="#EF4444" strokeWidth={IconStroke.emphasis} />
                   <Text style={{ color: '#EF4444', fontSize: 10, fontFamily: Fonts?.bold, fontWeight: '700' }}>-2</Text>
                 </View>
                 <Text style={styles.trendExplainLabel}>{i18n.t('volume.trends.volumeDown')}</Text>
@@ -479,7 +479,7 @@ export default function VolumeScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: Colors.background,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
     shadowRadius: 120,
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingTop: 4,
     paddingBottom: 40,
   },
@@ -519,27 +519,24 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingTop: 12,
     paddingBottom: 8,
     gap: 12,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    ...Header.backButton,
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: {
     flex: 1,
-    color: 'rgba(200,200,210,1)',
-    fontSize: 12,
+    color: Header.screenLabel.color,
+    fontSize: Header.screenLabel.fontSize,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
+    letterSpacing: Header.screenLabel.letterSpacing,
+    textTransform: Header.screenLabel.textTransform,
   },
   infoBtn: {
     width: 44,
@@ -555,7 +552,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   weekStripContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     gap: 0,
   },
   weekChip: {
@@ -614,7 +611,7 @@ const styles = StyleSheet.create({
 
   // Week info
   weekInfo: {
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     marginTop: 16,
     marginBottom: 12,
     gap: 4,
@@ -648,10 +645,10 @@ const styles = StyleSheet.create({
 
   // Muscle rows
   muscleRow: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 14,
+    backgroundColor: GlassStyle.card.backgroundColor,
+    borderRadius: GlassStyle.card.borderRadius,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: GlassStyle.card.borderColor,
     padding: 14,
     marginBottom: 10,
     gap: 10,

@@ -1,9 +1,10 @@
 import { useMemo, useCallback, useState } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
+import * as Haptics from 'expo-haptics';
 import { Spacing } from '@/constants/theme';
 import { HeaderGreeting } from '@/components/home/HeaderGreeting';
 import { RecoveryCard } from '@/components/home/RecoveryCard';
@@ -12,9 +13,11 @@ import { CalendarCard } from '@/components/home/CalendarCard';
 import { VolumeCard } from '@/components/home/VolumeCard';
 import { ActiveProgramCard } from '@/components/home/ActiveProgramCard';
 import { AchievementCard } from '@/components/home/AchievementCard';
+import { BrowseButton } from '@/components/home/BrowseButton';
 import { DraggableCardList } from '@/components/home/DraggableCardList';
 import { AmbientBackground } from '@/components/home/AmbientBackground';
 import { useWorkoutStore } from '@/stores/workoutStore';
+import { HomeRefreshContext } from '@/lib/refreshContext';
 
 // Default card order — these keys match the cards map below
 const DEFAULT_ORDER = ['recovery', 'weekly', 'volume', 'program', 'achievement', 'steps'];
@@ -43,7 +46,17 @@ export default function HomeScreen() {
   const fadeHeight = insets.top + 30;
 
   const [isDragging, setIsDragging] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const { homeCardOrder, setHomeCardOrder } = useWorkoutStore();
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setRefreshKey((k) => k + 1);
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    setRefreshing(false);
+  }, []);
 
   // Resolve order: migrate persisted order when cards are added/removed
   const cardOrder = useMemo(() => {
@@ -64,49 +77,61 @@ export default function HomeScreen() {
   }, [setHomeCardOrder]);
 
   return (
-    <View style={styles.screen}>
-      {/* Ambient breathing orbs — data-driven warmth */}
-      <AmbientBackground />
+    <HomeRefreshContext.Provider value={refreshKey}>
+      <View style={styles.screen}>
+        {/* Ambient breathing orbs — data-driven warmth */}
+        <AmbientBackground />
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 80 }]}
-        showsVerticalScrollIndicator={false}
-        scrollEnabled={!isDragging}
-      >
-        {/* Header is always pinned at top */}
-        <HeaderGreeting />
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 80 }]}
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={!isDragging}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="rgba(255,255,255,0.35)"
+              progressViewOffset={insets.top}
+            />
+          }
+        >
+          {/* Header is always pinned at top */}
+          <HeaderGreeting />
 
-        {/* Draggable cards — grid layout with full/half sizes */}
-        <DraggableCardList
-          order={cardOrder}
-          sizes={CARD_SIZES}
-          onReorder={handleReorder}
-          cards={CARD_COMPONENTS}
-          onDragStateChange={setIsDragging}
-        />
+          {/* Draggable cards — grid layout with full/half sizes */}
+          <DraggableCardList
+            order={cardOrder}
+            sizes={CARD_SIZES}
+            onReorder={handleReorder}
+            cards={CARD_COMPONENTS}
+            onDragStateChange={setIsDragging}
+          />
 
-      </ScrollView>
+          {/* Browse button always at bottom */}
+          <BrowseButton />
+        </ScrollView>
 
-      {/* Gradient-masked blur behind status bar / notch */}
-      <MaskedView
-        style={[styles.topFade, { height: fadeHeight }]}
-        maskElement={
-          <LinearGradient
-            colors={['#000', '#000', 'transparent']}
-            locations={[0, 0.5, 1]}
+        {/* Gradient-masked blur behind status bar / notch */}
+        <MaskedView
+          style={[styles.topFade, { height: fadeHeight }]}
+          maskElement={
+            <LinearGradient
+              colors={['#000', '#000', 'transparent']}
+              locations={[0, 0.5, 1]}
+              style={{ flex: 1 }}
+            />
+          }
+          pointerEvents="none"
+        >
+          <BlurView
+            intensity={50}
+            tint="dark"
             style={{ flex: 1 }}
           />
-        }
-        pointerEvents="none"
-      >
-        <BlurView
-          intensity={50}
-          tint="dark"
-          style={{ flex: 1 }}
-        />
-      </MaskedView>
-    </View>
+        </MaskedView>
+      </View>
+    </HomeRefreshContext.Provider>
   );
 }
 

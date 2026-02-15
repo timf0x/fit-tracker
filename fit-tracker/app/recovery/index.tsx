@@ -21,7 +21,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router';
 import { ArrowLeft, RotateCcw, ChevronRight, Zap, BedDouble, Dumbbell, X, Info } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { Fonts, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Spacing, GlassStyle, Header, SectionLabel, PageLayout, IconStroke } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import {
   RECOVERY_COLORS,
@@ -167,7 +167,7 @@ export default function RecoveryScreen() {
       <SafeAreaView edges={['top']} style={styles.safeTop}>
         <View style={styles.header}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={22} color="#fff" strokeWidth={2} />
+            <ArrowLeft size={22} color="#fff" strokeWidth={IconStroke.default} />
           </Pressable>
           <Text style={styles.headerTitle}>{i18n.t('recovery.title')}</Text>
           <View style={styles.headerSpacer} />
@@ -469,7 +469,7 @@ export default function RecoveryScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: Colors.background,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -511,27 +511,21 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingTop: 12,
     paddingBottom: 8,
     gap: 12,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    ...Header.backButton,
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: {
     flex: 1,
-    color: 'rgba(200,200,210,1)',
-    fontSize: 12,
+    ...Header.screenLabel,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
   },
   headerSpacer: { width: 40 },
 
@@ -646,10 +640,8 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    ...GlassStyle.card,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
     gap: 10,
   },
   nudgeIconWrap: {
@@ -676,11 +668,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
   },
   sectionTitle: {
-    fontSize: 11,
+    ...SectionLabel,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    color: '#6B7280',
-    letterSpacing: 1,
   },
 
   // ─── Muscle Row ───
@@ -709,7 +699,7 @@ const styles = StyleSheet.create({
   },
   muscleBarBg: {
     height: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: GlassStyle.card.borderColor,
     borderRadius: 1.5,
   },
   muscleBarFill: {
@@ -897,10 +887,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   infoModalClose: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    ...Header.backButton,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -946,7 +933,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: GlassStyle.card.backgroundColor,
     borderRadius: 12,
     padding: 16,
     marginTop: 20,

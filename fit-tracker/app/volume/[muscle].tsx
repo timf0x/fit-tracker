@@ -8,7 +8,7 @@ import {
   TrendingUp,
   TrendingDown,
 } from 'lucide-react-native';
-import { Fonts } from '@/constants/theme';
+import { Colors, Fonts, GlassStyle, Header, SectionLabel, PageLayout, IconStroke } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { MUSCLE_LABELS_FR } from '@/lib/muscleMapping';
@@ -91,7 +91,7 @@ export default function MuscleDetailScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={22} color="#fff" strokeWidth={2} />
+            <ArrowLeft size={22} color="#fff" strokeWidth={IconStroke.default} />
           </Pressable>
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>{muscleName}</Text>
@@ -116,9 +116,9 @@ export default function MuscleDetailScreen() {
                   ]}
                 >
                   {delta > 0 ? (
-                    <TrendingUp size={10} color="#4ADE80" strokeWidth={2.5} />
+                    <TrendingUp size={10} color="#4ADE80" strokeWidth={IconStroke.emphasis} />
                   ) : (
-                    <TrendingDown size={10} color="#EF4444" strokeWidth={2.5} />
+                    <TrendingDown size={10} color="#EF4444" strokeWidth={IconStroke.emphasis} />
                   )}
                   <Text
                     style={[
@@ -294,7 +294,7 @@ export default function MuscleDetailScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: Colors.background,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     shadowRadius: 120,
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingTop: 4,
   },
 
@@ -333,16 +333,13 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingTop: 12,
     paddingBottom: 16,
     gap: 12,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    ...Header.backButton,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -398,9 +395,9 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: GlassStyle.card.borderRadius,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: GlassStyle.card.borderColor,
     marginBottom: 24,
   },
   adviceText: {
@@ -413,20 +410,20 @@ const styles = StyleSheet.create({
 
   // Section title
   sectionTitle: {
-    color: 'rgba(160,150,140,1)',
-    fontSize: 11,
+    color: SectionLabel.color,
+    fontSize: SectionLabel.fontSize,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    letterSpacing: 0.5,
+    letterSpacing: SectionLabel.letterSpacing,
     marginBottom: 12,
   },
 
   // Chart
   chartCard: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 14,
+    backgroundColor: GlassStyle.card.backgroundColor,
+    borderRadius: GlassStyle.card.borderRadius,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: GlassStyle.card.borderColor,
     padding: 16,
     marginBottom: 24,
   },
@@ -487,10 +484,10 @@ const styles = StyleSheet.create({
 
   // Exercise Breakdown
   exerciseCard: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 14,
+    backgroundColor: GlassStyle.card.backgroundColor,
+    borderRadius: GlassStyle.card.borderRadius,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: GlassStyle.card.borderColor,
     padding: 12,
     marginBottom: 8,
     flexDirection: 'row',
@@ -520,10 +517,10 @@ const styles = StyleSheet.create({
 
   // Empty state
   emptyCard: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 14,
+    backgroundColor: GlassStyle.card.backgroundColor,
+    borderRadius: GlassStyle.card.borderRadius,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: GlassStyle.card.borderColor,
     padding: 20,
     alignItems: 'center',
     marginBottom: 24,
@@ -537,10 +534,10 @@ const styles = StyleSheet.create({
 
   // Landmarks Reference
   landmarksCard: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 14,
+    backgroundColor: GlassStyle.card.backgroundColor,
+    borderRadius: GlassStyle.card.borderRadius,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: GlassStyle.card.borderColor,
     paddingHorizontal: 16,
     paddingVertical: 12,
     flexDirection: 'row',

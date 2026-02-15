@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet, Pressable } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Colors, Fonts } from '@/constants/theme';
 import { TimelineDay } from '@/lib/timelineEngine';
 import i18n from '@/lib/i18n';
@@ -23,7 +24,7 @@ export function WeekStrip({ days, selectedDate, onSelectDate }: WeekStripProps) 
           <Pressable
             key={day.date}
             style={styles.dayColumn}
-            onPress={() => onSelectDate(day.date)}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onSelectDate(day.date); }}
           >
             {/* Day label */}
             <Text style={[styles.dayLabel, day.isToday && styles.dayLabelToday]}>

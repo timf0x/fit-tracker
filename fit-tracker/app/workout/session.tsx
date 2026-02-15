@@ -15,6 +15,7 @@ import {
   PanResponder,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack, useNavigation } from 'expo-router';
+import { CommonActions } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as Haptics from 'expo-haptics';
@@ -43,7 +44,7 @@ import {
   X,
   ArrowLeftRight,
 } from 'lucide-react-native';
-import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Spacing, GlassStyle, Header, PageLayout, IconStroke, CTAButton } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { CircularProgress } from '@/components/CircularProgress';
 import { ExerciseIcon } from '@/components/ExerciseIcon';
@@ -78,7 +79,7 @@ import { AnimatedToggle } from '@/components/ui/AnimatedToggle';
 import { getExerciseName, getExerciseDescription, getExerciseInstructions, getTargetLabel, getSecondaryMusclesLabel } from '@/lib/exerciseLocale';
 import type { CompletedSet, CompletedExercise, BodyPart } from '@/types';
 import { DEFAULT_SET_TIME } from '@/types';
-import type { EquipmentSetup, SessionFeedback } from '@/types/program';
+import type { SessionFeedback } from '@/types/program';
 
 // ─── Types ───
 
@@ -242,22 +243,32 @@ export default function WorkoutSessionScreen() {
   // ─── Exercise Swap ───
   const [showSwap, setShowSwap] = useState<{ index: number; exerciseId: string } | null>(null);
 
-  const inferredEquipment: EquipmentSetup = useMemo(() => {
-    const equipTypes = sessionExercises
-      .map((ex) => {
-        const full = getExerciseById(ex.exerciseId);
-        return full?.equipment;
-      })
-      .filter(Boolean);
-    const hasGym = equipTypes.some((e) =>
-      ['barbell', 'cable', 'machine', 'smith machine', 'trap bar'].includes(e!)
+  const inferredAllowedEquipment = useMemo(() => {
+    const equipSet = new Set<import('@/types').Equipment>(['body weight']);
+    for (const ex of sessionExercises) {
+      const full = getExerciseById(ex.exerciseId);
+      if (full) equipSet.add(full.equipment);
+    }
+    // Also include equipment from the same tier to offer broader swap options
+    const types = Array.from(equipSet);
+    const hasGym = types.some((e) =>
+      ['barbell', 'cable', 'machine', 'smith machine', 'trap bar'].includes(e)
     );
-    if (hasGym) return 'full_gym';
-    const hasDumbbell = equipTypes.some((e) =>
-      ['dumbbell', 'kettlebell'].includes(e!)
-    );
-    if (hasDumbbell) return 'home_dumbbell';
-    return 'bodyweight';
+    if (hasGym) {
+      ['barbell', 'dumbbell', 'cable', 'machine', 'kettlebell', 'resistance band', 'ez bar', 'smith machine', 'trap bar'].forEach(
+        (e) => equipSet.add(e as import('@/types').Equipment)
+      );
+    } else {
+      const hasDumbbell = types.some((e) => ['dumbbell', 'kettlebell'].includes(e));
+      if (hasDumbbell) {
+        ['dumbbell', 'resistance band', 'kettlebell'].forEach(
+          (e) => equipSet.add(e as import('@/types').Equipment)
+        );
+      } else {
+        equipSet.add('resistance band');
+      }
+    }
+    return Array.from(equipSet);
   }, [sessionExercises]);
 
   const swapMuscleTargets = useMemo(() => {
@@ -671,6 +682,23 @@ export default function WorkoutSessionScreen() {
     setShowStopConfirm(true);
   }, []);
 
+  const navigateHome = useCallback(() => {
+    cleanupAudio();
+    allowNavRef.current = true;
+    // Reset the root navigator to just (tabs) — dismisses all nested modals cleanly
+    const rootNav = navigation.getParent();
+    if (rootNav) {
+      rootNav.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: '(tabs)' }],
+        }),
+      );
+    } else {
+      router.dismissAll();
+    }
+  }, [navigation, router]);
+
   const confirmStop = useCallback(() => {
     setShowStopConfirm(false);
     const durationSeconds = Math.floor((Date.now() - sessionStartRef.current) / 1000);
@@ -685,34 +713,21 @@ export default function WorkoutSessionScreen() {
         completedExercises,
       });
     }
-    cleanupAudio();
-    allowNavRef.current = true;
-    router.dismissAll();
-    router.replace('/(tabs)');
-  }, [completedSets, sessionExercises, store, router]);
+    navigateHome();
+  }, [completedSets, sessionExercises, store, navigateHome]);
 
   const discardStop = useCallback(() => {
     setShowStopConfirm(false);
     if (sessionIdRef.current) {
       store.deleteSession(sessionIdRef.current);
     }
-    cleanupAudio();
-    allowNavRef.current = true;
-    router.dismissAll();
-    router.replace('/(tabs)');
-  }, [store, router]);
+    navigateHome();
+  }, [store, navigateHome]);
 
   const cancelStop = useCallback(() => {
     setShowStopConfirm(false);
     setIsPaused(false);
   }, []);
-
-  const navigateHome = useCallback(() => {
-    cleanupAudio();
-    allowNavRef.current = true;
-    router.dismissAll();
-    router.replace('/(tabs)');
-  }, [router]);
 
   const handleFinish = useCallback(() => {
     const durationSeconds = Math.floor((Date.now() - sessionStartRef.current) / 1000);
@@ -1002,7 +1017,7 @@ export default function WorkoutSessionScreen() {
               <View style={s.infoSheetHeader}>
                 <Text style={s.infoSheetName}>{getExerciseName(infoExercise)}</Text>
                 <Pressable style={s.infoSheetClose} onPress={() => setShowExerciseInfo(false)}>
-                  <X size={20} color="rgba(160,160,170,1)" strokeWidth={2} />
+                  <X size={20} color="rgba(160,160,170,1)" strokeWidth={IconStroke.default} />
                 </Pressable>
               </View>
 
@@ -1119,7 +1134,7 @@ export default function WorkoutSessionScreen() {
           {/* ─── Header ─── */}
           <View style={s.finishedHeader}>
             <View style={s.finishedBadge}>
-              <Trophy size={14} color={Colors.phases.finished} strokeWidth={2.5} />
+              <Trophy size={14} color={Colors.phases.finished} strokeWidth={IconStroke.emphasis} />
               <Text style={s.finishedBadgeText}>{i18n.t('workoutSession.finishedBadge')}</Text>
             </View>
             <Text style={s.finishedTitle}>{i18n.t('workoutSession.finishedTitle')}</Text>
@@ -1154,7 +1169,7 @@ export default function WorkoutSessionScreen() {
             <View style={s.prSection}>
               <View style={s.prHeader}>
                 <View style={s.prIconCircle}>
-                  <Zap size={14} color="#FBBF24" strokeWidth={2.5} />
+                  <Zap size={14} color="#FBBF24" strokeWidth={IconStroke.emphasis} />
                 </View>
                 <Text style={s.prTitle}>{i18n.t('workoutSession.personalRecords')}</Text>
               </View>
@@ -1269,7 +1284,7 @@ export default function WorkoutSessionScreen() {
           >
             <Text style={s.reviewSectionTitle}>{i18n.t('workoutSession.exerciseDetailToggle')}</Text>
             <View style={[s.expandChevron, reviewExpanded && s.expandChevronOpen]}>
-              <ChevronDown size={16} color="rgba(255,255,255,0.35)" strokeWidth={2.5} />
+              <ChevronDown size={16} color="rgba(255,255,255,0.35)" strokeWidth={IconStroke.emphasis} />
             </View>
           </Pressable>
 
@@ -1307,7 +1322,7 @@ export default function WorkoutSessionScreen() {
                     </Text>
                   </View>
                   <View style={[s.expandChevron, isExpanded && s.expandChevronOpen]}>
-                    <ChevronDown size={16} color="rgba(255,255,255,0.35)" strokeWidth={2.5} />
+                    <ChevronDown size={16} color="rgba(255,255,255,0.35)" strokeWidth={IconStroke.emphasis} />
                   </View>
                 </Pressable>
 
@@ -1328,97 +1343,39 @@ export default function WorkoutSessionScreen() {
                       const reviewRir = loggedSet.rir ?? 2;
 
                       return (
-                        <View key={setIdx}>
-                          <View style={s.reviewSetRow}>
-                            <View style={[
-                              s.setNumber,
-                              isSetDone && { backgroundColor: 'rgba(74,222,128,0.12)' },
+                        <View key={setIdx} style={s.reviewSetRowReadonly}>
+                          <View style={[
+                            s.setNumber,
+                            isSetDone && { backgroundColor: 'rgba(74,222,128,0.12)' },
+                          ]}>
+                            <Text style={[
+                              s.setNumberText,
+                              isSetDone && { color: Colors.phases.finished },
                             ]}>
-                              <Text style={[
-                                s.setNumberText,
-                                isSetDone && { color: Colors.phases.finished },
-                              ]}>
-                                {setLabel}
-                              </Text>
-                            </View>
-
-                            <View style={s.stepperGroup}>
-                              <Text style={s.stepperLabel}>{i18n.t('workoutSession.repsLabel')}</Text>
-                              <View style={s.stepperRow}>
-                                <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetReps(idx, setIdx, -1)}>
-                                  <Minus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
-                                </Pressable>
-                                <TextInput
-                                  style={s.stepperInput}
-                                  value={String(loggedSet.reps)}
-                                  onChangeText={(v) => handleSetRepsDirectly(idx, setIdx, v)}
-                                  keyboardType="number-pad"
-                                  selectTextOnFocus
-                                />
-                                <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetReps(idx, setIdx, 1)}>
-                                  <Plus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
-                                </Pressable>
-                              </View>
-                            </View>
-
-                            {!isBodyweight && (
-                              <View style={s.stepperGroup}>
-                                <Text style={s.stepperLabel}>{i18n.t('workoutSession.kgLabel')}</Text>
-                                <View style={s.stepperRow}>
-                                  <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetWeight(idx, setIdx, -0.5)}>
-                                    <Minus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
-                                  </Pressable>
-                                  <TextInput
-                                    style={s.stepperInput}
-                                    value={String(loggedSet.weight ?? 0)}
-                                    onChangeText={(v) => handleSetWeightDirectly(idx, setIdx, v)}
-                                    keyboardType="decimal-pad"
-                                    selectTextOnFocus
-                                  />
-                                  <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetWeight(idx, setIdx, 0.5)}>
-                                    <Plus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
-                                  </Pressable>
-                                </View>
-                              </View>
-                            )}
-
-                            <Pressable style={s.checkToggle} onPress={() => handleToggleSetCompleted(idx, setIdx)}>
-                              {isSetDone ? (
-                                <CircleCheck size={24} color={Colors.phases.finished} strokeWidth={2} />
-                              ) : (
-                                <Circle size={24} color="rgba(239,68,68,0.5)" strokeWidth={1.5} />
-                              )}
-                            </Pressable>
+                              {setLabel}
+                            </Text>
                           </View>
 
-                          {/* RIR selector on finished screen */}
+                          <Text style={s.reviewSetValue}>
+                            {loggedSet.reps} {i18n.t('common.reps')}
+                          </Text>
+
+                          {!isBodyweight && (
+                            <Text style={s.reviewSetValue}>
+                              {loggedSet.weight ?? 0} {getWeightUnitLabel()}
+                            </Text>
+                          )}
+
                           {isSetDone && (
-                            <View style={s.rirRow}>
-                              <Text style={s.rirLabel}>{i18n.t('workoutSession.rirLabel')}</Text>
-                              <View style={s.rirOptions}>
-                                {RIR_OPTIONS.map((r) => {
-                                  const isActive = reviewRir === r;
-                                  const color = getRirColor(r);
-                                  return (
-                                    <Pressable
-                                      key={r}
-                                      style={[
-                                        s.rirOption,
-                                        isActive && { backgroundColor: `${color}20`, borderColor: `${color}50` },
-                                      ]}
-                                      onPress={() => handleUpdateSetRir(idx, setIdx, r)}
-                                    >
-                                      <Text style={[
-                                        s.rirOptionText,
-                                        isActive && { color, fontFamily: Fonts?.bold, fontWeight: '700' },
-                                      ]}>
-                                        {r === 4 ? '4+' : String(r)}
-                                      </Text>
-                                    </Pressable>
-                                  );
-                                })}
-                              </View>
-                            </View>
+                            <Text style={[s.reviewSetRir, { color: getRirColor(reviewRir) }]}>
+                              RIR {reviewRir === 4 ? '4+' : reviewRir}
+                            </Text>
+                          )}
+
+                          {isSetDone ? (
+                            <CircleCheck size={20} color={Colors.phases.finished} strokeWidth={IconStroke.default} />
+                          ) : (
+                            <Circle size={20} color="rgba(239,68,68,0.5)" strokeWidth={1.5} />
                           )}
                         </View>
                       );
@@ -1474,7 +1431,7 @@ export default function WorkoutSessionScreen() {
           <Text style={s.headerTitle} numberOfLines={1}>{workoutName}</Text>
         </View>
         <Pressable style={s.headerIconBtn} onPress={() => setShowExerciseInfo(true)}>
-          <Info size={18} color="rgba(255,255,255,0.55)" strokeWidth={2} />
+          <Info size={18} color="rgba(255,255,255,0.55)" strokeWidth={IconStroke.default} />
         </Pressable>
       </View>
 
@@ -1494,7 +1451,7 @@ export default function WorkoutSessionScreen() {
             </Text>
             {/* Phase Badge — inside ring, below time */}
             <View style={[s.phaseBadge, { backgroundColor: `${phaseColor}15`, marginTop: 8 }]}>
-              <PhaseIcon size={12} color={phaseColor} strokeWidth={2.5} />
+              <PhaseIcon size={12} color={phaseColor} strokeWidth={IconStroke.emphasis} />
               <Text style={[s.phaseBadgeText, { color: phaseColor }]}>
                 {isPaused ? i18n.t('workoutSession.paused') : PHASE_CONFIG[phase].label}
               </Text>
@@ -1584,11 +1541,11 @@ export default function WorkoutSessionScreen() {
                   }],
                 }]}
               >
-                <ChevronsRight size={20} color={doubleSkipActive ? '#fff' : Colors.text} strokeWidth={2} />
+                <ChevronsRight size={20} color={doubleSkipActive ? '#fff' : Colors.text} strokeWidth={IconStroke.default} />
               </Animated.View>
             )}
             <View {...skipPanResponder.panHandlers} style={s.controlBtn}>
-              <SkipForward size={24} color={Colors.text} strokeWidth={2} />
+              <SkipForward size={24} color={Colors.text} strokeWidth={IconStroke.default} />
             </View>
           </View>
         </View>
@@ -1604,7 +1561,7 @@ export default function WorkoutSessionScreen() {
           <View style={s.sheetDragBar} />
           <View style={s.sheetHandleRow}>
             <Text style={s.viewExercisesText}>{i18n.t('workoutSession.viewExercises')}</Text>
-            <ChevronUp size={14} color="rgba(255,255,255,0.35)" strokeWidth={2.5} />
+            <ChevronUp size={14} color="rgba(255,255,255,0.35)" strokeWidth={IconStroke.emphasis} />
           </View>
           {sheetOpen && (
             <Text style={s.listSubtitle}>
@@ -1679,11 +1636,11 @@ export default function WorkoutSessionScreen() {
                         }}
                         hitSlop={4}
                       >
-                        <ArrowLeftRight size={15} color="rgba(255,255,255,0.35)" strokeWidth={2} />
+                        <ArrowLeftRight size={15} color="rgba(255,255,255,0.35)" strokeWidth={IconStroke.default} />
                       </Pressable>
                     )}
                     <View style={[s.expandChevron, isExpanded && s.expandChevronOpen]}>
-                      <ChevronDown size={16} color="rgba(255,255,255,0.35)" strokeWidth={2.5} />
+                      <ChevronDown size={16} color="rgba(255,255,255,0.35)" strokeWidth={IconStroke.emphasis} />
                     </View>
                   </Pressable>
 
@@ -1736,7 +1693,7 @@ export default function WorkoutSessionScreen() {
                                 {isSetCompleted ? (
                                   <View style={s.stepperRow}>
                                     <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetReps(idx, rowIdx, -1)}>
-                                      <Minus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
+                                      <Minus size={15} color="rgba(255,255,255,0.6)" strokeWidth={IconStroke.emphasis} />
                                     </Pressable>
                                     <TextInput
                                       style={s.stepperInput}
@@ -1746,7 +1703,7 @@ export default function WorkoutSessionScreen() {
                                       selectTextOnFocus
                                     />
                                     <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetReps(idx, rowIdx, 1)}>
-                                      <Plus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
+                                      <Plus size={15} color="rgba(255,255,255,0.6)" strokeWidth={IconStroke.emphasis} />
                                     </Pressable>
                                   </View>
                                 ) : (
@@ -1760,7 +1717,7 @@ export default function WorkoutSessionScreen() {
                                   {isSetCompleted ? (
                                     <View style={s.stepperRow}>
                                       <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetWeight(idx, rowIdx, -0.5)}>
-                                        <Minus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
+                                        <Minus size={15} color="rgba(255,255,255,0.6)" strokeWidth={IconStroke.emphasis} />
                                       </Pressable>
                                       <TextInput
                                         style={s.stepperInput}
@@ -1770,7 +1727,7 @@ export default function WorkoutSessionScreen() {
                                         selectTextOnFocus
                                       />
                                       <Pressable style={s.stepperBtn} onPress={() => handleUpdateSetWeight(idx, rowIdx, 0.5)}>
-                                        <Plus size={15} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
+                                        <Plus size={15} color="rgba(255,255,255,0.6)" strokeWidth={IconStroke.emphasis} />
                                       </Pressable>
                                     </View>
                                   ) : (
@@ -1782,7 +1739,7 @@ export default function WorkoutSessionScreen() {
                               {isSetCompleted ? (
                                 <Pressable style={s.checkToggle} onPress={() => handleToggleSetCompleted(idx, rowIdx)}>
                                   {isSetDone ? (
-                                    <CircleCheck size={24} color={Colors.phases.finished} strokeWidth={2} />
+                                    <CircleCheck size={24} color={Colors.phases.finished} strokeWidth={IconStroke.default} />
                                   ) : (
                                     <Circle size={24} color="rgba(239,68,68,0.5)" strokeWidth={1.5} />
                                   )}
@@ -1844,7 +1801,7 @@ export default function WorkoutSessionScreen() {
           onClose={() => setShowSwap(null)}
           currentExerciseId={showSwap.exerciseId}
           muscleTargets={swapMuscleTargets}
-          equipment={inferredEquipment}
+          allowedEquipment={inferredAllowedEquipment}
           onSwap={handleSessionSwap}
         />
       )}
@@ -1881,7 +1838,7 @@ export default function WorkoutSessionScreen() {
             <View style={s.soundModalHeader}>
               <Text style={s.soundModalTitle}>{i18n.t('workoutSession.soundTitle')}</Text>
               <Pressable style={s.soundModalClose} onPress={() => setShowSoundSettings(false)}>
-                <X size={18} color="rgba(160,160,170,1)" strokeWidth={2} />
+                <X size={18} color="rgba(160,160,170,1)" strokeWidth={IconStroke.default} />
               </Pressable>
             </View>
 
@@ -1890,9 +1847,9 @@ export default function WorkoutSessionScreen() {
               <View style={s.soundModalRowLeft}>
                 <View style={[s.soundModalIcon, { backgroundColor: sfxEnabled ? 'rgba(255,107,53,0.12)' : 'rgba(255,255,255,0.06)' }]}>
                   {sfxEnabled ? (
-                    <Volume2 size={16} color={Colors.primary} strokeWidth={2} />
+                    <Volume2 size={16} color={Colors.primary} strokeWidth={IconStroke.default} />
                   ) : (
-                    <VolumeX size={16} color="rgba(255,255,255,0.3)" strokeWidth={2} />
+                    <VolumeX size={16} color="rgba(255,255,255,0.3)" strokeWidth={IconStroke.default} />
                   )}
                 </View>
                 <View>
@@ -1912,9 +1869,9 @@ export default function WorkoutSessionScreen() {
               <View style={s.soundModalRowLeft}>
                 <View style={[s.soundModalIcon, { backgroundColor: voiceEnabled ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.06)' }]}>
                   {voiceEnabled ? (
-                    <Mic size={16} color="#4A90E2" strokeWidth={2} />
+                    <Mic size={16} color="#4A90E2" strokeWidth={IconStroke.default} />
                   ) : (
-                    <MicOff size={16} color="rgba(255,255,255,0.3)" strokeWidth={2} />
+                    <MicOff size={16} color="rgba(255,255,255,0.3)" strokeWidth={IconStroke.default} />
                   )}
                 </View>
                 <View>
@@ -1940,7 +1897,7 @@ export default function WorkoutSessionScreen() {
 
             {/* Volume Slider */}
             <View style={s.soundModalSliderContainer}>
-              <VolumeX size={14} color="rgba(255,255,255,0.25)" strokeWidth={2} />
+              <VolumeX size={14} color="rgba(255,255,255,0.25)" strokeWidth={IconStroke.default} />
               <View
                 style={s.soundModalSliderTrack}
                 onLayout={(e) => { sliderWidthRef.current = e.nativeEvent.layout.width; }}
@@ -1950,7 +1907,7 @@ export default function WorkoutSessionScreen() {
                 <View style={[s.soundModalSliderFill, { width: `${volume * 100}%` }]} />
                 <View style={[s.soundModalSliderThumb, { left: `${volume * 100}%` }]} />
               </View>
-              <Volume2 size={14} color="rgba(255,255,255,0.25)" strokeWidth={2} />
+              <Volume2 size={14} color="rgba(255,255,255,0.25)" strokeWidth={IconStroke.default} />
             </View>
           </Pressable>
         </Pressable>
@@ -1966,7 +1923,7 @@ export default function WorkoutSessionScreen() {
 const s = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: Colors.background,
   },
 
   // ─── Header ───
@@ -1994,7 +1951,7 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.06)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
   },
   headerTitle: {
     textAlign: 'center',
@@ -2158,7 +2115,7 @@ const s = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: Colors.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
@@ -2183,7 +2140,7 @@ const s = StyleSheet.create({
   },
   sheetContent: {
     flex: 1,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: Colors.background,
   },
   sheetDragBarTop: {
     width: 36,
@@ -2462,10 +2419,7 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.04)',
   },
   infoTipCard: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 16,
+    ...GlassStyle.card,
     padding: 18,
     gap: 8,
     marginTop: 16,
@@ -2551,9 +2505,9 @@ const s = StyleSheet.create({
     marginTop: 6,
   },
   summaryCard: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: GlassStyle.card.backgroundColor,
+    borderWidth: GlassStyle.card.borderWidth,
+    borderColor: GlassStyle.card.borderColor,
     borderRadius: 20,
     padding: 20,
     marginBottom: 24,
@@ -2710,6 +2664,24 @@ const s = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     gap: 8,
+  },
+  reviewSetRowReadonly: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    gap: 12,
+  },
+  reviewSetValue: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+  },
+  reviewSetRir: {
+    fontSize: 12,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
+    marginLeft: 'auto',
   },
   feedbackSection: {
     marginTop: 24,
@@ -2887,8 +2859,9 @@ const s = StyleSheet.create({
   finishButton: {
     width: '100%',
     backgroundColor: Colors.phases.finished,
-    borderRadius: 16,
-    paddingVertical: 18,
+    borderRadius: CTAButton.borderRadius,
+    height: CTAButton.height,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   finishButtonText: {

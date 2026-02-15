@@ -5,6 +5,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withRepeat,
+  withDelay,
   interpolate,
   Easing,
 } from 'react-native-reanimated';
@@ -19,6 +20,7 @@ import { useWorkoutStore } from '@/stores/workoutStore';
 import { useBadgeStore } from '@/stores/badgeStore';
 import { Fonts, Spacing } from '@/constants/theme';
 import i18n, { getLocale } from '@/lib/i18n';
+import { useHomeRefreshKey } from '@/lib/refreshContext';
 import type { BadgeProgress, BadgeTier } from '@/types';
 
 function loc(obj: { name: string; nameFr: string }): string {
@@ -54,6 +56,21 @@ export function AchievementCard() {
 
   // Urgency pulse for close-to-unlock
   const pulse = useSharedValue(0);
+
+  const refreshKey = useHomeRefreshKey();
+
+  const badgeBounce = useSharedValue(1);
+
+  useEffect(() => {
+    if (refreshKey > 0) {
+      badgeBounce.value = 0.6;
+      badgeBounce.value = withDelay(400, withTiming(1, { duration: 500, easing: Easing.out(Easing.back(2)) }));
+    }
+  }, [refreshKey]);
+
+  const badgeBounceStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: badgeBounce.value }],
+  }));
 
   const { recentBadges, nextBadge, totalPoints, totalUnlocked, totalBadges, levelName } = useMemo(() => {
     const displayable = getDisplayableBadges();
@@ -164,15 +181,16 @@ export function AchievementCard() {
                 strokeWidth={3}
                 progress={nextBadge.progressPercent / 100}
                 color={tierColor}
+                animationKey={refreshKey}
               />
-              <View style={styles.badgeOverlay}>
+              <Animated.View style={[styles.badgeOverlay, badgeBounceStyle]}>
                 <BadgeIcon
                   badge={nextBadge.badge}
                   size={52}
                   isUnlocked={false}
                   showProgress={nextBadge.progressPercent / 100}
                 />
-              </View>
+              </Animated.View>
             </Animated.View>
 
             {/* Info */}

@@ -8,6 +8,7 @@ import Animated, {
   useAnimatedStyle,
   withRepeat,
   withTiming,
+  withDelay,
   interpolate,
   Easing,
 } from 'react-native-reanimated';
@@ -44,6 +45,7 @@ import { ReadinessCheck } from '@/components/program/ReadinessCheck';
 import { ConfirmModal } from '@/components/program/ConfirmModal';
 import type { ReadinessCheck as ReadinessCheckType, ResolutionAction, ResolutionOption } from '@/types/program';
 import i18n from '@/lib/i18n';
+import { useHomeRefreshKey } from '@/lib/refreshContext';
 import { resolveDayLabel } from '@/lib/programLabels';
 import { getNextScheduledDay, formatScheduledDate, getPlannedDayForDate, getTodayISO } from '@/lib/scheduleEngine';
 
@@ -88,6 +90,22 @@ export function ActiveProgramCard() {
 
   const [showReadiness, setShowReadiness] = useState(false);
   const [showPacingWarning, setShowPacingWarning] = useState(false);
+
+  const refreshKey = useHomeRefreshKey();
+
+  const mesoAnim = useSharedValue(1);
+
+  useEffect(() => {
+    if (refreshKey > 0) {
+      mesoAnim.value = 0;
+      mesoAnim.value = withDelay(200, withTiming(1, { duration: 600, easing: Easing.out(Easing.quad) }));
+    }
+  }, [refreshKey]);
+
+  const mesoAnimStyle = useAnimatedStyle(() => ({
+    opacity: mesoAnim.value,
+    transform: [{ scaleY: interpolate(mesoAnim.value, [0, 1], [0.3, 1]) }],
+  }));
 
   // ─── Missed day reconciliation — runs on mount + history change ───
   useEffect(() => {
@@ -204,7 +222,7 @@ export function ActiveProgramCard() {
           </View>
 
           {/* Completed mesocycle bar */}
-          <View style={styles.mesoBar}>
+          <Animated.View style={[styles.mesoBar, mesoAnimStyle]}>
             {program.weeks.map((week) => (
               <View
                 key={week.weekNumber}
@@ -214,7 +232,7 @@ export function ActiveProgramCard() {
                 ]}
               />
             ))}
-          </View>
+          </Animated.View>
 
           <PressableScale
             style={styles.ghostCta}
@@ -323,7 +341,7 @@ export function ActiveProgramCard() {
           </View>
 
           {/* Mesocycle bar (same as active state) */}
-          <View style={styles.mesoBar}>
+          <Animated.View style={[styles.mesoBar, mesoAnimStyle]}>
             {program.weeks.map((week) => {
               const weekDays = week.days.length;
               const completedInWeek = activeState.completedDays.filter(
@@ -341,7 +359,7 @@ export function ActiveProgramCard() {
                 />
               );
             })}
-          </View>
+          </Animated.View>
         </View>
       </View>
     );
@@ -544,7 +562,7 @@ export function ActiveProgramCard() {
           )}
 
           {/* Mesocycle bar */}
-          <View style={styles.mesoBar}>
+          <Animated.View style={[styles.mesoBar, mesoAnimStyle]}>
             {program.weeks.map((week) => {
               const weekDays = week.days.length;
               const completedInWeek = activeState.completedDays.filter(
@@ -569,7 +587,7 @@ export function ActiveProgramCard() {
                 />
               );
             })}
-          </View>
+          </Animated.View>
 
           {/* Bottom CTA */}
           {!isDayDone && todayDay && (

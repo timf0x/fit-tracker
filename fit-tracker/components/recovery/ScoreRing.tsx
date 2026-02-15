@@ -14,9 +14,10 @@ function getScoreColor(score: number): string {
 interface ScoreRingProps {
   score: number;
   size?: number;
+  animationKey?: number;
 }
 
-export function ScoreRing({ score, size = 100 }: ScoreRingProps) {
+export function ScoreRing({ score, size = 100, animationKey }: ScoreRingProps) {
   const strokeWidth = Math.max(4, Math.round(size * 0.08));
   const fontSize = Math.max(14, Math.round(size * 0.32));
   const radius = (size - strokeWidth) / 2;
@@ -47,7 +48,7 @@ export function ScoreRing({ score, size = 100 }: ScoreRingProps) {
       progress.stopAnimation();
       progress.removeListener(listener);
     };
-  }, [score]);
+  }, [score, animationKey]);
 
   const strokeDashoffset = progress.interpolate({
     inputRange: [0, 100],

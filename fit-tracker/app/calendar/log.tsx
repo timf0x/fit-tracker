@@ -10,9 +10,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import {
   ArrowLeft,
   Plus,
@@ -22,49 +21,75 @@ import {
   Minus,
   Info,
   Repeat,
-  Timer,
+  Check,
 } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { Colors, Fonts, Spacing, GlassStyle, Header, PageLayout, IconStroke, CTAButton } from '@/constants/theme';
 import i18n from '@/lib/i18n';
-import { ExerciseIcon, CategoryIcon } from '@/components/ExerciseIcon';
+import { ExerciseIcon } from '@/components/ExerciseIcon';
 import { ExerciseInfoSheet } from '@/components/ExerciseInfoSheet';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { DropdownModal } from '@/components/ui/DropdownModal';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { exercises as allExercises } from '@/data/exercises';
-import type { WorkoutExercise, Exercise, BodyPart, Equipment } from '@/types';
-import { DropdownModal } from '@/components/ui/DropdownModal';
 import { getFocusOptions, getEquipmentOptions } from '@/constants/filterOptions';
+import { TARGET_TO_MUSCLE, getMuscleLabel } from '@/lib/muscleMapping';
+import { formatWeight, getWeightUnitLabel } from '@/stores/settingsStore';
+import type { Exercise, BodyPart, Equipment, CompletedExercise, CompletedSet } from '@/types';
 
-// ─── Config ───────────────────────────────────────
-
-const WORKOUT_ICONS = [
-  { id: 'push', label: i18n.t('workoutCreate.icons.push') },
-  { id: 'pull', label: i18n.t('workoutCreate.icons.pull') },
-  { id: 'legs', label: i18n.t('workoutCreate.icons.legs') },
-  { id: 'core', label: i18n.t('workoutCreate.icons.core') },
-  { id: 'cardio', label: i18n.t('workoutCreate.icons.cardio') },
-  { id: 'full_body', label: i18n.t('workoutCreate.icons.fullBody') },
-  { id: 'upper', label: i18n.t('workoutCreate.icons.upper') },
-  { id: 'lower', label: i18n.t('workoutCreate.icons.lower') },
-];
+// ─── Config ───
 
 const FOCUS_OPTIONS = getFocusOptions();
 const EQUIPMENT_OPTIONS = getEquipmentOptions();
 
-interface SelectedExercise extends WorkoutExercise {
+const DURATION_PRESETS = [30, 45, 60, 75, 90];
+
+interface SelectedExercise {
+  exerciseId: string;
   exercise: Exercise;
+  sets: number;
+  reps: number;
+  weight: number;
   uid: string;
 }
 
-// ─── Component ────────────────────────────────────
+/** Generate a workout name from the muscles targeted */
+function autoWorkoutName(exercises: SelectedExercise[]): string {
+  const muscles = new Set<string>();
+  for (const ex of exercises) {
+    const muscle = TARGET_TO_MUSCLE[ex.exercise.target];
+    if (muscle) muscles.add(muscle);
+  }
+  if (muscles.size === 0) return '';
+  const labels = Array.from(muscles).slice(0, 3).map((m) => getMuscleLabel(m));
+  return labels.join(' + ');
+}
 
-export default function CreateWorkoutScreen() {
+/** Format the selected date for display */
+function formatDateDisplay(dateISO: string): string {
+  const [y, m, d] = dateISO.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const locale = i18n.locale === 'fr' ? 'fr-FR' : 'en-US';
+  return date.toLocaleDateString(locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
+
+// ─── Component ───
+
+export default function LogPastWorkoutScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const addCustomWorkout = useWorkoutStore((s) => s.addCustomWorkout);
+  const { date } = useLocalSearchParams<{ date: string }>();
+  const logPastWorkout = useWorkoutStore((s) => s.logPastWorkout);
+
+  const dateISO = date || new Date().toISOString().split('T')[0];
 
   // Form state
   const [name, setName] = useState('');
-  const [selectedIcon, setSelectedIcon] = useState('push');
+  const [duration, setDuration] = useState(60);
   const [selectedExercises, setSelectedExercises] = useState<SelectedExercise[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -82,10 +107,13 @@ export default function CreateWorkoutScreen() {
   // Exercise info sheet state
   const [infoExercise, setInfoExercise] = useState<Exercise | null>(null);
 
-  // Inline editor state (replaces stepper modal)
+  // Inline editor state
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
-  // ─── Filtered exercises ─────────────────────────
+  // Auto-generated name from muscles
+  const autoName = useMemo(() => autoWorkoutName(selectedExercises), [selectedExercises]);
+
+  // ─── Filtered exercises ───
 
   const filteredExercises = useMemo(() => {
     return allExercises.filter((ex) => {
@@ -100,7 +128,7 @@ export default function CreateWorkoutScreen() {
     });
   }, [searchQuery, selectedFocus, selectedEquipment]);
 
-  // ─── Exercise picker actions ────────────────────
+  // ─── Exercise picker actions ───
 
   const toggleExercise = (exercise: Exercise) => {
     const exists = tempSelected.some((e) => e.id === exercise.id);
@@ -114,11 +142,9 @@ export default function CreateWorkoutScreen() {
       sets: 4,
       reps: 12,
       weight: 0,
-      restTime: 60,
-      setTime: 35,
       uid: `${exercise.id}_${Date.now()}_${i}`,
     }));
-    setSelectedExercises([...selectedExercises, ...newExercises]);
+    setSelectedExercises((prev) => [...prev, ...newExercises]);
     setTempSelected([]);
     setShowExercisePicker(false);
     setSearchQuery('');
@@ -134,7 +160,7 @@ export default function CreateWorkoutScreen() {
     setSelectedEquipment('all');
   };
 
-  // ─── Inline editor actions ─────────────────────
+  // ─── Inline editor actions ───
 
   const handleEditField = (index: number, field: string, delta: number) => {
     setSelectedExercises((prev) => {
@@ -142,19 +168,13 @@ export default function CreateWorkoutScreen() {
       const ex = { ...next[index] };
       switch (field) {
         case 'sets':
-          ex.sets = Math.max(1, ex.sets + delta);
+          ex.sets = Math.max(1, Math.min(10, ex.sets + delta));
           break;
         case 'reps':
-          ex.reps = Math.max(1, ex.reps + delta);
+          ex.reps = Math.max(1, Math.min(30, ex.reps + delta));
           break;
         case 'weight':
-          ex.weight = Math.max(0, (ex.weight || 0) + delta * 2.5);
-          break;
-        case 'restTime':
-          ex.restTime = Math.max(15, ex.restTime + delta * 15);
-          break;
-        case 'setTime':
-          ex.setTime = Math.max(10, (ex.setTime || 35) + delta * 5);
+          ex.weight = Math.max(0, ex.weight + delta * 2.5);
           break;
       }
       next[index] = ex;
@@ -162,81 +182,67 @@ export default function CreateWorkoutScreen() {
     });
   };
 
-  // ─── Calculate duration ─────────────────────────
-
-  const calculateDuration = () => {
-    const totalSeconds = selectedExercises.reduce((acc, ex) => {
-      return acc + ((ex.setTime || 35) + ex.restTime) * ex.sets;
-    }, 0);
-    return Math.ceil(totalSeconds / 60);
-  };
-
-  // ─── Drag reorder ─────────────────────────────────
-
-  const handleDragEnd = ({ data }: { data: SelectedExercise[] }) => {
-    setSelectedExercises(data);
-  };
-
-  // ─── Save ───────────────────────────────────────
+  // ─── Save ───
 
   const handleSave = () => {
-    if (!name.trim()) {
-      Alert.alert(i18n.t('common.error'), i18n.t('workoutCreate.errorNoName'));
-      return;
-    }
     if (selectedExercises.length === 0) {
-      Alert.alert(i18n.t('common.error'), i18n.t('workoutCreate.errorNoExercise'));
+      Alert.alert(i18n.t('common.error'), i18n.t('calendarLog.noExercises'));
       return;
     }
 
     setIsSaving(true);
     try {
-      const workoutExercises: WorkoutExercise[] = selectedExercises.map((ex) => ({
-        exerciseId: ex.exerciseId,
-        sets: ex.sets,
-        reps: ex.reps,
-        weight: ex.weight,
-        restTime: ex.restTime,
-        setTime: ex.setTime || 35,
-      }));
+      const workoutName = (name.trim() || autoName || i18n.t('calendarLog.title')).trim();
 
-      addCustomWorkout({
-        name: name.trim(),
-        nameFr: name.trim(),
-        description: '',
-        descriptionFr: '',
-        level: 'intermediate',
-        focus: selectedIcon as any,
-        durationMinutes: calculateDuration(),
-        exerciseCount: selectedExercises.length,
-        exercises: workoutExercises,
-        icon: selectedIcon,
+      // Convert to CompletedExercise[] — all sets marked completed
+      const completedExercises: CompletedExercise[] = selectedExercises.map((ex) => {
+        const sets: CompletedSet[] = Array.from({ length: ex.sets }, () => ({
+          reps: ex.reps,
+          weight: ex.weight > 0 ? ex.weight : undefined,
+          completed: true,
+        }));
+        return {
+          exerciseId: ex.exerciseId,
+          sets,
+        };
       });
 
+      logPastWorkout({
+        dateISO,
+        workoutName,
+        durationMinutes: duration,
+        exercises: completedExercises,
+      });
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
-    } catch (error) {
-      Alert.alert(i18n.t('common.error'), i18n.t('workoutCreate.errorCreate'));
+    } catch {
+      Alert.alert(i18n.t('common.error'), i18n.t('calendarLog.noExercises'));
     } finally {
       setIsSaving(false);
     }
   };
 
   // ═══════════════════════════════════════════════
-  // EXERCISE PICKER SCREEN
+  // EXERCISE PICKER (full-screen overlay)
   // ═══════════════════════════════════════════════
 
   if (showExercisePicker) {
-    const focusLabel = selectedFocus === 'all' ? i18n.t('workouts.filters.focus') : FOCUS_OPTIONS.find((o) => o.value === selectedFocus)?.label || i18n.t('workouts.filters.focus');
-    const equipLabel = selectedEquipment === 'all' ? i18n.t('workouts.filters.equipment') : EQUIPMENT_OPTIONS.find((o) => o.value === selectedEquipment)?.label || i18n.t('workouts.filters.equipment');
+    const focusLabel = selectedFocus === 'all'
+      ? i18n.t('workouts.filters.focus')
+      : FOCUS_OPTIONS.find((o) => o.value === selectedFocus)?.label || i18n.t('workouts.filters.focus');
+    const equipLabel = selectedEquipment === 'all'
+      ? i18n.t('workouts.filters.equipment')
+      : EQUIPMENT_OPTIONS.find((o) => o.value === selectedEquipment)?.label || i18n.t('workouts.filters.equipment');
 
     return (
       <View style={[s.screen, { paddingTop: insets.top }]}>
         {/* Header */}
         <View style={s.pickerHeader}>
-          <Pressable style={s.iconButton} onPress={closePicker}>
+          <Pressable style={s.backButton} onPress={closePicker}>
             <X size={20} color={Colors.text} strokeWidth={IconStroke.default} />
           </Pressable>
-          <Text style={s.pickerTitle}>{i18n.t('workoutCreate.addExercisesModal')}</Text>
+          <Text style={s.pickerTitle}>{i18n.t('calendarLog.addExercise')}</Text>
           <View style={{ width: 44 }} />
         </View>
 
@@ -245,7 +251,7 @@ export default function CreateWorkoutScreen() {
           <Search size={16} color="rgba(120,120,130,1)" strokeWidth={IconStroke.default} />
           <TextInput
             style={s.searchInput}
-            placeholder={i18n.t('workoutCreate.searchPlaceholder')}
+            placeholder={i18n.t('common.search')}
             placeholderTextColor="rgba(100,100,110,1)"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -285,7 +291,6 @@ export default function CreateWorkoutScreen() {
 
         {/* Exercise list */}
         <ScrollView style={s.exerciseList} contentContainerStyle={{ paddingBottom: insets.bottom + PageLayout.scrollPaddingBottom }} showsVerticalScrollIndicator={false}>
-          <Text style={s.resultCount}>{i18n.t('workoutCreate.exerciseCount', { count: filteredExercises.length })}</Text>
           {filteredExercises.map((exercise) => {
             const isSelected = tempSelected.some((e) => e.id === exercise.id);
             return (
@@ -323,16 +328,16 @@ export default function CreateWorkoutScreen() {
         {tempSelected.length > 0 && (
           <View style={[s.selectionBar, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
             <Text style={s.selectionText}>
-              {tempSelected.length > 1 ? i18n.t('workoutCreate.selectedCountPlural', { count: tempSelected.length }) : i18n.t('workoutCreate.selectedCount', { count: tempSelected.length })}
+              {tempSelected.length} {i18n.t('common.exercises')}
             </Text>
-            <Pressable style={s.addToWorkoutBtn} onPress={handleAddToWorkout}>
-              <Text style={s.addToWorkoutText}>{i18n.t('workoutCreate.addToWorkout')}</Text>
+            <PressableScale style={s.addToWorkoutBtn} onPress={handleAddToWorkout} activeScale={0.97}>
+              <Text style={s.addToWorkoutText}>{i18n.t('calendarLog.addExercise')}</Text>
               <ArrowLeft size={16} color="#000" strokeWidth={IconStroke.emphasis} style={{ transform: [{ rotate: '180deg' }] }} />
-            </Pressable>
+            </PressableScale>
           </View>
         )}
 
-        {/* Focus dropdown */}
+        {/* Dropdown modals */}
         <DropdownModal
           visible={showFocusDropdown}
           title={i18n.t('workouts.filters.focus')}
@@ -341,8 +346,6 @@ export default function CreateWorkoutScreen() {
           onSelect={(v) => { setSelectedFocus(v as any); setShowFocusDropdown(false); }}
           onClose={() => setShowFocusDropdown(false)}
         />
-
-        {/* Equipment dropdown */}
         <DropdownModal
           visible={showEquipmentDropdown}
           title={i18n.t('workouts.filters.equipment')}
@@ -358,7 +361,7 @@ export default function CreateWorkoutScreen() {
   }
 
   // ═══════════════════════════════════════════════
-  // MAIN CREATE SCREEN
+  // MAIN LOG SCREEN
   // ═══════════════════════════════════════════════
 
   return (
@@ -366,90 +369,71 @@ export default function CreateWorkoutScreen() {
       <View style={s.orbOrange} />
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        {/* Header */}
+        {/* Header — matches generate.tsx pattern */}
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
-          <Pressable style={s.iconButton} onPress={() => router.back()}>
+          <Pressable style={s.backButton} onPress={() => router.back()}>
             <ArrowLeft size={20} color={Colors.text} strokeWidth={IconStroke.default} />
           </Pressable>
-          <Text style={s.headerTitle}>{i18n.t('workoutCreate.title')}</Text>
-          <Pressable
-            style={[s.saveButton, isSaving && s.saveButtonDisabled]}
-            onPress={handleSave}
-            disabled={isSaving}
-          >
-            <Text style={s.saveButtonText}>{isSaving ? '...' : i18n.t('workoutCreate.save')}</Text>
-          </Pressable>
+          <View style={s.headerCenter}>
+            <Text style={s.headerTitle}>{i18n.t('calendarLog.title')}</Text>
+            <Text style={s.headerSub}>{formatDateDisplay(dateISO)}</Text>
+          </View>
         </View>
 
-        <DraggableFlatList
-          data={selectedExercises}
-          onDragEnd={handleDragEnd}
-          keyExtractor={(item) => item.uid}
-          containerStyle={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: insets.bottom + PageLayout.scrollPaddingBottom }}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + PageLayout.scrollPaddingBottom }]}
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={
-            <>
-              {/* Name */}
-              <View style={s.nameContainer}>
-                <TextInput
-                  style={s.nameInput}
-                  placeholder={i18n.t('workoutCreate.namePlaceholder')}
-                  placeholderTextColor="rgba(100,100,110,1)"
-                  value={name}
-                  onChangeText={setName}
-                />
-              </View>
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Workout name */}
+          <View style={s.nameContainer}>
+            <TextInput
+              style={s.nameInput}
+              placeholder={i18n.t('calendarLog.namePlaceholder')}
+              placeholderTextColor="rgba(100,100,110,1)"
+              value={name}
+              onChangeText={setName}
+            />
+            {!name && autoName ? (
+              <Text style={s.autoNameHint}>{autoName}</Text>
+            ) : null}
+          </View>
 
-              {/* Icon picker */}
-              <View style={s.section}>
-                <Text style={s.sectionLabel}>{i18n.t('workoutCreate.iconSection')}</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.iconPickerRow}>
-                  {WORKOUT_ICONS.map((icon) => (
-                    <Pressable
-                      key={icon.id}
-                      style={[s.iconOption, selectedIcon === icon.id && s.iconOptionSelected]}
-                      onPress={() => setSelectedIcon(icon.id)}
-                    >
-                      <CategoryIcon category={icon.id} size={22} containerSize={44} showBackground={false} />
-                      <Text style={[s.iconOptionLabel, selectedIcon === icon.id && s.iconOptionLabelActive]}>
-                        {icon.label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </View>
-
-              {/* Exercises section label */}
-              <View style={s.sectionRow}>
-                <Text style={s.sectionLabel}>{i18n.t('workoutCreate.exercisesSection')}</Text>
-                {selectedExercises.length > 0 && (
-                  <Text style={s.exerciseCountBadge}>{selectedExercises.length}</Text>
-                )}
-              </View>
-            </>
-          }
-          renderItem={({ item: ex, drag, isActive, getIndex }) => {
-            const index = getIndex()!;
-            const isEditing = editingIndex === index;
-            const isLast = index === selectedExercises.length - 1;
-            return (
-              <ScaleDecorator>
-                <View
-                  style={[
-                    isActive && {
-                      shadowColor: Colors.primary,
-                      shadowOpacity: 0.3,
-                      shadowRadius: 12,
-                      shadowOffset: { width: 0, height: 8 },
-                      elevation: 10,
-                    },
-                  ]}
+          {/* Duration — plain text tabs (no bordered pills) */}
+          <View style={s.sectionBlock}>
+            <Text style={s.sectionLabel}>{i18n.t('calendarLog.duration').toUpperCase()}</Text>
+            <View style={s.durationRow}>
+              {DURATION_PRESETS.map((d) => (
+                <PressableScale
+                  key={d}
+                  activeScale={0.97}
+                  onPress={() => { setDuration(d); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                 >
+                  <Text style={[s.durationText, duration === d && s.durationTextActive]}>
+                    {d} {i18n.t('common.minAbbr')}
+                  </Text>
+                </PressableScale>
+              ))}
+            </View>
+          </View>
+
+          {/* Exercises section */}
+          <View style={s.sectionBlock}>
+            <View style={s.sectionRow}>
+              <Text style={s.sectionLabel}>{i18n.t('common.exercises').toUpperCase()}</Text>
+              {selectedExercises.length > 0 && (
+                <Text style={s.exerciseCountBadge}>{selectedExercises.length}</Text>
+              )}
+            </View>
+
+            {selectedExercises.map((ex, index) => {
+              const isEditing = editingIndex === index;
+              const isLast = index === selectedExercises.length - 1;
+              return (
+                <View key={ex.uid}>
                   <Pressable
                     onPress={() => setEditingIndex(isEditing ? null : index)}
-                    onLongPress={drag}
-                    disabled={isActive}
                     style={[s.exRow, isEditing && s.exRowEditing]}
                   >
                     {/* Number badge */}
@@ -471,15 +455,13 @@ export default function CreateWorkoutScreen() {
                           <Repeat size={10} color="rgba(255,255,255,0.4)" />
                           <Text style={s.exMetaText}>{ex.sets}×{ex.reps}</Text>
                         </View>
-                        {(ex.weight || 0) > 0 && (
+                        {ex.weight > 0 && (
                           <View style={[s.exMetaPill, s.exWeightPill]}>
-                            <Text style={[s.exMetaText, s.exWeightText]}>{ex.weight}kg</Text>
+                            <Text style={[s.exMetaText, s.exWeightText]}>
+                              {formatWeight(ex.weight)}{getWeightUnitLabel()}
+                            </Text>
                           </View>
                         )}
-                        <View style={s.exMetaPill}>
-                          <Timer size={10} color="rgba(255,255,255,0.3)" />
-                          <Text style={s.exMetaText}>{ex.restTime}s</Text>
-                        </View>
                       </View>
                     </View>
 
@@ -487,7 +469,7 @@ export default function CreateWorkoutScreen() {
                       style={s.removeBtn}
                       onPress={() => {
                         if (editingIndex === index) setEditingIndex(null);
-                        setSelectedExercises(prev => prev.filter((_, i) => i !== index));
+                        setSelectedExercises((prev) => prev.filter((_, i) => i !== index));
                       }}
                       hitSlop={6}
                     >
@@ -499,7 +481,7 @@ export default function CreateWorkoutScreen() {
                   {isEditing && (
                     <View style={s.editorPanel}>
                       <View style={s.editorRow}>
-                        <Text style={s.editorFieldLabel}>{i18n.t('workoutCreate.sets')}</Text>
+                        <Text style={s.editorFieldLabel}>{i18n.t('calendarLog.sets')}</Text>
                         <View style={s.stepperRow}>
                           <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'sets', -1)}>
                             <Minus size={14} color="#fff" />
@@ -511,7 +493,7 @@ export default function CreateWorkoutScreen() {
                         </View>
                       </View>
                       <View style={s.editorRow}>
-                        <Text style={s.editorFieldLabel}>{i18n.t('workoutCreate.reps')}</Text>
+                        <Text style={s.editorFieldLabel}>{i18n.t('calendarLog.reps')}</Text>
                         <View style={s.stepperRow}>
                           <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'reps', -1)}>
                             <Minus size={14} color="#fff" />
@@ -523,37 +505,13 @@ export default function CreateWorkoutScreen() {
                         </View>
                       </View>
                       <View style={s.editorRow}>
-                        <Text style={s.editorFieldLabel}>{i18n.t('workoutCreate.weight')}</Text>
+                        <Text style={s.editorFieldLabel}>{i18n.t('calendarLog.weight')}</Text>
                         <View style={s.stepperRow}>
                           <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'weight', -1)}>
                             <Minus size={14} color="#fff" />
                           </Pressable>
-                          <Text style={s.stepperValue}>{ex.weight || 0}</Text>
+                          <Text style={s.stepperValue}>{formatWeight(ex.weight)}</Text>
                           <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'weight', 1)}>
-                            <Plus size={14} color="#fff" />
-                          </Pressable>
-                        </View>
-                      </View>
-                      <View style={s.editorRow}>
-                        <Text style={s.editorFieldLabel}>{i18n.t('workoutCreate.rest')}</Text>
-                        <View style={s.stepperRow}>
-                          <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'restTime', -1)}>
-                            <Minus size={14} color="#fff" />
-                          </Pressable>
-                          <Text style={s.stepperValue}>{ex.restTime}</Text>
-                          <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'restTime', 1)}>
-                            <Plus size={14} color="#fff" />
-                          </Pressable>
-                        </View>
-                      </View>
-                      <View style={s.editorRow}>
-                        <Text style={s.editorFieldLabel}>{i18n.t('workoutCreate.timePerSet')}</Text>
-                        <View style={s.stepperRow}>
-                          <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'setTime', -1)}>
-                            <Minus size={14} color="#fff" />
-                          </Pressable>
-                          <Text style={s.stepperValue}>{ex.setTime || 35}</Text>
-                          <Pressable style={s.stepperBtn} onPress={() => handleEditField(index, 'setTime', 1)}>
                             <Plus size={14} color="#fff" />
                           </Pressable>
                         </View>
@@ -563,25 +521,33 @@ export default function CreateWorkoutScreen() {
 
                   {!isEditing && !isLast && <View style={s.exSeparator} />}
                 </View>
-              </ScaleDecorator>
-            );
-          }}
-          ListFooterComponent={
-            <View style={{ marginTop: 4 }}>
-              <Pressable style={s.addExerciseBtn} onPress={() => setShowExercisePicker(true)}>
-                <Plus size={20} color="rgba(120,120,130,1)" strokeWidth={IconStroke.default} />
-                <Text style={s.addExerciseText}>{i18n.t('workoutCreate.addExercise')}</Text>
-              </Pressable>
-            </View>
-          }
-        />
-      </KeyboardAvoidingView>
+              );
+            })}
 
+            {/* Add exercise button */}
+            <Pressable style={s.addExerciseBtn} onPress={() => setShowExercisePicker(true)}>
+              <Plus size={20} color="rgba(120,120,130,1)" strokeWidth={IconStroke.default} />
+              <Text style={s.addExerciseText}>{i18n.t('calendarLog.addExercise').toUpperCase()}</Text>
+            </Pressable>
+          </View>
+
+          {/* Save CTA */}
+          <PressableScale
+            style={[s.saveButton, (isSaving || selectedExercises.length === 0) && s.saveButtonDisabled]}
+            onPress={handleSave}
+            activeScale={0.97}
+            disabled={isSaving || selectedExercises.length === 0}
+          >
+            <Check size={18} color="#000" strokeWidth={IconStroke.emphasis} />
+            <Text style={s.saveButtonText}>{i18n.t('calendarLog.save')}</Text>
+          </PressableScale>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
-// ─── Styles ───────────────────────────────────────
+// ─── Styles ───
 
 const s = StyleSheet.create({
   screen: {
@@ -604,66 +570,79 @@ const s = StyleSheet.create({
     shadowRadius: 80,
   },
 
-  // Header
+  // Header — matches generate.tsx
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingBottom: 12,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  backButton: {
+    ...Header.backButton,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCenter: {
+    flex: 1,
+    gap: 2,
   },
   headerTitle: {
-    color: Colors.text,
-    fontSize: 17,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
   },
-  iconButton: {
-    ...Header.backButton,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  saveButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  saveButtonDisabled: { opacity: 0.5 },
-  saveButtonText: {
-    color: '#000',
-    fontSize: 14,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
+  headerSub: {
+    color: 'rgba(255,255,255,0.35)',
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    textTransform: 'capitalize',
   },
 
-  // Name
+  // Scroll content — gap-based spacing (matches generate.tsx)
+  scrollContent: {
+    paddingHorizontal: Spacing.lg,
+    gap: PageLayout.sectionGap,
+  },
+
+  // Name input
   nameContainer: {
     ...GlassStyle.card,
-    marginBottom: 20,
+    padding: 18,
   },
   nameInput: {
     fontSize: 18,
     fontFamily: Fonts?.bold,
     fontWeight: '700',
     color: Colors.text,
-    padding: 18,
+    padding: 0,
+  },
+  autoNameHint: {
+    color: 'rgba(255,255,255,0.2)',
+    fontSize: 12,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    marginTop: 6,
   },
 
-  // Section
-  section: { marginBottom: 24 },
+  // Section blocks — matches generate.tsx sectionBlock
+  sectionBlock: {
+    gap: 12,
+  },
   sectionLabel: {
-    color: 'rgba(120,120,130,1)',
-    fontSize: 10,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
+    color: 'rgba(160,150,140,1)',
+    fontSize: 11,
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
     letterSpacing: 1.5,
-    marginBottom: 10,
   },
   sectionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 4,
   },
   exerciseCountBadge: {
     color: Colors.primary,
@@ -671,49 +650,35 @@ const s = StyleSheet.create({
     fontFamily: Fonts?.bold,
     fontWeight: '700',
     letterSpacing: 0.5,
-    marginBottom: 10,
   },
 
-  // Icon picker (lightened)
-  iconPickerRow: { gap: 8 },
-  iconOption: {
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    backgroundColor: GlassStyle.card.backgroundColor,
-    borderWidth: GlassStyle.card.borderWidth,
-    borderColor: GlassStyle.card.borderColor,
-    minWidth: 70,
+  // Duration — plain text tabs (matches generate.tsx exactly)
+  durationRow: {
+    flexDirection: 'row',
+    gap: 20,
   },
-  iconOptionSelected: {
-    borderColor: 'rgba(255,107,53,0.4)',
-    backgroundColor: 'rgba(255,107,53,0.08)',
-  },
-  iconOptionLabel: {
-    fontSize: 10,
+  durationText: {
+    color: 'rgba(255,255,255,0.35)',
+    fontSize: 14,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
-    color: 'rgba(120,120,130,1)',
-    marginTop: 6,
   },
-  iconOptionLabelActive: {
-    color: Colors.primary,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
+  durationTextActive: {
+    color: '#FFFFFF',
+    fontFamily: Fonts?.semibold,
+    fontWeight: '600',
   },
 
-  // ─── Exercise rows (generate.tsx pattern) ──────
-
+  // Exercise rows
   exRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    paddingVertical: 12,
     gap: 10,
   },
   exRowEditing: {
     backgroundColor: 'rgba(255,255,255,0.02)',
+    borderRadius: 12,
   },
   exNumber: {
     width: 28,
@@ -769,7 +734,6 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.04)',
     marginLeft: 52,
   },
-
   removeBtn: {
     width: 44,
     height: 44,
@@ -779,8 +743,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // ─── Inline editor ────────────────────────────
-
+  // Inline editor
   editorPanel: {
     paddingHorizontal: 14,
     paddingBottom: 14,
@@ -832,6 +795,7 @@ const s = StyleSheet.create({
     paddingVertical: 28,
     alignItems: 'center',
     gap: 8,
+    marginTop: 4,
   },
   addExerciseText: {
     fontSize: 11,
@@ -841,7 +805,25 @@ const s = StyleSheet.create({
     letterSpacing: 1,
   },
 
-  // ─── Picker ────────────────────────────────────
+  // Save CTA
+  saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.primary,
+    borderRadius: CTAButton.borderRadius,
+    height: CTAButton.height,
+  },
+  saveButtonDisabled: { opacity: 0.35 },
+  saveButtonText: {
+    color: '#000',
+    fontSize: CTAButton.fontSize,
+    fontFamily: Fonts?.bold,
+    fontWeight: '700',
+  },
+
+  // ─── Picker styles ───
 
   pickerHeader: {
     flexDirection: 'row',
@@ -920,15 +902,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
 
-  resultCount: {
-    color: 'rgba(100,100,110,1)',
-    fontSize: 11,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-    marginBottom: 10,
-    paddingHorizontal: Spacing.lg,
-  },
-
   exerciseList: { flex: 1 },
 
   exercisePickerCard: {
@@ -1004,5 +977,4 @@ const s = StyleSheet.create({
     fontFamily: Fonts?.bold,
     fontWeight: '700',
   },
-
 });

@@ -10,6 +10,7 @@ import { exercises } from '@/data/exercises';
 import { RP_VOLUME_LANDMARKS } from '@/constants/volumeLandmarks';
 import {
   EQUIPMENT_BY_SETUP,
+  getUserEquipment,
   getSplitForDays,
   EXERCISE_POOLS,
   SPLIT_TEMPLATES,
@@ -394,7 +395,7 @@ export function generateProgram(profile: UserProfile): TrainingProgram {
   const splitType = getSplitForDays(profile.daysPerWeek);
   const totalWeeks = MESO_LENGTH[profile.experience];
   const dayTemplates = getDayTemplates(splitType, profile.daysPerWeek);
-  const allowedEquipment = EQUIPMENT_BY_SETUP[profile.equipment];
+  const allowedEquipment = getUserEquipment(profile);
   const goalConfig = GOAL_CONFIG[profile.goal];
 
   // ─── Profile-based modifiers ───

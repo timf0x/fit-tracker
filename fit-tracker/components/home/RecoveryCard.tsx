@@ -8,6 +8,7 @@ import { ScoreRing } from '@/components/recovery/ScoreRing';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { computeRecoveryOverview } from '@/lib/recoveryHelpers';
 import i18n from '@/lib/i18n';
+import { useHomeRefreshKey } from '@/lib/refreshContext';
 
 function getRecoveryNudge(score: number): string {
   if (score >= 85) return i18n.t('recoveryCard.nudgeGood');
@@ -18,6 +19,7 @@ function getRecoveryNudge(score: number): string {
 export function RecoveryCard() {
   const router = useRouter();
   const { history } = useWorkoutStore();
+  const refreshKey = useHomeRefreshKey();
 
   const recoveryScore = useMemo(() => {
     const hasData = history.some((s) => s.endTime && s.completedExercises.length > 0);
@@ -32,7 +34,7 @@ export function RecoveryCard() {
       <PressableScale activeScale={0.975} onPress={() => router.push('/recovery')}>
         <View style={styles.card}>
           <View style={styles.row}>
-            <ScoreRing score={recoveryScore} size={64} />
+            <ScoreRing score={recoveryScore} size={64} animationKey={refreshKey} />
             <View style={styles.info}>
               <View style={styles.topRow}>
                 <Text style={styles.label}>{i18n.t('recoveryCard.label')}</Text>

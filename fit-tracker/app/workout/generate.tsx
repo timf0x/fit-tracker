@@ -10,7 +10,7 @@ import {
   Check,
   Sparkles,
 } from 'lucide-react-native';
-import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Spacing, GlassStyle, Header, PageLayout, IconStroke, CTAButton } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { useProgramStore } from '@/stores/programStore';
@@ -28,6 +28,7 @@ import {
   getAllMuscleData,
   estimateSessionSummary,
 } from '@/lib/smartWorkout';
+import { EQUIPMENT_BY_SETUP, getUserEquipment } from '@/constants/programTemplates';
 import { getProgressiveWeight, getEstimatedWeight } from '@/lib/weightEstimation';
 import type { GeneratedExercise } from '@/lib/smartWorkout';
 import { computeWorkoutInsights } from '@/lib/sessionInsights';
@@ -96,10 +97,18 @@ export default function GenerateWorkoutScreen() {
   // All muscle data for selector
   const allMuscleData = useMemo(() => getAllMuscleData(history), [history]);
 
+  // Resolve equipment: use profile's granular ownedEquipment if available, else preset
+  const resolvedEquipment = useMemo(() => {
+    if (userProfile?.ownedEquipment && userProfile.ownedEquipment.length > 0) {
+      return getUserEquipment(userProfile);
+    }
+    return EQUIPMENT_BY_SETUP[equipment];
+  }, [equipment, userProfile]);
+
   // Live summary for selector step
   const summary = useMemo(
-    () => estimateSessionSummary(Array.from(selectedMuscles), equipment, targetDuration),
-    [selectedMuscles, equipment, targetDuration],
+    () => estimateSessionSummary(Array.from(selectedMuscles), equipment, targetDuration, resolvedEquipment),
+    [selectedMuscles, equipment, targetDuration, resolvedEquipment],
   );
 
   // Session label
@@ -186,6 +195,7 @@ export default function GenerateWorkoutScreen() {
     const result = generateSmartWorkout({
       selectedMuscles: Array.from(selectedMuscles),
       equipment,
+      allowedEquipment: resolvedEquipment,
       targetDurationMin: targetDuration,
       history,
       userWeight: userProfile?.weight,
@@ -385,14 +395,14 @@ export default function GenerateWorkoutScreen() {
           {/* Header */}
           <View style={styles.header}>
             <Pressable style={styles.backButton} onPress={() => router.back()}>
-              <ArrowLeft size={22} color="#fff" strokeWidth={2} />
+              <ArrowLeft size={22} color="#fff" strokeWidth={IconStroke.default} />
             </Pressable>
             <Text style={styles.headerTitle}>{i18n.t('workoutGenerate.title')}</Text>
           </View>
 
           <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]}
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + PageLayout.scrollPaddingBottom }]}
             showsVerticalScrollIndicator={false}
           >
             {/* Equipment — plain text tabs */}
@@ -503,7 +513,7 @@ export default function GenerateWorkoutScreen() {
                           </Text>
                         ) : null}
                         {isSelected && (
-                          <Check size={15} color={Colors.primary} strokeWidth={2.5} />
+                          <Check size={15} color={Colors.primary} strokeWidth={IconStroke.emphasis} />
                         )}
                       </PressableScale>
                     );
@@ -526,6 +536,7 @@ export default function GenerateWorkoutScreen() {
               loadingLabel={i18n.t('workoutGenerate.generating')}
               disabled={selectedMuscles.size === 0}
               icon={Sparkles}
+              fillDuration={1800}
             />
           </View>
         </View>
@@ -550,7 +561,7 @@ export default function GenerateWorkoutScreen() {
               setEditingIndex(null);
             }}
           >
-            <ArrowLeft size={22} color="#fff" strokeWidth={2} />
+            <ArrowLeft size={22} color="#fff" strokeWidth={IconStroke.default} />
           </Pressable>
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>{sessionLabel}</Text>
@@ -658,7 +669,7 @@ export default function GenerateWorkoutScreen() {
           onClose={() => setShowSwap(null)}
           currentExerciseId={showSwap.exerciseId}
           muscleTargets={swapMuscleTargets}
-          equipment={equipment}
+          allowedEquipment={resolvedEquipment}
           onSwap={handleSwap}
         />
       )}
@@ -716,7 +727,7 @@ function getLabel(muscles: string[]): string {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: Colors.background,
   },
   orbOrange: {
     position: 'absolute',
@@ -754,10 +765,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    ...Header.backButton,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -921,7 +929,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: GlassStyle.card.backgroundColor,
   },
   zoneDot: {
     width: 6,

@@ -1,3 +1,5 @@
+import type { Equipment } from './index';
+
 // ─── Schedule Types ───
 
 // Day-of-week (0=Mon, 1=Tue, ..., 6=Sun) — ISO week convention
@@ -42,6 +44,7 @@ export interface UserProfile {
   age?: number;
   trainingYears?: number; // years of consistent training (finer than experience level)
   equipment: EquipmentSetup;
+  ownedEquipment?: Equipment[]; // granular override; falls back to EQUIPMENT_BY_SETUP[equipment]
   limitations?: JointKey[]; // joint areas with injuries/limitations
   preferredDays?: WeekDay[]; // preferred training days (0=Mon..6=Sun)
   priorityMuscles: string[]; // 0-2 muscle keys from MUSCLE_LABELS_FR

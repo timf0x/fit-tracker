@@ -217,6 +217,28 @@ export const EXERCISE_ICONS: Record<string, string> = {
   'treadmill run': 'activity',
   'stationary bike': 'bike',
   'kettlebell snatch': 'zap',
+
+  // RESISTANCE BAND EXERCISES
+  'band seated row': 'arrow-left',
+  'band lat pulldown': 'arrow-down',
+  'band straight arm pulldown': 'arrow-down',
+  'band face pull': 'eye',
+  'band lateral raise': 'move-horizontal',
+  'band shoulder press': 'arrow-up',
+  'band front raise': 'arrow-up',
+  'band chest fly': 'expand',
+  'band tricep pushdown': 'arrow-down',
+  'band overhead tricep extension': 'arrow-up',
+  'band hammer curl': 'hammer',
+  'band glute kickback': 'arrow-right',
+  'band romanian deadlift': 'dumbbell',
+  'band leg curl': 'arrow-left',
+  'band hip thrust': 'circle',
+  'band split squat': 'footprints',
+  'band good morning': 'dumbbell',
+  'band calf raise': 'chevron-up',
+  'band pallof press': 'arrow-right',
+  'band woodchopper': 'refresh-cw',
 };
 
 export const DEFAULT_EXERCISE_ICON = 'dumbbell';

@@ -9,69 +9,25 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import Svg, {
-  Line as SvgLine,
-  Text as SvgText,
-  Polygon,
-  Circle,
-} from 'react-native-svg';
 import {
   BarChart3,
   Dumbbell,
   Trophy,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { Fonts } from '@/constants/theme';
+import { Colors, Fonts, GlassStyle, Header, SectionLabel, PageLayout, IconStroke, CTAButton } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { useWorkoutStore } from '@/stores/workoutStore';
-import { RP_VOLUME_LANDMARKS } from '@/constants/volumeLandmarks';
 import { getExerciseById } from '@/data/exercises';
 import { ExerciseIcon } from '@/components/ExerciseIcon';
 import { ExerciseSparkline } from '@/components/ExerciseSparkline';
 import {
   getWeekSummary,
   getWeekPRs,
-  getMuscleFrequency,
 } from '@/lib/statsHelpers';
-import { getSetsForWeek, getWeekBounds, getWeekLabel } from '@/lib/weeklyVolume';
+import { getWeekBounds, getWeekLabel } from '@/lib/weeklyVolume';
 
 const WEEKS_AVAILABLE = 12;
-
-/** Radar chart muscle groups (abbreviated labels) */
-const RADAR_GROUPS: { label: string; muscles: string[] }[] = [
-  { label: i18n.t('stats.radarGroups.legs'), muscles: ['quads', 'hamstrings', 'glutes'] },
-  { label: i18n.t('stats.radarGroups.back'), muscles: ['lats', 'upper back', 'lower back'] },
-  { label: i18n.t('stats.radarGroups.abs'), muscles: ['abs', 'obliques'] },
-  { label: i18n.t('stats.radarGroups.forearms'), muscles: ['forearms'] },
-  { label: i18n.t('stats.radarGroups.biceps'), muscles: ['biceps'] },
-  { label: i18n.t('stats.radarGroups.triceps'), muscles: ['triceps'] },
-  { label: i18n.t('stats.radarGroups.calves'), muscles: ['calves'] },
-  { label: i18n.t('stats.radarGroups.shoulders'), muscles: ['shoulders'] },
-  { label: i18n.t('stats.radarGroups.chest'), muscles: ['chest'] },
-];
-
-const RADAR_SIZE = 280;
-const RADAR_CX = RADAR_SIZE / 2;
-const RADAR_CY = RADAR_SIZE / 2;
-const RADAR_R = 95;
-const RADAR_RINGS = [0.25, 0.5, 0.75, 1.0];
-
-const MUSCLE_ABBR: Record<string, string> = {
-  chest: i18n.t('stats.muscleAbbr.chest'),
-  shoulders: i18n.t('stats.muscleAbbr.shoulders'),
-  lats: i18n.t('stats.muscleAbbr.lats'),
-  'upper back': i18n.t('stats.muscleAbbr.upperBack'),
-  biceps: i18n.t('stats.muscleAbbr.biceps'),
-  triceps: i18n.t('stats.muscleAbbr.triceps'),
-  quads: i18n.t('stats.muscleAbbr.quads'),
-  hamstrings: i18n.t('stats.muscleAbbr.hamstrings'),
-  glutes: i18n.t('stats.muscleAbbr.glutes'),
-  calves: i18n.t('stats.muscleAbbr.calves'),
-  abs: i18n.t('stats.muscleAbbr.abs'),
-  forearms: i18n.t('stats.muscleAbbr.forearms'),
-  'lower back': i18n.t('stats.muscleAbbr.lowerBack'),
-  obliques: i18n.t('stats.muscleAbbr.obliques'),
-};
 
 function formatDuration(minutes: number): string {
   if (minutes < 60) return `${minutes}m`;
@@ -120,68 +76,10 @@ export default function StatsScreen() {
     [history, weekOffset]
   );
 
-  const muscleFreq = useMemo(
-    () => getMuscleFrequency(history, weekOffset),
-    [history, weekOffset]
-  );
-
-  const weekSetsData = useMemo(
-    () => getSetsForWeek(history, weekOffset),
-    [history, weekOffset]
-  );
-
   const weekPRs = useMemo(
     () => getWeekPRs(history, weekOffset),
     [history, weekOffset]
   );
-
-  // Radar uses the selected week's data
-  const muscleData = useMemo(() => weekSetsData, [weekSetsData]);
-
-  // Radar chart data
-  const radarData = useMemo(() => {
-    return RADAR_GROUPS.map((group) => {
-      const totalSets = group.muscles.reduce(
-        (sum, m) => sum + (muscleData[m] || 0),
-        0
-      );
-      const totalMav = group.muscles.reduce((sum, m) => {
-        const lm = RP_VOLUME_LANDMARKS[m];
-        return sum + (lm ? lm.mavHigh : 0);
-      }, 0);
-      return {
-        label: group.label,
-        sets: totalSets,
-        normalized: totalMav > 0 ? totalSets / totalMav : 0,
-      };
-    });
-  }, [muscleData]);
-
-  const isBalanced = useMemo(() => {
-    const vals = radarData.map((d) => d.normalized);
-    const max = Math.max(...vals);
-    if (max === 0) return true;
-    const norm = vals.map((v) => v / max);
-    const mean = norm.reduce((a, b) => a + b, 0) / norm.length;
-    const variance =
-      norm.reduce((sum, v) => sum + (v - mean) ** 2, 0) / norm.length;
-    return variance < 0.12;
-  }, [radarData]);
-
-  const hasRadarData = radarData.some((d) => d.sets > 0);
-
-  const radarMaxNorm = Math.max(
-    ...radarData.map((d) => d.normalized),
-    0.01
-  );
-  const radarPoints = radarData
-    .map((d, i) => {
-      const angle =
-        (2 * Math.PI * i) / radarData.length - Math.PI / 2;
-      const r = Math.min(d.normalized / radarMaxNorm, 1) * RADAR_R;
-      return `${RADAR_CX + r * Math.cos(angle)},${RADAR_CY + r * Math.sin(angle)}`;
-    })
-    .join(' ');
 
   const isEmpty = history.filter((s) => s.endTime).length === 0;
 
@@ -259,7 +157,7 @@ export default function StatsScreen() {
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 80 }]}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + PageLayout.scrollPaddingBottom }]}
         >
           <Text style={styles.weekLabel}>{currentWeekLabel}</Text>
 
@@ -269,7 +167,7 @@ export default function StatsScreen() {
                 <BarChart3
                   size={48}
                   color="rgba(255,255,255,0.15)"
-                  strokeWidth={1.5}
+                  strokeWidth={IconStroke.light}
                 />
               </View>
               <Text style={styles.emptyTitle}>{i18n.t('stats.noData')}</Text>
@@ -280,7 +178,7 @@ export default function StatsScreen() {
                 style={styles.emptyCta}
                 onPress={() => router.push('/(tabs)/workouts')}
               >
-                <Dumbbell size={18} color="#fff" strokeWidth={2.2} />
+                <Dumbbell size={18} color="#fff" strokeWidth={IconStroke.default} />
                 <Text style={styles.emptyCtaText}>
                   {i18n.t('stats.viewWorkouts')}
                 </Text>
@@ -312,33 +210,6 @@ export default function StatsScreen() {
                 </View>
               </View>
 
-              {/* ── Frequency — compact ── */}
-              {Object.keys(muscleFreq.perMuscle).length > 0 && (
-                <View style={styles.freqStrip}>
-                  {Object.entries(muscleFreq.perMuscle)
-                    .sort((a, b) => b[1] - a[1])
-                    .map(([muscle, count]) => {
-                      const isLow = count < 2;
-                      const color = isLow ? '#f97316' : '#22C55E';
-                      return (
-                        <View key={muscle} style={styles.freqItem}>
-                          <Text style={[styles.freqCount, { color }]}>
-                            {count}x
-                          </Text>
-                          <Text
-                            style={[
-                              styles.freqLabel,
-                              { color: isLow ? 'rgba(249,115,22,0.6)' : 'rgba(120,120,130,1)' },
-                            ]}
-                          >
-                            {MUSCLE_ABBR[muscle] || muscle}
-                          </Text>
-                        </View>
-                      );
-                    })}
-                </View>
-              )}
-
               {/* ── PR Section with Week Picker ── */}
               <View style={styles.sectionHeader}>
                 <View style={styles.sectionHeaderLeft}>
@@ -350,7 +221,7 @@ export default function StatsScreen() {
                       <Trophy
                         size={11}
                         color="#f97316"
-                        strokeWidth={2.5}
+                        strokeWidth={IconStroke.emphasis}
                       />
                       <Text style={styles.prCountText}>
                         {weekPRs.total} PR
@@ -465,119 +336,6 @@ export default function StatsScreen() {
                 </View>
               )}
 
-              {/* ── Radar Chart — Muscle Balance ── */}
-              {hasRadarData && (
-                <View style={styles.radarCard}>
-                  <View style={styles.radarHeader}>
-                    <Text style={styles.sectionTitle}>{i18n.t('stats.balance')}</Text>
-                    <View
-                      style={[
-                        styles.balanceBadge,
-                        !isBalanced && styles.balanceBadgeWarn,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.balanceBadgeText,
-                          !isBalanced && styles.balanceBadgeTextWarn,
-                        ]}
-                      >
-                        {isBalanced
-                          ? i18n.t('stats.wellBalanced')
-                          : i18n.t('stats.imbalanced')}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.radarContainer}>
-                    <Svg width={RADAR_SIZE} height={RADAR_SIZE}>
-                      {RADAR_RINGS.map((pct) => (
-                        <Circle
-                          key={pct}
-                          cx={RADAR_CX}
-                          cy={RADAR_CY}
-                          r={RADAR_R * pct}
-                          fill="none"
-                          stroke="rgba(255,255,255,0.06)"
-                          strokeWidth={1}
-                        />
-                      ))}
-                      {radarData.map((_, i) => {
-                        const angle =
-                          (2 * Math.PI * i) / radarData.length -
-                          Math.PI / 2;
-                        return (
-                          <SvgLine
-                            key={`spoke-${i}`}
-                            x1={RADAR_CX}
-                            y1={RADAR_CY}
-                            x2={
-                              RADAR_CX + RADAR_R * Math.cos(angle)
-                            }
-                            y2={
-                              RADAR_CY + RADAR_R * Math.sin(angle)
-                            }
-                            stroke="rgba(255,255,255,0.06)"
-                            strokeWidth={1}
-                          />
-                        );
-                      })}
-                      <Polygon
-                        points={radarPoints}
-                        fill="rgba(249, 115, 22, 0.2)"
-                        stroke="#f97316"
-                        strokeWidth={2}
-                      />
-                      {radarData.map((d, i) => {
-                        const angle =
-                          (2 * Math.PI * i) / radarData.length -
-                          Math.PI / 2;
-                        const r =
-                          Math.min(d.normalized / radarMaxNorm, 1) *
-                          RADAR_R;
-                        return (
-                          <Circle
-                            key={`dot-${i}`}
-                            cx={RADAR_CX + r * Math.cos(angle)}
-                            cy={RADAR_CY + r * Math.sin(angle)}
-                            r={4}
-                            fill="#f97316"
-                          />
-                        );
-                      })}
-                      {radarData.map((d, i) => {
-                        const angle =
-                          (2 * Math.PI * i) / radarData.length -
-                          Math.PI / 2;
-                        const labelR = RADAR_R + 24;
-                        const lx =
-                          RADAR_CX + labelR * Math.cos(angle);
-                        const ly =
-                          RADAR_CY + labelR * Math.sin(angle);
-                        const anchor =
-                          Math.abs(lx - RADAR_CX) < 5
-                            ? 'middle'
-                            : lx > RADAR_CX
-                              ? 'start'
-                              : 'end';
-                        return (
-                          <SvgText
-                            key={`label-${i}`}
-                            x={lx}
-                            y={ly + 4}
-                            textAnchor={anchor}
-                            fill="rgba(160,150,140,1)"
-                            fontSize={12}
-                            fontWeight="600"
-                          >
-                            {d.label}
-                          </SvgText>
-                        );
-                      })}
-                    </Svg>
-                  </View>
-                </View>
-              )}
-
 
             </>
           )}
@@ -592,7 +350,7 @@ export default function StatsScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: Colors.background,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -628,18 +386,18 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingTop: 12,
     paddingBottom: 8,
   },
   headerTitle: {
     flex: 1,
-    color: 'rgba(200,200,210,1)',
-    fontSize: 12,
+    color: Header.screenLabel.color,
+    fontSize: Header.screenLabel.fontSize,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
+    letterSpacing: Header.screenLabel.letterSpacing,
+    textTransform: Header.screenLabel.textTransform,
   },
 
   // ── Metric Strip ──
@@ -662,12 +420,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   metricLabel: {
-    color: 'rgba(100,100,110,1)',
-    fontSize: 11,
+    color: SectionLabel.color,
+    fontSize: SectionLabel.fontSize,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: SectionLabel.letterSpacing,
   },
   metricDivider: {
     width: 1,
@@ -680,7 +438,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     marginBottom: 10,
   },
   sectionHeaderLeft: {
@@ -695,35 +453,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   sectionLabel: {
-    color: 'rgba(160,150,140,1)',
-    fontSize: 11,
+    color: SectionLabel.color,
+    fontSize: SectionLabel.fontSize,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    letterSpacing: 1,
-  },
-
-  // ── Frequency Strip ──
-  freqStrip: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 24,
-    gap: 10,
-    marginBottom: 24,
-  },
-  freqItem: {
-    alignItems: 'center',
-    gap: 1,
-  },
-  freqCount: {
-    fontSize: 13,
-    fontFamily: Fonts?.bold,
-    fontWeight: '700',
-  },
-  freqLabel: {
-    fontSize: 9,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    letterSpacing: 0.3,
+    letterSpacing: SectionLabel.letterSpacing,
   },
 
   // ── PR Section ──
@@ -757,7 +491,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: Fonts?.medium,
     fontWeight: '500',
-    paddingHorizontal: 24,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     marginTop: 12,
     marginBottom: 8,
   },
@@ -815,17 +549,14 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   prList: {
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     gap: 8,
     marginBottom: 20,
   },
   prCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    ...GlassStyle.card,
     paddingHorizontal: 12,
     paddingVertical: 12,
     gap: 10,
@@ -890,11 +621,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   prEmptyCard: {
-    marginHorizontal: 20,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    marginHorizontal: PageLayout.paddingHorizontal,
+    ...GlassStyle.card,
     paddingVertical: 24,
     alignItems: 'center',
     gap: 4,
@@ -913,51 +641,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  // Radar chart
-  radarCard: {
-    marginHorizontal: 20,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    padding: 16,
-    marginBottom: 16,
-  },
-  radarHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  radarContainer: {
-    alignItems: 'center',
-  },
-  balanceBadge: {
-    backgroundColor: 'rgba(34, 197, 94, 0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  balanceBadgeWarn: {
-    backgroundColor: 'rgba(251, 191, 36, 0.15)',
-  },
-  balanceBadgeText: {
-    color: '#22C55E',
-    fontSize: 12,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-  },
-  balanceBadgeTextWarn: {
-    color: '#FBBF24',
-  },
-
-  sectionTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-  },
-
   // Empty
   emptyContainer: {
     alignItems: 'center',
@@ -969,9 +652,9 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: GlassStyle.card.backgroundColor,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: GlassStyle.card.borderColor,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,

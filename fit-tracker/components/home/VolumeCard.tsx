@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { useRouter } from 'expo-router';
@@ -13,10 +13,43 @@ import {
   getZoneColor,
 } from '@/constants/volumeLandmarks';
 import i18n from '@/lib/i18n';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withDelay,
+  interpolate,
+  Easing,
+} from 'react-native-reanimated';
+import { useHomeRefreshKey } from '@/lib/refreshContext';
 
 export function VolumeCard() {
   const router = useRouter();
   const { history, muscleOrder } = useWorkoutStore();
+
+  const refreshKey = useHomeRefreshKey();
+
+  const row0Anim = useSharedValue(1);
+  const row1Anim = useSharedValue(1);
+
+  useEffect(() => {
+    if (refreshKey > 0) {
+      row0Anim.value = 0;
+      row1Anim.value = 0;
+      row0Anim.value = withDelay(100, withTiming(1, { duration: 500, easing: Easing.out(Easing.quad) }));
+      row1Anim.value = withDelay(220, withTiming(1, { duration: 500, easing: Easing.out(Easing.quad) }));
+    }
+  }, [refreshKey]);
+
+  const row0Style = useAnimatedStyle(() => ({
+    opacity: row0Anim.value,
+    transform: [{ translateX: interpolate(row0Anim.value, [0, 1], [-16, 0]) }],
+  }));
+
+  const row1Style = useAnimatedStyle(() => ({
+    opacity: row1Anim.value,
+    transform: [{ translateX: interpolate(row1Anim.value, [0, 1], [-16, 0]) }],
+  }));
 
   const muscleVolume = useMemo(() => {
     const data = getSetsForWeek(history, 0);
@@ -59,7 +92,7 @@ export function VolumeCard() {
         </View>
 
         <View style={styles.list}>
-          {visible.map((item) => {
+          {visible.map((item, idx) => {
             const zone = getVolumeZone(item.sets, item.landmarks);
             const zoneColor = getZoneColor(zone);
             const fillPct = Math.min(item.sets / item.landmarks.mrv, 1);
@@ -68,7 +101,7 @@ export function VolumeCard() {
             const mavPct = item.landmarks.mavHigh / item.landmarks.mrv;
 
             return (
-              <View key={item.muscle} style={styles.row}>
+              <Animated.View key={item.muscle} style={[styles.row, idx === 0 ? row0Style : row1Style]}>
                 <Text style={styles.label}>{item.label}</Text>
                 <View style={styles.barBg}>
                   <View
@@ -104,7 +137,7 @@ export function VolumeCard() {
                   <Text style={{ color: zoneColor }}>{item.sets}</Text>
                   <Text style={styles.target}>/{item.landmarks.mavHigh}</Text>
                 </Text>
-              </View>
+              </Animated.View>
             );
           })}
         </View>

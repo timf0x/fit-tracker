@@ -5,7 +5,7 @@
  * ad-hoc workouts based on recovery + volume + history.
  */
 
-import { WorkoutSession, RecoveryLevel } from '@/types';
+import { WorkoutSession, RecoveryLevel, Equipment } from '@/types';
 import { EquipmentSetup, ExperienceLevel } from '@/types/program';
 import { exercises, getExerciseById } from '@/data/exercises';
 import { computeRecoveryOverview, getTrainingRecommendation } from '@/lib/recoveryHelpers';
@@ -237,9 +237,10 @@ export function estimateSessionSummary(
   selectedMuscles: string[],
   equipment: EquipmentSetup,
   targetDurationMin?: number,
+  allowedEquipmentOverride?: Equipment[],
 ): SessionSummary {
   let totalSets = 0;
-  const allowedEquipment = EQUIPMENT_BY_SETUP[equipment];
+  const allowedEquipment = allowedEquipmentOverride ?? EQUIPMENT_BY_SETUP[equipment];
 
   for (const muscle of selectedMuscles) {
     const landmarks = RP_VOLUME_LANDMARKS[muscle];
@@ -279,6 +280,7 @@ export function estimateSessionSummary(
 export function generateSmartWorkout(params: {
   selectedMuscles: string[];
   equipment: EquipmentSetup;
+  allowedEquipment?: Equipment[];
   goal?: string;
   targetDurationMin?: number;
   history: WorkoutSession[];
@@ -297,7 +299,7 @@ export function generateSmartWorkout(params: {
     userExperience = 'intermediate',
   } = params;
 
-  const allowedEquipment = EQUIPMENT_BY_SETUP[equipment];
+  const allowedEquipment = params.allowedEquipment ?? EQUIPMENT_BY_SETUP[equipment];
   const goalConfig = GOAL_CONFIG[goal] || GOAL_CONFIG.hypertrophy;
 
   // Get last session's exercises for variety

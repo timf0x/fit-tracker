@@ -33,6 +33,8 @@ interface AnimatedStartButtonProps {
   iconSize?: number;
   icon?: IconComponent;
   loadingIcon?: IconComponent;
+  /** Total fill animation duration in ms (default 650) */
+  fillDuration?: number;
 }
 
 export function AnimatedStartButton({
@@ -44,6 +46,7 @@ export function AnimatedStartButton({
   iconSize = 18,
   icon: IconDefault = Play,
   loadingIcon: IconLoading = Zap,
+  fillDuration = 650,
 }: AnimatedStartButtonProps) {
   const [isAnimating, setIsAnimating] = useState(false);
   const progress = useSharedValue(0);
@@ -69,21 +72,31 @@ export function AnimatedStartButton({
 
     // Fill sweep
     progress.value = withTiming(1, {
-      duration: 650,
+      duration: fillDuration,
       easing: Easing.bezier(0.22, 0.68, 0.35, 1.0),
     });
 
+    // Mid-fill haptic pulse for longer animations (simulates processing steps)
+    if (fillDuration > 1000) {
+      const pulseInterval = fillDuration / 4;
+      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), pulseInterval);
+      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), pulseInterval * 2);
+      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), pulseInterval * 3);
+    }
+
     // Completion: scale pop + heavy haptic + navigate
+    const popDelay = fillDuration + 30;
+    const navDelay = fillDuration + 230;
     setTimeout(() => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       scale.value = withSequence(
         withTiming(1.04, { duration: 130, easing: Easing.out(Easing.cubic) }),
         withTiming(1, { duration: 100 }),
       );
-    }, 680);
+    }, popDelay);
 
-    setTimeout(triggerNav, 880);
-  }, [isAnimating, disabled, triggerNav]);
+    setTimeout(triggerNav, navDelay);
+  }, [isAnimating, disabled, fillDuration, triggerNav]);
 
   const handleLayout = (e: LayoutChangeEvent) => {
     btnWidth.value = e.nativeEvent.layout.width;

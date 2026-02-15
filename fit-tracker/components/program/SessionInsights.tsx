@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, LayoutAnimation, Pressable } from 'react-native';
 import { BarChart3, ChevronDown, TrendingUp } from 'lucide-react-native';
-import { Fonts } from '@/constants/theme';
+import { Fonts, GlassStyle, IconStroke } from '@/constants/theme';
 import type { SessionInsightsData, MuscleImpact } from '@/lib/sessionInsights';
 import type { VolumeLandmarkZone } from '@/constants/volumeLandmarks';
 import i18n from '@/lib/i18n';
@@ -110,7 +110,7 @@ export function SessionInsights({ data }: Props) {
         </Text>
         <View style={{ flex: 1 }} />
         <Animated.View style={chevronStyle}>
-          <ChevronDown size={14} color="rgba(255,255,255,0.15)" strokeWidth={2} />
+          <ChevronDown size={14} color="rgba(255,255,255,0.15)" strokeWidth={IconStroke.default} />
         </Animated.View>
       </Pressable>
 
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   barBg: {
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: GlassStyle.card.borderColor,
     overflow: 'hidden',
   },
   barFill: {
@@ -262,6 +262,6 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: GlassStyle.card.backgroundColor,
   },
 });

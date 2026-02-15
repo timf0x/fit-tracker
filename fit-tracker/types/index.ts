@@ -117,6 +117,8 @@ export interface WorkoutSession {
   endTime?: string;
   durationSeconds: number;
   completedExercises: CompletedExercise[];
+  // Session origin: 'app' (tracked live) or 'manual' (logged retroactively)
+  source?: 'app' | 'manual';
   // Program tracking (optional)
   programId?: string;
   programWeek?: number;

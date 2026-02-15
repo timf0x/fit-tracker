@@ -14,8 +14,10 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
+  NotebookPen,
 } from 'lucide-react-native';
-import { Fonts } from '@/constants/theme';
+import { Fonts, Colors, Header, PageLayout, IconStroke, GlassStyle } from '@/constants/theme';
+import { PressableScale } from '@/components/ui/PressableScale';
 import i18n from '@/lib/i18n';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { useProgramStore } from '@/stores/programStore';
@@ -211,6 +213,7 @@ export default function CalendarScreen() {
   // ─── Start Session Handler ───
   const handleStartSession = useCallback(() => {
     if (!selectedDay?.programDay || !program) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const day = selectedDay.programDay;
 
@@ -247,10 +250,19 @@ export default function CalendarScreen() {
     });
   }, [selectedDay, program, history, startSession, router]);
 
+  // ─── Edit Session Handler ───
+  const handleEditSession = useCallback((sessionId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push({ pathname: '/calendar/edit', params: { sessionId } });
+  }, [router]);
+
   // Can start session: selected day is today, has scheduled workout, no completed sessions
   const canStartSession = selectedDay.isToday &&
     !!selectedDay.programDay &&
     selectedDay.sessions.length === 0;
+
+  // Can log past workout: only today or past days
+  const canLogPast = selectedDay.isPast || selectedDay.isToday;
 
   const headerMonthName = getMonthName(monthYear, monthMonth);
 
@@ -260,7 +272,7 @@ export default function CalendarScreen() {
         {/* Header with month name */}
         <View style={styles.header}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={22} color="#fff" strokeWidth={2} />
+            <ArrowLeft size={22} color="#fff" strokeWidth={IconStroke.default} />
           </Pressable>
           <Text style={styles.headerTitle}>{i18n.t('calendar.title')}</Text>
           <View style={styles.headerPipe} />
@@ -297,7 +309,25 @@ export default function CalendarScreen() {
                 weekHistory={history}
                 weeklySets={weeklySets}
                 onStartSession={canStartSession ? handleStartSession : undefined}
+                onEditSession={handleEditSession}
               />
+            </View>
+          )}
+
+          {/* Log past workout button — only for today or past days */}
+          {canLogPast && (
+            <View style={styles.dayContent}>
+              <PressableScale
+                style={styles.logButton}
+                activeScale={0.97}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push({ pathname: '/calendar/log', params: { date: selectedDate } });
+                }}
+              >
+                <NotebookPen size={16} color="rgba(255,255,255,0.45)" strokeWidth={IconStroke.default} />
+                <Text style={styles.logButtonText}>{i18n.t('calendarLog.logButton')}</Text>
+              </PressableScale>
             </View>
           )}
 
@@ -310,33 +340,27 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#050505',
+    backgroundColor: Colors.background,
     position: 'relative',
     overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingTop: 12,
     paddingBottom: 8,
     gap: 12,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    ...Header.backButton,
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: {
-    color: 'rgba(200,200,210,1)',
-    fontSize: 12,
+    ...Header.screenLabel,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
   },
   headerPipe: {
     width: 1,
@@ -366,8 +390,25 @@ const styles = StyleSheet.create({
   },
 
   dayContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingTop: 8,
   },
 
+  logButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  logButtonText: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 13,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+  },
 });

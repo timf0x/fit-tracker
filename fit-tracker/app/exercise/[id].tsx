@@ -17,7 +17,7 @@ import Svg, {
 } from 'react-native-svg';
 import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { Fonts } from '@/constants/theme';
+import { Fonts, Colors, GlassStyle, Header, PageLayout, IconStroke, SectionLabel as SectionLabelTokens } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { getExerciseById } from '@/data/exercises';
 import { useWorkoutStore } from '@/stores/workoutStore';
@@ -214,7 +214,7 @@ export default function ExerciseDetailScreen() {
   const exercise = useMemo(() => getExerciseById(id || ''), [id]);
 
   const allTimeStats = useMemo(
-    () => getExerciseAllTimeStats(history, id || '', period),
+    () => getExerciseAllTimeStats(history, id || ''),
     [history, id, period]
   );
 
@@ -236,7 +236,7 @@ export default function ExerciseDetailScreen() {
         <SafeAreaView style={{ flex: 1 }} edges={['top']}>
           <View style={styles.header}>
             <Pressable style={styles.backButton} onPress={() => router.back()}>
-              <ArrowLeft size={22} color="#fff" strokeWidth={2} />
+              <ArrowLeft size={22} color="#fff" strokeWidth={IconStroke.default} />
             </Pressable>
             <Text style={styles.headerTitle}>{i18n.t('exercise.notFound')}</Text>
             <View style={{ width: 40 }} />
@@ -261,7 +261,7 @@ export default function ExerciseDetailScreen() {
           {/* Header */}
           <View style={styles.header}>
             <Pressable style={styles.backButton} onPress={() => router.back()}>
-              <ArrowLeft size={22} color="#fff" strokeWidth={2} />
+              <ArrowLeft size={22} color="#fff" strokeWidth={IconStroke.default} />
             </Pressable>
             <View style={styles.headerText}>
               <Text style={styles.headerTitle} numberOfLines={1}>
@@ -413,13 +413,13 @@ export default function ExerciseDetailScreen() {
                             <ChevronDown
                               size={18}
                               color="rgba(120,120,130,1)"
-                              strokeWidth={2}
+                              strokeWidth={IconStroke.default}
                             />
                           ) : (
                             <ChevronRight
                               size={18}
                               color="rgba(120,120,130,1)"
-                              strokeWidth={2}
+                              strokeWidth={IconStroke.default}
                             />
                           )}
                         </View>
@@ -460,7 +460,7 @@ export default function ExerciseDetailScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: Colors.background,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -496,16 +496,13 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingTop: 12,
     paddingBottom: 8,
     gap: 12,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    ...Header.backButton,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -513,12 +510,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    color: 'rgba(200,200,210,1)',
-    fontSize: 12,
+    ...Header.screenLabel,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
   },
   headerSub: {
     color: 'rgba(120,120,130,1)',
@@ -577,11 +571,8 @@ const styles = StyleSheet.create({
 
   // Charts
   chartCard: {
-    marginHorizontal: 20,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    marginHorizontal: PageLayout.paddingHorizontal,
+    ...GlassStyle.card,
     padding: 16,
     marginBottom: 12,
   },
@@ -609,11 +600,8 @@ const styles = StyleSheet.create({
 
   // Summary
   summaryCard: {
-    marginHorizontal: 20,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    marginHorizontal: PageLayout.paddingHorizontal,
+    ...GlassStyle.card,
     padding: 16,
     marginBottom: 20,
   },
@@ -654,22 +642,19 @@ const styles = StyleSheet.create({
 
   // History
   historySection: {
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     gap: 8,
   },
   sectionLabel: {
-    color: 'rgba(160,150,140,1)',
-    fontSize: 11,
+    ...SectionLabelTokens,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    letterSpacing: 1,
+    textTransform: 'uppercase',
     marginBottom: 4,
   },
   historyCard: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    ...GlassStyle.card,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
     paddingHorizontal: 16,
     paddingVertical: 14,
   },

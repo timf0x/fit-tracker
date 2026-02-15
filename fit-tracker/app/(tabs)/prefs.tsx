@@ -26,7 +26,7 @@ import {
   MessageCircle,
   Trash2,
 } from 'lucide-react-native';
-import { Colors, Fonts } from '@/constants/theme';
+import { Colors, Fonts, GlassStyle, Header, SectionLabel, PageLayout, IconStroke } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { useProgramStore } from '@/stores/programStore';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -57,7 +57,7 @@ function SettingsRow({ icon: Icon, iconColor, iconBg, label, description, right,
   const content = (
     <View style={s.row}>
       <View style={[s.rowIconBox, { backgroundColor: iconBg }]}>
-        <Icon size={18} color={iconColor} strokeWidth={2.2} />
+        <Icon size={18} color={iconColor} strokeWidth={IconStroke.default} />
       </View>
       <View style={s.rowTextBlock}>
         <Text style={s.rowLabel}>{label}</Text>
@@ -223,7 +223,7 @@ export default function SettingsScreen() {
       <View style={s.topGradient} pointerEvents="none" />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 80 }]} scrollEnabled={scrollEnabled}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + PageLayout.scrollPaddingBottom }]} scrollEnabled={scrollEnabled}>
           {/* Header */}
           <View style={s.header}>
             <Text style={s.headerTitle}>{i18n.t('settings.title')}</Text>
@@ -256,7 +256,7 @@ export default function SettingsScreen() {
                 </View>
                 <View style={s.profileEditBtn}>
                   <Text style={s.profileEditText}>{i18n.t('settings.editProfile')}</Text>
-                  <ChevronRight size={14} color={Colors.primary} strokeWidth={2.5} />
+                  <ChevronRight size={14} color={Colors.primary} strokeWidth={IconStroke.emphasis} />
                 </View>
               </View>
             ) : (
@@ -423,7 +423,7 @@ export default function SettingsScreen() {
 const s = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: Colors.background,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -441,26 +441,26 @@ const s = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingTop: 12,
     paddingBottom: 8,
   },
   headerTitle: {
     flex: 1,
-    color: 'rgba(200,200,210,1)',
-    fontSize: 12,
+    color: Header.screenLabel.color,
+    fontSize: Header.screenLabel.fontSize,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
+    letterSpacing: Header.screenLabel.letterSpacing,
+    textTransform: Header.screenLabel.textTransform,
   },
 
   // Profile hero card
   profileCard: {
-    marginHorizontal: 20,
+    marginHorizontal: PageLayout.paddingHorizontal,
     marginTop: 20,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 16,
+    backgroundColor: GlassStyle.card.backgroundColor,
+    borderRadius: GlassStyle.card.borderRadius,
     borderWidth: 1,
     borderColor: 'rgba(255,107,53,0.08)',
     padding: 16,
@@ -548,21 +548,18 @@ const s = StyleSheet.create({
 
   // Sections
   sectionHeader: {
-    color: 'rgba(160,150,140,1)',
-    fontSize: 13,
+    color: SectionLabel.color,
+    fontSize: SectionLabel.fontSize,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    letterSpacing: 0.5,
-    paddingHorizontal: 24,
+    letterSpacing: SectionLabel.letterSpacing,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     marginTop: 28,
     marginBottom: 10,
   },
   sectionCard: {
-    marginHorizontal: 20,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    marginHorizontal: PageLayout.paddingHorizontal,
+    ...GlassStyle.card,
     overflow: 'hidden',
   },
 

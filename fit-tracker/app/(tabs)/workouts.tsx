@@ -4,7 +4,7 @@ import { Plus, Dumbbell, Trash2 } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Spacing, GlassStyle, Header, PageLayout, IconStroke } from '@/constants/theme';
 import { WorkoutListCard } from '@/components/workouts/WorkoutListCard';
 import { SmartSuggestionCard } from '@/components/workouts/SmartSuggestionCard';
 import { useWorkoutStore } from '@/stores/workoutStore';
@@ -64,7 +64,7 @@ export default function WorkoutsScreen() {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>{i18n.t('workouts.title')}</Text>
           <Pressable style={styles.addButton} onPress={handleAdd}>
-            <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
+            <Plus size={20} color={Colors.primary} strokeWidth={IconStroke.emphasis} />
           </Pressable>
         </View>
       </SafeAreaView>
@@ -72,7 +72,7 @@ export default function WorkoutsScreen() {
       {/* Scrollable Content */}
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 80 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + PageLayout.scrollPaddingBottom }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -107,7 +107,7 @@ export default function WorkoutsScreen() {
         ) : suggestion.hasHistory ? (
           <View style={styles.emptyState}>
             <View style={styles.emptyIconBox}>
-              <Dumbbell size={28} color="rgba(120, 120, 130, 1)" strokeWidth={1.5} />
+              <Dumbbell size={28} color="rgba(120, 120, 130, 1)" strokeWidth={IconStroke.light} />
             </View>
             <Text style={styles.emptyTitle}>
               {i18n.t('workouts.noCustom')}
@@ -116,7 +116,7 @@ export default function WorkoutsScreen() {
               {i18n.t('workouts.noCustomDesc')}
             </Text>
             <Pressable style={styles.createButton} onPress={handleCreateManual}>
-              <Plus size={14} color={Colors.primary} strokeWidth={2.5} />
+              <Plus size={14} color={Colors.primary} strokeWidth={IconStroke.emphasis} />
               <Text style={styles.createButtonText}>
                 {i18n.t('workouts.createWorkout')}
               </Text>
@@ -155,7 +155,7 @@ export default function WorkoutsScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: Colors.background,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -194,26 +194,26 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: 8,
     // paddingBottom set dynamically via insets
-    gap: 24,
+    gap: PageLayout.sectionGap,
   },
 
   // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingTop: 12,
     paddingBottom: 8,
     gap: 12,
   },
   headerTitle: {
     flex: 1,
-    color: 'rgba(200,200,210,1)',
-    fontSize: 12,
+    color: Header.screenLabel.color,
+    fontSize: Header.screenLabel.fontSize,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
+    letterSpacing: Header.screenLabel.letterSpacing,
+    textTransform: Header.screenLabel.textTransform,
   },
   addButton: {
     width: 44,
@@ -266,9 +266,9 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: GlassStyle.card.backgroundColor,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: GlassStyle.card.borderColor,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 6,

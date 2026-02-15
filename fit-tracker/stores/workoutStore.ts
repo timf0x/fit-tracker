@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Workout, WorkoutSession, WorkoutStats, HistoryFilter } from '@/types';
+import { Workout, WorkoutSession, WorkoutStats, HistoryFilter, CompletedExercise } from '@/types';
 import { presetWorkouts } from '@/data/workouts';
 import { useProgramStore } from '@/stores/programStore';
 import { useBadgeStore } from '@/stores/badgeStore';
@@ -25,8 +25,11 @@ interface WorkoutStoreState {
   startSession: (workoutId: string, workoutName?: string, programMeta?: { programId: string; programWeek: number; programDayIndex: number }) => string;
   endSession: (sessionId: string, data: Partial<WorkoutSession>) => void;
   deleteSession: (sessionId: string) => void;
+  logPastWorkout: (data: { dateISO: string; workoutName: string; durationMinutes: number; exercises: CompletedExercise[] }) => string;
   saveSessionReadiness: (sessionId: string, readiness: ReadinessCheck) => void;
   setHistoryFilter: (filter: HistoryFilter) => void;
+
+  updateSession: (sessionId: string, updates: Partial<WorkoutSession>) => void;
 
   // Data management
   clearHistory: () => void;
@@ -175,6 +178,43 @@ export const useWorkoutStore = create<WorkoutStoreState>()(
           history: state.history.filter((s) => s.id !== sessionId),
         }));
         get().updateStats();
+      },
+
+      logPastWorkout: (data) => {
+        const id = generateSessionId();
+        // Place session at noon on the target date to avoid timezone edge cases
+        const startTime = new Date(`${data.dateISO}T12:00:00`);
+        const endTime = new Date(startTime.getTime() + data.durationMinutes * 60 * 1000);
+
+        const session: WorkoutSession = {
+          id,
+          workoutId: 'manual',
+          workoutName: data.workoutName,
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+          durationSeconds: data.durationMinutes * 60,
+          completedExercises: data.exercises,
+          source: 'manual',
+        };
+
+        set((state) => ({
+          history: [session, ...state.history],
+        }));
+        get().updateStats();
+        useBadgeStore.getState().checkBadges(get().history);
+        return id;
+      },
+
+      updateSession: (sessionId, updates) => {
+        set((state) => ({
+          history: state.history.map((s) =>
+            s.id === sessionId
+              ? { ...s, ...updates }
+              : s
+          ),
+        }));
+        get().updateStats();
+        useBadgeStore.getState().checkBadges(get().history);
       },
 
       saveSessionReadiness: (sessionId, readiness) => {

@@ -1,4 +1,4 @@
-import { EquipmentSetup, SplitType } from '@/types/program';
+import { EquipmentSetup, SplitType, UserProfile } from '@/types/program';
 import { Equipment } from '@/types';
 
 /**
@@ -16,6 +16,50 @@ export const EQUIPMENT_BY_SETUP: Record<EquipmentSetup, Equipment[]> = {
     'body weight', 'resistance band',
   ],
 };
+
+/**
+ * Resolve the user's effective equipment list.
+ * If they have a granular ownedEquipment override, use it (always including body weight).
+ * Otherwise fall back to the tier-based preset.
+ */
+export function getUserEquipment(profile: UserProfile): Equipment[] {
+  if (profile.ownedEquipment && profile.ownedEquipment.length > 0) {
+    const set = new Set(profile.ownedEquipment);
+    set.add('body weight'); // always available
+    return Array.from(set);
+  }
+  return EQUIPMENT_BY_SETUP[profile.equipment];
+}
+
+/**
+ * Check if a user's owned equipment matches a preset exactly.
+ * Returns the matching tier or null.
+ */
+export function getPresetForEquipment(owned: Equipment[]): EquipmentSetup | null {
+  const ownedSet = new Set(owned);
+  for (const [tier, list] of Object.entries(EQUIPMENT_BY_SETUP) as [EquipmentSetup, Equipment[]][]) {
+    if (ownedSet.size === list.length && list.every((e) => ownedSet.has(e))) {
+      return tier;
+    }
+  }
+  return null;
+}
+
+/**
+ * All toggleable equipment items for the Settings UI.
+ * body weight is always-on and non-toggleable (handled by UI).
+ */
+export const EQUIPMENT_ITEMS: { equipment: Equipment; labelKey: string }[] = [
+  { equipment: 'dumbbell', labelKey: 'equipment.dumbbell' },
+  { equipment: 'barbell', labelKey: 'equipment.barbell' },
+  { equipment: 'cable', labelKey: 'equipment.cable' },
+  { equipment: 'machine', labelKey: 'equipment.machine' },
+  { equipment: 'kettlebell', labelKey: 'equipment.kettlebell' },
+  { equipment: 'resistance band', labelKey: 'equipment.resistanceBand' },
+  { equipment: 'ez bar', labelKey: 'equipment.ezBar' },
+  { equipment: 'smith machine', labelKey: 'equipment.smithMachine' },
+  { equipment: 'trap bar', labelKey: 'equipment.trapBar' },
+];
 
 /**
  * Split selection based on days per week
@@ -48,6 +92,7 @@ export const EXERCISE_POOLS: Record<string, string[]> = {
     'ex_030', // Push-Up
     'ex_031', // Dips
     'ex_095', // Band Chest Press
+    'ex_141', // Band Chest Fly
   ],
   // Back - Lats
   lats: [
@@ -61,6 +106,8 @@ export const EXERCISE_POOLS: Record<string, string[]> = {
     'ex_010', // Pull-Up
     'ex_011', // Chin-Up
     'ex_085', // Inverted Row
+    'ex_135', // Band Lat Pulldown
+    'ex_136', // Band Straight Arm Pulldown
   ],
   // Back - Upper back
   'upper back': [
@@ -70,6 +117,8 @@ export const EXERCISE_POOLS: Record<string, string[]> = {
     'ex_006', // Seated Cable Row
     'ex_085', // Inverted Row
     'ex_086', // Band Pull-Apart
+    'ex_134', // Band Seated Row
+    'ex_137', // Band Face Pull
     'ex_018', // Face Pull (rear delts)
     'ex_019', // Upright Row (traps)
     'ex_020', // DB Shrugs (traps)
@@ -92,6 +141,9 @@ export const EXERCISE_POOLS: Record<string, string[]> = {
     'ex_089', // Cable Lateral Raise
     'ex_091', // Machine Shoulder Press
     'ex_090', // Pike Push-Up
+    'ex_138', // Band Lateral Raise
+    'ex_139', // Band Shoulder Press
+    'ex_140', // Band Front Raise
   ],
   // Biceps
   biceps: [
@@ -105,6 +157,7 @@ export const EXERCISE_POOLS: Record<string, string[]> = {
     'ex_098', // Spider Curl
     'ex_037', // Concentration Curl
     'ex_100', // Band Curl
+    'ex_144', // Band Hammer Curl
   ],
   // Triceps
   triceps: [
@@ -117,6 +170,8 @@ export const EXERCISE_POOLS: Record<string, string[]> = {
     'ex_045', // Kickback
     'ex_043', // Diamond Push-Up
     'ex_044', // Tricep Dips
+    'ex_142', // Band Tricep Pushdown
+    'ex_143', // Band Overhead Tricep Extension
   ],
   // Forearms
   forearms: [
@@ -147,6 +202,7 @@ export const EXERCISE_POOLS: Record<string, string[]> = {
     'ex_128', // Reverse Lunge (BW)
     'ex_129', // Bulgarian Split Squat (BW)
     'ex_130', // Jump Squat (BW)
+    'ex_149', // Band Split Squat
   ],
   // Hamstrings
   hamstrings: [
@@ -156,6 +212,9 @@ export const EXERCISE_POOLS: Record<string, string[]> = {
     'ex_107', // Good Morning
     'ex_108', // Nordic Curl (BW)
     'ex_132', // Sliding Leg Curl (BW)
+    'ex_146', // Band Romanian Deadlift
+    'ex_147', // Band Leg Curl
+    'ex_150', // Band Good Morning
   ],
   // Glutes
   glutes: [
@@ -165,6 +224,8 @@ export const EXERCISE_POOLS: Record<string, string[]> = {
     'ex_106', // Cable Pull-Through
     'ex_105', // Glute Bridge (BW)
     'ex_131', // Single Leg Glute Bridge (BW)
+    'ex_145', // Band Glute Kickback
+    'ex_148', // Band Hip Thrust
   ],
   // Calves
   calves: [
@@ -174,6 +235,7 @@ export const EXERCISE_POOLS: Record<string, string[]> = {
     'ex_115', // DB Calf Raise
     'ex_066', // Single Leg Calf Raise (BW)
     'ex_133', // Calf Raise (BW)
+    'ex_151', // Band Calf Raise
   ],
   // Abs
   abs: [
@@ -195,6 +257,8 @@ export const EXERCISE_POOLS: Record<string, string[]> = {
     'ex_075', // Side Plank
     'ex_117', // Cable Woodchopper
     'ex_116', // Pallof Press
+    'ex_152', // Band Pallof Press
+    'ex_153', // Band Woodchopper
   ],
 };
 

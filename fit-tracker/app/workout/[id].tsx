@@ -27,7 +27,7 @@ import {
   Info,
   Clock,
 } from 'lucide-react-native';
-import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Spacing, GlassStyle, Header, PageLayout, IconStroke, CTAButton } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { ExerciseIcon } from '@/components/ExerciseIcon';
 import { ExerciseInfoSheet } from '@/components/ExerciseInfoSheet';
@@ -418,7 +418,7 @@ export default function WorkoutDetailScreen() {
     return (
       <View style={[s.screen, { paddingTop: insets.top }]}>
         <Pressable style={s.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={22} color={Colors.text} strokeWidth={2} />
+          <ArrowLeft size={22} color={Colors.text} strokeWidth={IconStroke.default} />
         </Pressable>
         <View style={s.notFound}>
           <Text style={s.notFoundText}>{i18n.t('workoutDetail.notFound')}</Text>
@@ -446,14 +446,14 @@ export default function WorkoutDetailScreen() {
       <View style={[s.screen, { paddingTop: insets.top }]}>
         <View style={s.pickerHeader}>
           <Pressable style={s.iconButton} onPress={closePicker}>
-            <X size={20} color={Colors.text} strokeWidth={2} />
+            <X size={20} color={Colors.text} strokeWidth={IconStroke.default} />
           </Pressable>
           <Text style={s.pickerTitle}>{i18n.t('workoutDetail.addExercisesModal')}</Text>
           <View style={{ width: 44 }} />
         </View>
 
         <View style={s.searchContainer}>
-          <Search size={16} color="rgba(120,120,130,1)" strokeWidth={2} />
+          <Search size={16} color="rgba(120,120,130,1)" strokeWidth={IconStroke.default} />
           <TextInput
             style={s.searchInput}
             placeholder={i18n.t('workoutDetail.searchPlaceholder')}
@@ -464,7 +464,7 @@ export default function WorkoutDetailScreen() {
           />
           {searchQuery.length > 0 && (
             <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
-              <X size={16} color="rgba(120,120,130,1)" strokeWidth={2} />
+              <X size={16} color="rgba(120,120,130,1)" strokeWidth={IconStroke.default} />
             </Pressable>
           )}
         </View>
@@ -480,7 +480,7 @@ export default function WorkoutDetailScreen() {
             <ChevronDown
               size={12}
               color={selectedFocus !== 'all' ? '#000' : 'rgba(140,140,150,1)'}
-              strokeWidth={2.5}
+              strokeWidth={IconStroke.emphasis}
             />
           </Pressable>
           <Pressable
@@ -493,7 +493,7 @@ export default function WorkoutDetailScreen() {
             <ChevronDown
               size={12}
               color={selectedEquipment !== 'all' ? '#000' : 'rgba(140,140,150,1)'}
-              strokeWidth={2.5}
+              strokeWidth={IconStroke.emphasis}
             />
           </Pressable>
           {(selectedFocus !== 'all' || selectedEquipment !== 'all') && (
@@ -504,14 +504,14 @@ export default function WorkoutDetailScreen() {
               }}
               style={s.clearButton}
             >
-              <X size={14} color="#FF4B4B" strokeWidth={2.5} />
+              <X size={14} color="#FF4B4B" strokeWidth={IconStroke.emphasis} />
             </Pressable>
           )}
         </View>
 
         <ScrollView
           style={s.exerciseList}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + PageLayout.scrollPaddingBottom }}
           showsVerticalScrollIndicator={false}
         >
           <Text style={s.resultCount}>{i18n.t('workoutCreate.exerciseCount', { count: filteredExercises.length })}</Text>
@@ -543,7 +543,7 @@ export default function WorkoutDetailScreen() {
                   }}
                   hitSlop={6}
                 >
-                  <Info size={16} color="rgba(140,140,150,1)" strokeWidth={2} />
+                  <Info size={16} color="rgba(140,140,150,1)" strokeWidth={IconStroke.default} />
                 </Pressable>
               </Pressable>
             );
@@ -645,14 +645,14 @@ export default function WorkoutDetailScreen() {
       {/* ─── Compact Header ─── */}
       <View style={[s.compactHeader, { paddingTop: insets.top + 8 }]}>
         <Pressable style={s.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={20} color={Colors.text} strokeWidth={2} />
+          <ArrowLeft size={20} color={Colors.text} strokeWidth={IconStroke.default} />
         </Pressable>
         <Text style={s.headerTitle} numberOfLines={1}>
           {displayName}
         </Text>
         {isCustom ? (
           <Pressable style={s.menuButton} onPress={() => setShowMenu(true)}>
-            <MoreVertical size={20} color={Colors.text} strokeWidth={2} />
+            <MoreVertical size={20} color={Colors.text} strokeWidth={IconStroke.default} />
           </Pressable>
         ) : (
           <View style={{ width: 40 }} />
@@ -667,18 +667,18 @@ export default function WorkoutDetailScreen() {
           onDragEnd={handleDragEnd}
           keyExtractor={(item) => item.uid}
           containerStyle={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: insets.bottom + 40, paddingTop: 8 }}
+          contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: insets.bottom + PageLayout.scrollPaddingBottom, paddingTop: 8 }}
           showsVerticalScrollIndicator={false}
           renderItem={renderEditableItem}
           ListHeaderComponent={<SessionInsights data={insightsData} />}
           ListFooterComponent={
             <View style={{ marginTop: 4 }}>
               <Pressable style={s.addExerciseBtn} onPress={() => setShowExercisePicker(true)}>
-                <Plus size={20} color="rgba(120,120,130,1)" strokeWidth={2} />
+                <Plus size={20} color="rgba(120,120,130,1)" strokeWidth={IconStroke.default} />
                 <Text style={s.addExerciseText}>{i18n.t('workoutDetail.addExercise')}</Text>
               </Pressable>
               <Pressable style={s.deleteWorkoutBtn} onPress={handleDelete}>
-                <Trash2 size={16} color="#FF4B4B" strokeWidth={2} />
+                <Trash2 size={16} color="#FF4B4B" strokeWidth={IconStroke.default} />
                 <Text style={s.deleteWorkoutText}>{i18n.t('workoutDetail.deleteWorkout')}</Text>
               </Pressable>
             </View>
@@ -688,7 +688,7 @@ export default function WorkoutDetailScreen() {
         // Preset workouts — row pattern matching program day
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: insets.bottom + 40, paddingTop: 8 }}
+          contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: insets.bottom + PageLayout.scrollPaddingBottom, paddingTop: 8 }}
           showsVerticalScrollIndicator={false}
         >
           <SessionInsights data={insightsData} />
@@ -749,12 +749,12 @@ export default function WorkoutDetailScreen() {
         <Pressable style={s.modalOverlay} onPress={() => setShowMenu(false)}>
           <View style={s.menuModal}>
             <Pressable style={s.menuOption} onPress={handleRename}>
-              <Pencil size={18} color={Colors.text} strokeWidth={2} />
+              <Pencil size={18} color={Colors.text} strokeWidth={IconStroke.default} />
               <Text style={s.menuOptionText}>{i18n.t('workoutDetail.rename')}</Text>
             </Pressable>
             <View style={s.menuDivider} />
             <Pressable style={s.menuOption} onPress={handleDelete}>
-              <Trash2 size={18} color="#FF4B4B" strokeWidth={2} />
+              <Trash2 size={18} color="#FF4B4B" strokeWidth={IconStroke.default} />
               <Text style={[s.menuOptionText, { color: '#FF4B4B' }]}>{i18n.t('workoutDetail.delete')}</Text>
             </Pressable>
           </View>
@@ -794,7 +794,7 @@ export default function WorkoutDetailScreen() {
         <View style={s.modalOverlay}>
           <View style={s.deleteModal}>
             <View style={s.deleteModalIcon}>
-              <Trash2 size={24} color="#FF4B4B" strokeWidth={2} />
+              <Trash2 size={24} color="#FF4B4B" strokeWidth={IconStroke.default} />
             </View>
             <Text style={s.deleteModalTitle}>{i18n.t('workoutDetail.deleteConfirmTitle')}</Text>
             <Text style={s.deleteModalDesc}>{i18n.t('workoutDetail.deleteConfirmMessage')}</Text>
@@ -855,7 +855,7 @@ export default function WorkoutDetailScreen() {
 const s = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: Colors.background,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -895,12 +895,7 @@ const s = StyleSheet.create({
     gap: 12,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    ...Header.backButton,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -976,8 +971,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
     backgroundColor: Colors.primary,
-    borderRadius: 16,
-    paddingVertical: 16,
+    borderRadius: CTAButton.borderRadius,
+    height: CTAButton.height,
     shadowColor: '#FF6B35',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
@@ -1005,7 +1000,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingVertical: 16,
   },
   menuOptionText: {
@@ -1103,9 +1098,7 @@ const s = StyleSheet.create({
     marginBottom: 16,
   },
   renameInputContainer: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    ...GlassStyle.card,
     borderRadius: 14,
     marginBottom: 20,
   },
@@ -1187,9 +1180,9 @@ const s = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: GlassStyle.card.backgroundColor,
+    borderWidth: GlassStyle.card.borderWidth,
+    borderColor: GlassStyle.card.borderColor,
     borderRadius: 14,
     marginHorizontal: Spacing.lg,
     marginBottom: 12,
@@ -1257,10 +1250,10 @@ const s = StyleSheet.create({
   exercisePickerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: GlassStyle.card.backgroundColor,
     borderWidth: 2,
     borderColor: 'transparent',
-    borderRadius: 16,
+    borderRadius: GlassStyle.card.borderRadius,
     padding: 12,
     marginBottom: 6,
     marginHorizontal: Spacing.lg,
@@ -1320,7 +1313,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     backgroundColor: Colors.primary,
-    borderRadius: 14,
+    borderRadius: CTAButton.borderRadius,
     paddingVertical: 15,
   },
   addToWorkoutText: {

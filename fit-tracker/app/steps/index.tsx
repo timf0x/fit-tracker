@@ -29,7 +29,7 @@ import Svg, {
   Stop,
   Text as SvgText,
 } from 'react-native-svg';
-import { Fonts } from '@/constants/theme';
+import { Colors, Fonts, GlassStyle, Header, SectionLabel, PageLayout, IconStroke } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import {
   getStepsHistory,
@@ -183,7 +183,7 @@ export default function StepsScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={22} color="#fff" strokeWidth={2} />
+            <ArrowLeft size={22} color="#fff" strokeWidth={IconStroke.default} />
           </Pressable>
           <Text style={styles.headerTitle}>{i18n.t('steps.title')}</Text>
           <View style={{ width: 40 }} />
@@ -227,7 +227,7 @@ export default function StepsScreen() {
                 />
               </View>
               <View style={styles.heroGoal}>
-                <Target size={11} color="#4ADE80" strokeWidth={2.5} />
+                <Target size={11} color="#4ADE80" strokeWidth={IconStroke.emphasis} />
                 <Text style={styles.heroGoalText}>
                   {Math.round(progressPercent)}%
                 </Text>
@@ -447,7 +447,7 @@ export default function StepsScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: Colors.background,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -482,31 +482,28 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingTop: 12,
     paddingBottom: 8,
     gap: 12,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    ...Header.backButton,
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: {
     flex: 1,
-    color: 'rgba(200,200,210,1)',
-    fontSize: 12,
+    color: Header.screenLabel.color,
+    fontSize: Header.screenLabel.fontSize,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
+    letterSpacing: Header.screenLabel.letterSpacing,
+    textTransform: Header.screenLabel.textTransform,
   },
 
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
   },
 
   // Unavailable notice

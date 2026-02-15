@@ -7,7 +7,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { Colors, Fonts } from '@/constants/theme';
+import { Colors, Fonts, CTAButton, GlassStyle, IconStroke } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { SpectrumTrack } from '@/components/ui/SpectrumTrack';
 import {
@@ -243,9 +243,9 @@ const styles = StyleSheet.create({
   },
   // Adjustment preview
   adjustmentCard: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderRadius: 12,
+    backgroundColor: GlassStyle.card.backgroundColor,
+    borderWidth: GlassStyle.card.borderWidth,
+    borderRadius: GlassStyle.card.borderRadius,
     paddingVertical: 10,
     paddingHorizontal: 14,
   },
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   // Actions
   submitButton: {
     backgroundColor: Colors.primary,
-    borderRadius: 12,
+    borderRadius: CTAButton.borderRadius,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 4,

@@ -31,6 +31,7 @@ interface DayContentCardProps {
   weekHistory?: WorkoutSession[];
   weeklySets?: Record<string, number>;
   onStartSession?: () => void;
+  onEditSession?: (sessionId: string) => void;
 }
 
 function formatDuration(seconds: number): string {
@@ -85,11 +86,26 @@ function getSessionPRDetails(
   });
 }
 
+/** Get a preview line of exercise names for a session */
+function getExercisePreview(session: WorkoutSession, maxShow = 4): string {
+  const names: string[] = [];
+  for (const compEx of session.completedExercises) {
+    const ex = exerciseMap.get(compEx.exerciseId);
+    if (ex) names.push(ex.nameFr || ex.name);
+  }
+  if (names.length === 0) return '';
+  const shown = names.slice(0, maxShow).join(', ');
+  const overflow = names.length - maxShow;
+  if (overflow > 0) return `${shown} ${i18n.t('calendarEdit.exercisePreview', { count: overflow })}`;
+  return shown;
+}
+
 export function DayContentCard({
   day,
   weekHistory,
   weeklySets,
   onStartSession,
+  onEditSession,
 }: DayContentCardProps) {
   const nudge = getTimelineNudge(day);
 
@@ -124,13 +140,19 @@ export function DayContentCard({
       ? getSessionPRDetails(session, weekHistory)
       : [];
 
-    return (
+    // Exercise preview line
+    const exercisePreview = getExercisePreview(session);
+
+    const cardContent = (
       <View style={styles.cardPast}>
-        {/* Header: title + PR badge */}
+        {/* Header: title + manual/PR badges */}
         <View style={styles.pastHeaderRow}>
           <Text style={[styles.title, { flex: 1 }]} numberOfLines={1}>
             {label}
           </Text>
+          {session.source === 'manual' && (
+            <Text style={styles.manualLabel}>{i18n.t('calendarLog.manualLabel')}</Text>
+          )}
           {day.prs > 0 && (
             <View style={styles.prBadge}>
               <Zap size={10} color={Colors.primary} strokeWidth={2.5} />
@@ -145,6 +167,13 @@ export function DayContentCard({
           {' · '}{totalSets} {i18n.t('common.sets')}
           {day.totalVolume > 0 && ` · ${formatVolume(day.totalVolume)}`}
         </Text>
+
+        {/* Exercise preview */}
+        {exercisePreview.length > 0 && (
+          <Text style={styles.exercisePreview} numberOfLines={1}>
+            {exercisePreview}
+          </Text>
+        )}
 
         {/* Compact muscle dots — 2-column wrap */}
         {sortedMuscles.length > 0 && (
@@ -191,6 +220,15 @@ export function DayContentCard({
         )}
       </View>
     );
+
+    if (onEditSession) {
+      return (
+        <PressableScale activeScale={0.975} onPress={() => onEditSession(session.id)}>
+          {cardContent}
+        </PressableScale>
+      );
+    }
+    return cardContent;
   }
 
   // ─── State 2: Today with scheduled workout ───
@@ -495,6 +533,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
+  manualLabel: {
+    color: 'rgba(255,255,255,0.25)',
+    fontSize: 10,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
   prBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -523,6 +569,13 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     paddingLeft: 2,
+  },
+
+  exercisePreview: {
+    color: 'rgba(255,255,255,0.25)',
+    fontSize: 11,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
   },
 
   // Muscle list (for trained days)

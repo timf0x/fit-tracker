@@ -13,7 +13,7 @@ import {
   Calendar,
   AlertTriangle,
 } from 'lucide-react-native';
-import { Colors, Fonts } from '@/constants/theme';
+import { Colors, Fonts, Header, PageLayout, IconStroke, CTAButton } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { useProgramStore } from '@/stores/programStore';
 import { useWorkoutStore } from '@/stores/workoutStore';
@@ -27,6 +27,7 @@ import { SessionFeedback } from '@/components/program/SessionFeedback';
 import { AnimatedStartButton } from '@/components/ui/AnimatedStartButton';
 import { getMuscleLabel } from '@/lib/muscleMapping';
 import { estimateDuration, isCompound, getOverloadSuggestions } from '@/lib/programGenerator';
+import { getUserEquipment } from '@/constants/programTemplates';
 import { buildProgramExercisesParam } from '@/lib/programSession';
 import { getProgressiveWeight, getEstimatedWeight } from '@/lib/weightEstimation';
 import { resolveDayLabel } from '@/lib/programLabels';
@@ -392,7 +393,7 @@ export default function ProgramDayScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={22} color="#fff" strokeWidth={2} />
+            <ArrowLeft size={22} color="#fff" strokeWidth={IconStroke.default} />
           </Pressable>
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>{resolveDayLabel(day)}</Text>
@@ -552,7 +553,7 @@ export default function ProgramDayScreen() {
         {isDone && (
           <View style={styles.bottomCta}>
             <View style={styles.doneBar}>
-              <Check size={16} color={Colors.success} strokeWidth={2.5} />
+              <Check size={16} color={Colors.success} strokeWidth={IconStroke.emphasis} />
               <Text style={styles.doneBarText}>{i18n.t('programDay.sessionDone')}</Text>
             </View>
           </View>
@@ -639,7 +640,7 @@ export default function ProgramDayScreen() {
           }}
           currentExerciseId={day.exercises[swapExerciseIndex]?.exerciseId || ''}
           muscleTargets={swapMuscleTargets}
-          equipment={program.userProfile.equipment}
+          allowedEquipment={getUserEquipment(program.userProfile)}
           onSwap={(newId) => {
             swapExercise(weekNum, dayIdx, swapExerciseIndex, newId);
           }}
@@ -657,7 +658,7 @@ export default function ProgramDayScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: Colors.background,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -692,16 +693,13 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingTop: 12,
     paddingBottom: 8,
     gap: 12,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    ...Header.backButton,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -768,7 +766,7 @@ const styles = StyleSheet.create({
   metricsStrip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     marginTop: 8,
     marginBottom: 12,
   },
@@ -803,7 +801,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   muscleScrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     gap: 6,
   },
   musclePill: {
@@ -870,7 +868,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bodyContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
   },
 
   // Deload warning banner (from deload detection engine)
@@ -937,7 +935,7 @@ const styles = StyleSheet.create({
 
   // Bottom CTA
   bottomCta: {
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingVertical: 12,
     backgroundColor: 'rgba(12,12,12,0.95)',
     borderTopWidth: 1,
@@ -947,7 +945,7 @@ const styles = StyleSheet.create({
   },
   startButton: {
     backgroundColor: Colors.primary,
-    borderRadius: 14,
+    borderRadius: CTAButton.borderRadius,
     paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -957,7 +955,7 @@ const styles = StyleSheet.create({
   },
   catchUpButton: {
     backgroundColor: 'rgba(255,107,53,0.8)',
-    borderRadius: 14,
+    borderRadius: CTAButton.borderRadius,
     paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { Fonts } from '@/constants/theme';
+import * as Haptics from 'expo-haptics';
+import { Fonts, IconStroke } from '@/constants/theme';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { RECOVERY_COLORS } from '@/constants/recovery';
 import type { RecoveryLevel } from '@/types';
@@ -43,7 +44,7 @@ export function MuscleChip({
 
   if (onPress) {
     return (
-      <PressableScale onPress={onPress} activeScale={0.97}>
+      <PressableScale onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPress(); }} activeScale={0.97}>
         {content}
       </PressableScale>
     );

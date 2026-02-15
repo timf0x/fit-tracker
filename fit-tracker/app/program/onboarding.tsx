@@ -31,10 +31,11 @@ import {
   Minus,
   Calendar,
 } from 'lucide-react-native';
-import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Spacing, Header, PageLayout, IconStroke, CTAButton } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { OnboardingStep } from '@/components/program/OnboardingStep';
-import { getSplitForDays, SPLIT_TEMPLATES, PRIORITY_GROUPS } from '@/constants/programTemplates';
+import { AnimatedStartButton } from '@/components/ui/AnimatedStartButton';
+import { getSplitForDays, SPLIT_TEMPLATES, PRIORITY_GROUPS, EQUIPMENT_BY_SETUP } from '@/constants/programTemplates';
 import { getDefaultPreferredDays, formatScheduledDate, getTodayISO } from '@/lib/scheduleEngine';
 import type { WeekDay } from '@/types/program';
 
@@ -158,6 +159,7 @@ export default function OnboardingScreen() {
       sex,
       weight: parseFloat(weight),
       equipment,
+      ownedEquipment: EQUIPMENT_BY_SETUP[equipment],
       height: height ? parseFloat(height) : undefined,
       age: age ? parseInt(age, 10) : undefined,
       trainingYears: trainingYears ?? undefined,
@@ -292,7 +294,7 @@ export default function OnboardingScreen() {
               setTrainingYears(Math.max(0, (trainingYears ?? 1) - 1));
             }}
           >
-            <Minus size={16} color="#fff" strokeWidth={2.5} />
+            <Minus size={16} color="#fff" strokeWidth={IconStroke.emphasis} />
           </Pressable>
           <Text style={styles.stepperValue}>
             {trainingYears != null ? String(trainingYears) : '—'}
@@ -304,7 +306,7 @@ export default function OnboardingScreen() {
               setTrainingYears(Math.min(30, (trainingYears ?? 0) + 1));
             }}
           >
-            <Plus size={16} color="#fff" strokeWidth={2.5} />
+            <Plus size={16} color="#fff" strokeWidth={IconStroke.emphasis} />
           </Pressable>
         </View>
       </View>
@@ -513,7 +515,7 @@ export default function OnboardingScreen() {
                   <Icon
                     size={24}
                     color={selected ? '#0C0C0C' : 'rgba(255,255,255,0.5)'}
-                    strokeWidth={2}
+                    strokeWidth={IconStroke.default}
                   />
                   <Text style={[styles.jointLabel, selected && styles.jointLabelSelected]}>
                     {i18n.t(`programOnboarding.limitations.${labelKey}`)}
@@ -701,10 +703,13 @@ export default function OnboardingScreen() {
         ))}
       </View>
 
-      <Pressable style={styles.generateButton} onPress={handleGenerate}>
-        <Sparkles size={20} color="#0C0C0C" />
-        <Text style={styles.generateText}>{i18n.t('programOnboarding.confirmation.generate')}</Text>
-      </Pressable>
+      <AnimatedStartButton
+        onPress={handleGenerate}
+        label={i18n.t('programOnboarding.confirmation.generate')}
+        loadingLabel={i18n.t('workoutGenerate.generating')}
+        icon={Sparkles}
+        fillDuration={2200}
+      />
     </OnboardingStep>
   );
 
@@ -718,7 +723,7 @@ export default function OnboardingScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={back} style={styles.backButton} hitSlop={12}>
-            <ArrowLeft size={22} color="#fff" strokeWidth={2} />
+            <ArrowLeft size={22} color="#fff" strokeWidth={IconStroke.default} />
           </Pressable>
           {/* Progress dots */}
           <View style={styles.dots}>
@@ -813,7 +818,7 @@ function SelectionCard({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: Colors.background,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -847,15 +852,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingTop: 12,
     paddingBottom: 8,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    ...Header.backButton,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -883,7 +885,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   footer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingTop: 12,
     paddingBottom: 16,
     backgroundColor: 'rgba(12,12,12,0.95)',
@@ -892,7 +894,7 @@ const styles = StyleSheet.create({
   },
   nextButton: {
     backgroundColor: Colors.primary,
-    borderRadius: 14,
+    borderRadius: CTAButton.borderRadius,
     paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -904,7 +906,7 @@ const styles = StyleSheet.create({
   },
   nextText: {
     color: '#0C0C0C',
-    fontSize: 16,
+    fontSize: CTAButton.fontSize,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
   },
@@ -914,7 +916,7 @@ const styles = StyleSheet.create({
 
   // Cards — compact
   cardsCol: {
-    gap: 10,
+    gap: PageLayout.cardGap,
   },
   selCard: {
     backgroundColor: 'rgba(255,255,255,0.04)',
@@ -1295,7 +1297,7 @@ const styles = StyleSheet.create({
 
   generateButton: {
     backgroundColor: Colors.primary,
-    borderRadius: 14,
+    borderRadius: CTAButton.borderRadius,
     paddingVertical: 18,
     flexDirection: 'row',
     alignItems: 'center',

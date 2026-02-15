@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Flame, Dumbbell, TrendingUp, Settings } from 'lucide-react-native';
-import { Fonts } from '@/constants/theme';
+import { Fonts, IconStroke } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -68,7 +68,7 @@ function DockTab({
         <IconComponent
           size={20}
           color={isFocused ? '#1a1a1a' : 'rgba(163,163,170,1)'}
-          strokeWidth={isFocused ? 2.5 : 1.8}
+          strokeWidth={isFocused ? IconStroke.emphasis : IconStroke.default}
         />
         <Animated.Text style={[styles.tabLabel, labelStyle]} numberOfLines={1}>
           {i18n.t(config.labelKey)}

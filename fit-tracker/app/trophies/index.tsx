@@ -95,7 +95,8 @@ import {
   Swords,
   Lock,
 } from 'lucide-react-native';
-import { Fonts } from '@/constants/theme';
+import { Fonts, Colors, Header, PageLayout, IconStroke } from '@/constants/theme';
+import * as Haptics from 'expo-haptics';
 import { CircularProgress } from '@/components/CircularProgress';
 import { BadgeIcon } from '@/components/badges/BadgeIcon';
 import { getDisplayableBadges, BADGE_CATEGORIES, TIER_CONFIG, USER_LEVELS } from '@/data/badges';
@@ -238,7 +239,7 @@ function BadgeDetailModal({
             {catMeta && (
               <View style={styles.modalCatRow}>
                 <View style={styles.modalMetaDot} />
-                {CatIcon && <CatIcon size={13} color="rgba(160,150,140,1)" strokeWidth={2} />}
+                {CatIcon && <CatIcon size={13} color="rgba(160,150,140,1)" strokeWidth={IconStroke.default} />}
                 <Text style={styles.modalCatLabel}>{loc(catMeta, 'label')}</Text>
               </View>
             )}
@@ -251,7 +252,7 @@ function BadgeDetailModal({
           {/* Unlocked state */}
           {isUnlocked && unlockDate ? (
             <View style={styles.modalUnlockedRow}>
-              <CheckCircle size={16} color="#4ADE80" strokeWidth={2.5} />
+              <CheckCircle size={16} color="#4ADE80" strokeWidth={IconStroke.emphasis} />
               <Text style={styles.modalUnlockedText}>
                 {i18n.t('trophies.unlockedOn', { date: unlockDate })}
               </Text>
@@ -277,7 +278,7 @@ function BadgeDetailModal({
 
           {/* Points */}
           <View style={styles.modalPointsRow}>
-            <Sparkles size={16} color="#f97316" strokeWidth={2.5} />
+            <Sparkles size={16} color="#f97316" strokeWidth={IconStroke.emphasis} />
             <Text style={styles.modalPointsText}>
               {badge.points} {i18n.t('trophies.points')}
             </Text>
@@ -305,7 +306,7 @@ function CategoryHeader({
   return (
     <View style={styles.catHeader}>
       <View style={[styles.catIconCircle, { backgroundColor: `${category.color}15` }]}>
-        <CatIcon size={16} color={category.color} strokeWidth={2.2} />
+        <CatIcon size={16} color={category.color} strokeWidth={IconStroke.default} />
       </View>
       <Text style={styles.catTitle}>{loc(category, 'label')}</Text>
       <Text style={styles.catCount}>
@@ -389,6 +390,7 @@ export default function TrophiesScreen() {
     : 0;
 
   const openDetail = useCallback((p: BadgeProgress) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setDetailBadge(p);
     setShowDetail(true);
   }, []);
@@ -529,7 +531,7 @@ export default function TrophiesScreen() {
           {/* ── Header ── */}
           <View style={styles.header}>
             <Pressable style={styles.backButton} onPress={() => router.back()}>
-              <ArrowLeft size={22} color="#fff" strokeWidth={2} />
+              <ArrowLeft size={22} color="#fff" strokeWidth={IconStroke.default} />
             </Pressable>
             <Text style={styles.headerTitle}>{i18n.t('trophies.title')}</Text>
             <View style={{ width: 40 }} />
@@ -558,7 +560,7 @@ export default function TrophiesScreen() {
 
             {/* Points + next level */}
             <View style={styles.heroPointsRow}>
-              <Sparkles size={13} color="rgba(255,215,0,0.6)" strokeWidth={2.2} />
+              <Sparkles size={13} color="rgba(255,215,0,0.6)" strokeWidth={IconStroke.default} />
               <Text style={styles.heroPointsText}>
                 {summary.totalPoints} {i18n.t('trophies.points')}
               </Text>
@@ -630,7 +632,7 @@ export default function TrophiesScreen() {
               />
             ) : (
               <View style={styles.noUnlocksContainer}>
-                <Lock size={20} color="rgba(100,100,110,1)" strokeWidth={2} />
+                <Lock size={20} color="rgba(100,100,110,1)" strokeWidth={IconStroke.default} />
                 <Text style={styles.noUnlocksText}>
                   {i18n.t('trophies.noUnlocks')}
                 </Text>
@@ -764,7 +766,7 @@ const styles = StyleSheet.create({
   // ── Container ──
   container: {
     flex: 1,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: Colors.background,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -819,24 +821,18 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingTop: 12,
     paddingBottom: 8,
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    ...Header.backButton,
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: {
     flex: 1,
-    color: 'rgba(200,200,210,1)',
-    fontSize: 12,
+    ...Header.screenLabel,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
   },
 
   // ── Forge Identity (Immersive Level) ──
@@ -917,7 +913,7 @@ const styles = StyleSheet.create({
   // ── Section titles ──
   sectionContainer: {
     marginTop: 28,
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
   },
   sectionTitle: {
     color: 'rgba(160,150,140,1)',
@@ -1014,7 +1010,7 @@ const styles = StyleSheet.create({
   // ── Category sections ──
   catSection: {
     marginTop: 28,
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
   },
   catHeader: {
     flexDirection: 'row',

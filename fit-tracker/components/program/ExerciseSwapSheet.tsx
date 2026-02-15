@@ -1,20 +1,20 @@
 import { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, Modal, ScrollView } from 'react-native';
 import { X, ArrowLeftRight } from 'lucide-react-native';
-import { Colors, Fonts } from '@/constants/theme';
+import { Colors, Fonts, GlassStyle, IconStroke } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { ExerciseIcon } from '@/components/ExerciseIcon';
 import { getExerciseById } from '@/data/exercises';
-import { EXERCISE_POOLS, EQUIPMENT_BY_SETUP } from '@/constants/programTemplates';
+import { EXERCISE_POOLS } from '@/constants/programTemplates';
 import { MUSCLE_LABELS_FR } from '@/lib/muscleMapping';
-import type { EquipmentSetup } from '@/types/program';
+import type { Equipment } from '@/types';
 
 interface ExerciseSwapSheetProps {
   visible: boolean;
   onClose: () => void;
   currentExerciseId: string;
   muscleTargets: string[];
-  equipment: EquipmentSetup;
+  allowedEquipment: Equipment[];
   onSwap: (newExerciseId: string) => void;
 }
 
@@ -23,11 +23,10 @@ export function ExerciseSwapSheet({
   onClose,
   currentExerciseId,
   muscleTargets,
-  equipment,
+  allowedEquipment,
   onSwap,
 }: ExerciseSwapSheetProps) {
   const currentEx = getExerciseById(currentExerciseId);
-  const allowedEquipment = EQUIPMENT_BY_SETUP[equipment];
 
   // Find alternatives from the same muscle pool
   const alternatives = useMemo(() => {
@@ -56,7 +55,7 @@ export function ExerciseSwapSheet({
       if (results.length >= 8) break;
     }
     return results;
-  }, [currentExerciseId, muscleTargets, equipment]);
+  }, [currentExerciseId, muscleTargets, allowedEquipment]);
 
   // Find which muscle this exercise belongs to
   const muscleName = useMemo(() => {
@@ -154,9 +153,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#1A1A1A',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    borderWidth: 1,
+    borderWidth: GlassStyle.card.borderWidth,
     borderBottomWidth: 0,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: GlassStyle.card.borderColor,
     maxHeight: '70%',
     paddingBottom: 34,
   },
@@ -187,7 +186,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: GlassStyle.card.borderColor,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -197,7 +196,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 20,
     paddingVertical: 10,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: GlassStyle.card.backgroundColor,
   },
   currentInfo: {
     flex: 1,
@@ -223,7 +222,7 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: GlassStyle.card.borderColor,
     marginVertical: 8,
   },
   list: {
@@ -268,7 +267,7 @@ const styles = StyleSheet.create({
   },
   altSep: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: GlassStyle.card.backgroundColor,
     marginLeft: 46,
   },
 });

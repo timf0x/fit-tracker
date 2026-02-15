@@ -26,11 +26,11 @@ export const Colors = {
   textDisabled: 'rgba(255, 255, 255, 0.3)',
 
   // Glass Effect
-  glassBorder: 'rgba(255, 255, 255, 0.05)',
+  glassBorder: 'rgba(255, 255, 255, 0.06)',
   glassBorderLight: 'rgba(255, 255, 255, 0.08)',
   glassBorderMedium: 'rgba(255, 255, 255, 0.1)',
-  glassBackground: 'rgba(255, 255, 255, 0.03)',
-  glassBackgroundHover: 'rgba(255, 255, 255, 0.05)',
+  glassBackground: 'rgba(255, 255, 255, 0.04)',
+  glassBackgroundHover: 'rgba(255, 255, 255, 0.06)',
 
   // Timer Phase Colors
   phases: {
@@ -142,7 +142,7 @@ export const BorderRadius = {
   '2xl': 24,
   '3xl': 32,
   full: 9999,
-  card: 24,
+  card: 16,
   cardLarge: 32,
 };
 
@@ -179,9 +179,10 @@ export const Shadows = {
 
 export const GlassStyle = {
   card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 16,
   },
   workoutCard: {
     backgroundColor: 'rgba(28, 28, 30, 0.8)',
@@ -203,6 +204,56 @@ export const GlassStyle = {
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
+};
+
+// --- HEADER tokens ---
+export const Header = {
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  pageTitle: {
+    fontSize: 22,
+    color: '#FFFFFF',
+  },
+  screenLabel: {
+    fontSize: 12,
+    color: 'rgba(200, 200, 210, 1)',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase' as const,
+  },
+  paddingHorizontal: 20,
+};
+
+// --- SECTION LABEL tokens ---
+export const SectionLabel = {
+  fontSize: 11,
+  color: 'rgba(160, 150, 140, 1)',
+  letterSpacing: 0.5,
+};
+
+// --- CTA BUTTON tokens ---
+export const CTAButton = {
+  height: 56,
+  borderRadius: 14,
+  fontSize: 16,
+};
+
+// --- ICON STROKE constants ---
+export const IconStroke = {
+  default: 2,
+  emphasis: 2.5,
+  light: 1.5,
+};
+
+// --- PAGE LAYOUT constants ---
+export const PageLayout = {
+  paddingHorizontal: 20,
+  sectionGap: 24,
+  cardGap: 10,
+  scrollPaddingBottom: 100,
 };
 
 export const Fonts = Platform.select({

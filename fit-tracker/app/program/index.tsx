@@ -23,7 +23,7 @@ import {
 } from 'lucide-react-native';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { AnimatedStartButton } from '@/components/ui/AnimatedStartButton';
-import { Fonts, Colors } from '@/constants/theme';
+import { Fonts, Colors, GlassStyle, Header, PageLayout, IconStroke, CTAButton } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { useProgramStore } from '@/stores/programStore';
 import { useWorkoutStore } from '@/stores/workoutStore';
@@ -261,7 +261,7 @@ export default function ProgramScreen() {
         {/* ─── Header — clean typography, no pills ─── */}
         <View style={styles.header}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={22} color="#fff" strokeWidth={2} />
+            <ArrowLeft size={22} color="#fff" strokeWidth={IconStroke.default} />
           </Pressable>
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle} numberOfLines={1}>
@@ -314,7 +314,7 @@ export default function ProgramScreen() {
                 : activeState.pendingResolution.severity === 'warning' ? '#FBBF24'
                 : Colors.primary
               }
-              strokeWidth={2.5}
+              strokeWidth={IconStroke.emphasis}
             />
             <Text style={[
               styles.missedBannerText,
@@ -351,28 +351,28 @@ export default function ProgramScreen() {
                 <View style={styles.volumeDelta}>
                   {currentWeekData?.isDeload ? (
                     <>
-                      <TrendingDown size={11} color="rgba(59,130,246,0.6)" strokeWidth={2.5} />
+                      <TrendingDown size={11} color="rgba(59,130,246,0.6)" strokeWidth={IconStroke.emphasis} />
                       <Text style={[styles.volumeDeltaText, { color: 'rgba(59,130,246,0.6)' }]}>
                         {i18n.t('programOverview.deloadVolume')}
                       </Text>
                     </>
                   ) : volumeDelta.delta > 0 ? (
                     <>
-                      <TrendingUp size={11} color="#4ADE80" strokeWidth={2.5} />
+                      <TrendingUp size={11} color="#4ADE80" strokeWidth={IconStroke.emphasis} />
                       <Text style={[styles.volumeDeltaText, { color: '#4ADE80' }]}>
                         {i18n.t('programOverview.volumeUp', { delta: volumeDelta.delta, prev: volumeDelta.prevWeek })}
                       </Text>
                     </>
                   ) : volumeDelta.delta < 0 ? (
                     <>
-                      <TrendingDown size={11} color="#FBBF24" strokeWidth={2.5} />
+                      <TrendingDown size={11} color="#FBBF24" strokeWidth={IconStroke.emphasis} />
                       <Text style={[styles.volumeDeltaText, { color: '#FBBF24' }]}>
                         {i18n.t('programOverview.volumeDown', { delta: volumeDelta.delta, prev: volumeDelta.prevWeek })}
                       </Text>
                     </>
                   ) : (
                     <>
-                      <Minus size={11} color="rgba(255,255,255,0.3)" strokeWidth={2.5} />
+                      <Minus size={11} color="rgba(255,255,255,0.3)" strokeWidth={IconStroke.emphasis} />
                       <Text style={styles.volumeDeltaText}>
                         {i18n.t('programOverview.volumeSame')}
                       </Text>
@@ -548,7 +548,7 @@ export default function ProgramScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0C0C0C',
+    backgroundColor: Colors.background,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -557,16 +557,13 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingTop: 12,
     paddingBottom: 8,
     gap: 12,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    ...Header.backButton,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -593,7 +590,7 @@ const styles = StyleSheet.create({
 
   // ─── Completion ───
   completionCard: {
-    marginHorizontal: 20,
+    marginHorizontal: PageLayout.paddingHorizontal,
     marginTop: 8,
     backgroundColor: 'rgba(251,191,36,0.04)',
     borderRadius: 16,
@@ -641,7 +638,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginHorizontal: 20,
+    marginHorizontal: PageLayout.paddingHorizontal,
     marginTop: 8,
     backgroundColor: 'rgba(251,191,36,0.06)',
     borderRadius: 12,
@@ -661,17 +658,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bodyContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingTop: 8,
-    gap: 24,
+    gap: PageLayout.sectionGap,
   },
 
   // ─── Week card (single glass card wrapping all day rows) ───
   weekCard: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    ...GlassStyle.card,
     overflow: 'hidden',
   },
   weekCardHeader: {
@@ -767,7 +761,7 @@ const styles = StyleSheet.create({
 
   // ─── Bottom CTA ───
   bottomCta: {
-    paddingHorizontal: 20,
+    paddingHorizontal: PageLayout.paddingHorizontal,
     paddingVertical: 12,
     backgroundColor: 'rgba(12,12,12,0.95)',
     borderTopWidth: 1,
@@ -775,7 +769,7 @@ const styles = StyleSheet.create({
   },
   startButton: {
     backgroundColor: Colors.primary,
-    borderRadius: 14,
+    borderRadius: CTAButton.borderRadius,
     paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -784,7 +778,7 @@ const styles = StyleSheet.create({
   },
   startText: {
     color: '#0C0C0C',
-    fontSize: 16,
+    fontSize: CTAButton.fontSize,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
   },

@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Plus, BookOpen, Sparkles } from 'lucide-react-native';
-import { Colors, Fonts } from '@/constants/theme';
+import { Colors, Fonts, GlassStyle, IconStroke, CTAButton } from '@/constants/theme';
 import { AnimatedStartButton } from '@/components/ui/AnimatedStartButton';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { BODY_ICONS, DEFAULT_BODY_ICON } from '@/components/home/ActiveProgramCard';
@@ -48,12 +49,12 @@ export function SmartSuggestionCard({
         </View>
 
         <View style={styles.actionRow}>
-          <PressableScale style={styles.actionLink} activeScale={0.97} onPress={onCreateManual}>
-            <Plus size={14} color={Colors.primary} strokeWidth={2.5} />
+          <PressableScale style={styles.actionLink} activeScale={0.97} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onCreateManual(); }}>
+            <Plus size={14} color={Colors.primary} strokeWidth={IconStroke.emphasis} />
             <Text style={styles.actionLinkText}>{i18n.t('smartSuggestion.createManual')}</Text>
           </PressableScale>
-          <PressableScale style={styles.actionLink} activeScale={0.97} onPress={onCreateProgram}>
-            <BookOpen size={14} color={Colors.primary} strokeWidth={2} />
+          <PressableScale style={styles.actionLink} activeScale={0.97} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onCreateProgram(); }}>
+            <BookOpen size={14} color={Colors.primary} strokeWidth={IconStroke.default} />
             <Text style={styles.actionLinkText}>{i18n.t('smartSuggestion.program')}</Text>
           </PressableScale>
         </View>
@@ -109,7 +110,7 @@ export function SmartSuggestionCard({
             return (
               <View key={m.muscle} style={styles.muscleRow}>
                 <View style={[styles.muscleBadge, { backgroundColor: icon.bg }]}>
-                  <icon.Icon size={12} color={icon.color} strokeWidth={2.5} />
+                  <icon.Icon size={12} color={icon.color} strokeWidth={IconStroke.emphasis} />
                 </View>
                 <Text style={styles.muscleName}>{m.labelFr}</Text>
                 <View style={[styles.recoveryDot, { backgroundColor: RECOVERY_COLORS[m.recoveryStatus] }]} />
