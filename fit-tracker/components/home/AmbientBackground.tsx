@@ -37,49 +37,30 @@ export function AmbientBackground() {
     dataSV.value = withTiming(intensity, { duration: 3000 });
   }, [intensity]);
 
-  // ─── Breathing shared values ───
-  const warmDriftX = useSharedValue(0);
-  const warmDriftY = useSharedValue(0);
+  // ─── Breathing shared values (4 total — 2 per orb) ───
+  const warmDrift = useSharedValue(0);
   const warmPulse = useSharedValue(0);
-
-  const coolDriftX = useSharedValue(0);
-  const coolDriftY = useSharedValue(0);
+  const coolDrift = useSharedValue(0);
   const coolPulse = useSharedValue(0);
 
   useEffect(() => {
     const ease = Easing.inOut(Easing.sin);
 
-    // Warm orb: 3 independent slow cycles
-    warmDriftX.value = withRepeat(
+    // Warm orb: drift + pulse (longer cycles = less CPU)
+    warmDrift.value = withRepeat(
+      withTiming(1, { duration: 22000, easing: ease }),
+      -1,
+      true,
+    );
+    warmPulse.value = withRepeat(
       withTiming(1, { duration: 18000, easing: ease }),
       -1,
       true,
     );
-    warmDriftY.value = withDelay(
-      2000,
-      withRepeat(
-        withTiming(1, { duration: 22000, easing: ease }),
-        -1,
-        true,
-      ),
-    );
-    warmPulse.value = withRepeat(
-      withTiming(1, { duration: 15000, easing: ease }),
-      -1,
-      true,
-    );
 
-    // Cool orb: offset phases (never syncs with warm)
-    coolDriftX.value = withDelay(
-      5000,
-      withRepeat(
-        withTiming(1, { duration: 20000, easing: ease }),
-        -1,
-        true,
-      ),
-    );
-    coolDriftY.value = withDelay(
-      8000,
+    // Cool orb: offset phase
+    coolDrift.value = withDelay(
+      4000,
       withRepeat(
         withTiming(1, { duration: 25000, easing: ease }),
         -1,
@@ -89,7 +70,7 @@ export function AmbientBackground() {
     coolPulse.value = withDelay(
       3000,
       withRepeat(
-        withTiming(1, { duration: 17000, easing: ease }),
+        withTiming(1, { duration: 20000, easing: ease }),
         -1,
         true,
       ),
@@ -97,33 +78,30 @@ export function AmbientBackground() {
   }, []);
 
   // ─── Animated styles ───
-  // opacity on the View controls everything (circle + shadow) in one shot
   const warmStyle = useAnimatedStyle(() => {
-    // Data: warm orb more visible when training hard
     const dataBoost = interpolate(dataSV.value, [0, 0.5, 1], [0.7, 0.85, 1.0]);
     const breathe = interpolate(warmPulse.value, [0, 1], [0.55, 1.0]);
 
     return {
       opacity: breathe * dataBoost,
       transform: [
-        { translateX: interpolate(warmDriftX.value, [0, 1], [-15, 15]) },
-        { translateY: interpolate(warmDriftY.value, [0, 1], [-12, 12]) },
-        { scale: interpolate(warmPulse.value, [0, 1], [0.9, 1.15]) },
+        { translateX: interpolate(warmDrift.value, [0, 1], [-12, 12]) },
+        { translateY: interpolate(warmDrift.value, [0, 1], [-8, 10]) },
+        { scale: interpolate(warmPulse.value, [0, 1], [0.92, 1.12]) },
       ],
     };
   });
 
   const coolStyle = useAnimatedStyle(() => {
-    // Data: cool orb more visible during rest / low volume
     const dataBoost = interpolate(dataSV.value, [0, 0.5, 1], [1.0, 0.8, 0.6]);
     const breathe = interpolate(coolPulse.value, [0, 1], [0.5, 1.0]);
 
     return {
       opacity: breathe * dataBoost,
       transform: [
-        { translateX: interpolate(coolDriftX.value, [0, 1], [-18, 12]) },
-        { translateY: interpolate(coolDriftY.value, [0, 1], [-10, 14]) },
-        { scale: interpolate(coolPulse.value, [0, 1], [0.92, 1.12]) },
+        { translateX: interpolate(coolDrift.value, [0, 1], [-14, 10]) },
+        { translateY: interpolate(coolDrift.value, [0, 1], [-8, 12]) },
+        { scale: interpolate(coolPulse.value, [0, 1], [0.94, 1.1]) },
       ],
     };
   });

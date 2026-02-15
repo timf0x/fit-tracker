@@ -450,6 +450,14 @@ function DraggableCard({
   const dragTY = useSharedValue(0);
   const isActive = useSharedValue(0);
   const zIdx = useSharedValue(0);
+  const appear = useSharedValue(0);
+
+  // Smooth fade-in when layout positions are ready (prevents hard flash)
+  useEffect(() => {
+    if (layoutReady) {
+      appear.value = withTiming(1, { duration: 250, easing: Easing.out(Easing.ease) });
+    }
+  }, [layoutReady]);
 
   useEffect(() => {
     return registerSVs(cardKey, posX, posY);
@@ -501,6 +509,7 @@ function DraggableCard({
     });
 
   const animatedStyle = useAnimatedStyle(() => ({
+    opacity: appear.value,
     transform: [
       { translateX: posX.value + dragTX.value },
       { translateY: posY.value + dragTY.value },
@@ -522,7 +531,6 @@ function DraggableCard({
             left: 0,
             top: 0,
             width,
-            opacity: layoutReady ? 1 : 0,
           },
           animatedStyle,
         ]}

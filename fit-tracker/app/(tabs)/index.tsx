@@ -32,15 +32,6 @@ const CARD_SIZES: Record<string, 'full' | 'half'> = {
   volume: 'full',
 };
 
-const CARD_COMPONENTS: Record<string, React.ReactNode> = {
-  recovery: <RecoveryCard />,
-  steps: <StepsCard />,
-  achievement: <AchievementCard />,
-  weekly: <CalendarCard />,
-  program: <ActiveProgramCard />,
-  volume: <VolumeCard />,
-};
-
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const fadeHeight = insets.top + 30;
@@ -76,6 +67,16 @@ export default function HomeScreen() {
     setHomeCardOrder(newOrder);
   }, [setHomeCardOrder]);
 
+  // Stable card components — created once, never re-instantiated
+  const cardComponents = useMemo<Record<string, React.ReactNode>>(() => ({
+    recovery: <RecoveryCard />,
+    steps: <StepsCard />,
+    achievement: <AchievementCard />,
+    weekly: <CalendarCard />,
+    program: <ActiveProgramCard />,
+    volume: <VolumeCard />,
+  }), []);
+
   return (
     <HomeRefreshContext.Provider value={refreshKey}>
       <View style={styles.screen}>
@@ -104,7 +105,7 @@ export default function HomeScreen() {
             order={cardOrder}
             sizes={CARD_SIZES}
             onReorder={handleReorder}
-            cards={CARD_COMPONENTS}
+            cards={cardComponents}
             onDragStateChange={setIsDragging}
           />
 

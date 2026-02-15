@@ -17,7 +17,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withDelay,
+  withSequence,
   interpolate,
   Easing,
 } from 'react-native-reanimated';
@@ -34,10 +34,14 @@ export function VolumeCard() {
 
   useEffect(() => {
     if (refreshKey > 0) {
-      row0Anim.value = 0;
-      row1Anim.value = 0;
-      row0Anim.value = withDelay(100, withTiming(1, { duration: 500, easing: Easing.out(Easing.quad) }));
-      row1Anim.value = withDelay(220, withTiming(1, { duration: 500, easing: Easing.out(Easing.quad) }));
+      row0Anim.value = withSequence(
+        withTiming(0, { duration: 60 }),
+        withTiming(1, { duration: 500, easing: Easing.out(Easing.quad) }),
+      );
+      row1Anim.value = withSequence(
+        withTiming(0, { duration: 120 }),
+        withTiming(1, { duration: 500, easing: Easing.out(Easing.quad) }),
+      );
     }
   }, [refreshKey]);
 

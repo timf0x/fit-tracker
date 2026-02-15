@@ -25,6 +25,7 @@ This app is built around **modern musculation science** (Renaissance Periodizati
 - **Smart nudges** — Contextual French advice based on zone, trend, and history. Keep it one line, actionable.
 - **The user becomes a beast by just following the visuals** — That's the north star.
 - **NO PILLS / NO BORDERED CHIPS** — Never use bordered pill/chip components for selectors or filters. They create visual noise and redundancy. Instead, design each selector according to its page context: plain text tabs for small option sets (equipment, duration), grouped tappable rows for lists (muscles), inline steppers for values. Every interaction pattern should feel unique to its context, not a generic pill grid.
+- **GYM-SIZED TOUCH TARGETS** — Users are in the gym with sweaty hands, pumped forearms, and shaking post-set fingers. Minimum touch target: **48px height** for any tappable element. Rows/list items: **56px+ height**. Stepper buttons: **44px**. Add generous `hitSlop` (8-12) on small icons. Never rely on tiny chevrons or dots as the sole tap target — the entire row must be tappable. If it's hard to tap mid-workout, it's broken.
 
 ## Research & Inspiration
 

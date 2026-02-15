@@ -15,7 +15,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withDelay,
+  withSequence,
   interpolate,
   Easing,
 } from 'react-native-reanimated';
@@ -90,10 +90,14 @@ export function CalendarCard() {
 
   useEffect(() => {
     if (refreshKey > 0) {
-      dotStagger.value = 0;
-      chipsAnim.value = 0;
-      dotStagger.value = withDelay(100, withTiming(7, { duration: 420, easing: Easing.out(Easing.quad) }));
-      chipsAnim.value = withDelay(300, withTiming(1, { duration: 400, easing: Easing.out(Easing.quad) }));
+      dotStagger.value = withSequence(
+        withTiming(0, { duration: 60 }),
+        withTiming(7, { duration: 420, easing: Easing.out(Easing.quad) }),
+      );
+      chipsAnim.value = withSequence(
+        withTiming(0, { duration: 80 }),
+        withTiming(1, { duration: 400, easing: Easing.out(Easing.quad) }),
+      );
     }
   }, [refreshKey]);
 

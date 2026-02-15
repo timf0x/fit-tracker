@@ -8,7 +8,7 @@ import Animated, {
   useAnimatedStyle,
   withRepeat,
   withTiming,
-  withDelay,
+  withSequence,
   interpolate,
   Easing,
 } from 'react-native-reanimated';
@@ -97,8 +97,10 @@ export function ActiveProgramCard() {
 
   useEffect(() => {
     if (refreshKey > 0) {
-      mesoAnim.value = 0;
-      mesoAnim.value = withDelay(200, withTiming(1, { duration: 600, easing: Easing.out(Easing.quad) }));
+      mesoAnim.value = withSequence(
+        withTiming(0.3, { duration: 80 }),
+        withTiming(1, { duration: 600, easing: Easing.out(Easing.quad) }),
+      );
     }
   }, [refreshKey]);
 

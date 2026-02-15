@@ -4,7 +4,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withDelay,
+  withSequence,
   interpolate,
   Easing,
 } from 'react-native-reanimated';
@@ -25,16 +25,25 @@ export function StepsCard() {
   const refreshKey = useHomeRefreshKey();
   const [barContainerWidth, setBarContainerWidth] = useState(0);
 
+  const isMountedRef = useRef(true);
+
   const fetchSteps = useCallback(async () => {
-    const count = await getTodaySteps();
-    baseStepsRef.current = count;
-    setSteps(count);
+    try {
+      const count = await getTodaySteps();
+      if (!isMountedRef.current) return;
+      baseStepsRef.current = count;
+      setSteps(count);
+    } catch {
+      // Pedometer unavailable or permission denied — keep current value
+    }
   }, []);
 
   useEffect(() => {
+    isMountedRef.current = true;
     fetchSteps();
 
     const unsub = watchTodaySteps((stepsSinceSubscription) => {
+      if (!isMountedRef.current) return;
       setSteps(baseStepsRef.current + stepsSinceSubscription);
     });
 
@@ -43,6 +52,7 @@ export function StepsCard() {
     });
 
     return () => {
+      isMountedRef.current = false;
       unsub();
       sub.remove();
     };
@@ -63,8 +73,10 @@ export function StepsCard() {
 
   useEffect(() => {
     if (refreshKey > 0) {
-      fillAnim.value = 0;
-      fillAnim.value = withDelay(200, withTiming(1, { duration: 700, easing: Easing.out(Easing.quad) }));
+      fillAnim.value = withSequence(
+        withTiming(0, { duration: 60 }),
+        withTiming(1, { duration: 700, easing: Easing.out(Easing.quad) }),
+      );
     }
   }, [refreshKey]);
 
@@ -76,8 +88,10 @@ export function StepsCard() {
 
   useEffect(() => {
     if (refreshKey > 0) {
-      valueAnim.value = 0;
-      valueAnim.value = withDelay(100, withTiming(1, { duration: 450, easing: Easing.out(Easing.quad) }));
+      valueAnim.value = withSequence(
+        withTiming(0.85, { duration: 60 }),
+        withTiming(1, { duration: 450, easing: Easing.out(Easing.quad) }),
+      );
     }
   }, [refreshKey]);
 

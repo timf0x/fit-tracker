@@ -364,7 +364,8 @@ export const useWorkoutStore = create<WorkoutStoreState>()(
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         customWorkouts: state.customWorkouts,
-        history: state.history,
+        // Cap persisted history to prevent AsyncStorage bloat (500 sessions ≈ 2+ years)
+        history: state.history.slice(0, 500),
         stats: state.stats,
         muscleOrder: state.muscleOrder,
         homeCardOrder: state.homeCardOrder,

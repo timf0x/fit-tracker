@@ -5,7 +5,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withRepeat,
-  withDelay,
+  withSequence,
   interpolate,
   Easing,
 } from 'react-native-reanimated';
@@ -63,8 +63,10 @@ export function AchievementCard() {
 
   useEffect(() => {
     if (refreshKey > 0) {
-      badgeBounce.value = 0.6;
-      badgeBounce.value = withDelay(400, withTiming(1, { duration: 500, easing: Easing.out(Easing.back(2)) }));
+      badgeBounce.value = withSequence(
+        withTiming(0.85, { duration: 80 }),
+        withTiming(1, { duration: 500, easing: Easing.out(Easing.back(2)) }),
+      );
     }
   }, [refreshKey]);
 
