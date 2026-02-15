@@ -182,11 +182,12 @@ export function computeRecoveryOverview(
     else undertrainedCount++;
   }
 
-  // Overall score: weighted average
-  const totalWeight = muscles.length;
-  const score = totalWeight > 0
-    ? Math.round(muscles.reduce((acc, m) => acc + SCORE_WEIGHTS[m.status], 0) / totalWeight)
-    : 50;
+  // Overall score: only count muscles that have been trained at least once.
+  // Never-trained muscles shouldn't drag the score — they have no recovery data.
+  const trainedMuscles = muscles.filter((m) => m.hoursSinceTraining !== null);
+  const score = trainedMuscles.length > 0
+    ? Math.round(trainedMuscles.reduce((acc, m) => acc + SCORE_WEIGHTS[m.status], 0) / trainedMuscles.length)
+    : 100; // No training history = fully rested, ready to go
 
   return { overallScore: score, muscles, freshCount, fatiguedCount, undertrainedCount };
 }

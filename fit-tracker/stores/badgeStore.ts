@@ -30,6 +30,9 @@ interface BadgeStoreState {
 
   /** Clear lastUnlockedBadgeIds after celebration is shown */
   clearLastUnlocked: () => void;
+
+  /** Reset all badge data (used on sign out) */
+  resetAll: () => void;
 }
 
 function computeTotalPoints(unlockedBadges: Record<string, UnlockedBadge>): number {
@@ -84,6 +87,15 @@ export const useBadgeStore = create<BadgeStoreState>()(
 
       clearLastUnlocked: () => {
         set({ lastUnlockedBadgeIds: [], leveledUp: false });
+      },
+
+      resetAll: () => {
+        set({
+          unlockedBadges: {},
+          lastUnlockedBadgeIds: [],
+          previousPoints: 0,
+          leveledUp: false,
+        });
       },
     }),
     {

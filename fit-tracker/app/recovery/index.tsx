@@ -32,6 +32,7 @@ import {
 import { BodyMap } from '@/components/recovery/BodyMap';
 import { ScoreRing } from '@/components/recovery/ScoreRing';
 import { useWorkoutStore } from '@/stores/workoutStore';
+import { useProgramStore } from '@/stores/programStore';
 import { MuscleRecoveryData, RecoveryBodyPart } from '@/types';
 import {
   computeRecoveryOverview,
@@ -50,6 +51,7 @@ export default function RecoveryScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { history } = useWorkoutStore();
+  const profileSex = useProgramStore((s) => s.userProfile?.sex);
 
   const overview = useMemo(() => computeRecoveryOverview(history), [history]);
 
@@ -196,6 +198,7 @@ export default function RecoveryScreen() {
               height={400}
               view={bodyView}
               showToggle={false}
+              gender={profileSex ?? 'male'}
               showLegend={false}
             />
           </Animated.View>

@@ -25,12 +25,15 @@ import {
   Info,
   MessageCircle,
   Trash2,
+  Cloud,
+  LogOut,
 } from 'lucide-react-native';
 import { Colors, Fonts, GlassStyle, Header, SectionLabel, PageLayout, IconStroke } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { useProgramStore } from '@/stores/programStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useWorkoutStore } from '@/stores/workoutStore';
+import { useAuthStore } from '@/stores/authStore';
 import { AnimatedToggle } from '@/components/ui/AnimatedToggle';
 import * as Haptics from 'expo-haptics';
 import Constants from 'expo-constants';
@@ -189,9 +192,26 @@ export default function SettingsScreen() {
   }, [setLanguage]);
 
   const clearHistory = useWorkoutStore((s) => s.clearHistory);
+  const authUser = useAuthStore((s) => s.user);
+  const signOut = useAuthStore((s) => s.signOut);
 
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
+
+  const handleSignOut = useCallback(() => {
+    Alert.alert(
+      i18n.t('auth.signOutConfirmTitle'),
+      i18n.t('auth.signOutConfirmMsg'),
+      [
+        { text: i18n.t('settings.clearHistoryCancel'), style: 'cancel' },
+        {
+          text: i18n.t('auth.signOutButton'),
+          style: 'destructive',
+          onPress: () => signOut(),
+        },
+      ],
+    );
+  }, [signOut]);
 
   const handleClearHistory = useCallback(() => {
     Alert.alert(
@@ -271,6 +291,34 @@ export default function SettingsScreen() {
               </View>
             )}
           </Pressable>
+
+          {/* ── Account Section ── */}
+          <SectionHeader title={i18n.t('auth.accountSection')} />
+          <View style={s.sectionCard}>
+            {authUser ? (
+              <>
+                <SettingsRow
+                  icon={Cloud}
+                  iconColor="#4ADE80"
+                  iconBg="rgba(74,222,128,0.12)"
+                  label={i18n.t('auth.signedInAs')}
+                  description={authUser.email || ''}
+                  right={
+                    <View style={s.syncDot} />
+                  }
+                />
+                <View style={s.rowDivider} />
+                <SettingsRow
+                  icon={LogOut}
+                  iconColor="#EF4444"
+                  iconBg="rgba(239,68,68,0.12)"
+                  label={i18n.t('auth.signOutButton')}
+                  right={<ChevronRight size={18} color="rgba(120,120,130,1)" strokeWidth={2} />}
+                  onPress={handleSignOut}
+                />
+              </>
+            ) : null}
+          </View>
 
           {/* ── Sound & Voice ── */}
           <SectionHeader title={i18n.t('settings.soundSection')} />
@@ -696,6 +744,13 @@ const s = StyleSheet.create({
     color: '#fff',
   },
 
+  // Account section
+  syncDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#4ADE80',
+  },
   // Version value
   versionValue: {
     color: 'rgba(255,255,255,0.35)',

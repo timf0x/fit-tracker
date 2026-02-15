@@ -33,6 +33,7 @@ interface WorkoutStoreState {
 
   // Data management
   clearHistory: () => void;
+  resetAll: () => void;
 
   // Preferences
   setMuscleOrder: (order: string[]) => void;
@@ -229,6 +230,17 @@ export const useWorkoutStore = create<WorkoutStoreState>()(
 
       clearHistory: () => {
         set({ history: [], stats: initialStats });
+      },
+
+      resetAll: () => {
+        set({
+          customWorkouts: [],
+          history: [],
+          stats: initialStats,
+          historyFilter: { dateRange: 'week' },
+          muscleOrder: [],
+          homeCardOrder: [],
+        });
       },
 
       setMuscleOrder: (order) => set({ muscleOrder: order }),

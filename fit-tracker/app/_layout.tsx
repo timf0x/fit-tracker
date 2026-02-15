@@ -1,5 +1,5 @@
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
@@ -20,6 +20,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useAuthStore } from '@/stores/authStore';
 
 // ─── Error Boundary ───
 class ErrorBoundary extends React.Component<
@@ -65,6 +66,40 @@ const OnsetDarkTheme = {
   },
 };
 
+// ─── Protected Route Hook ───
+function useProtectedRoute(isInitialized: boolean) {
+  const segments = useSegments();
+  const router = useRouter();
+  const user = useAuthStore((s) => s.user);
+  const needsProfileSetup = useAuthStore((s) => s.needsProfileSetup);
+  const hasSeenOnboarding = useAuthStore((s) => s.hasSeenOnboarding);
+
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+    const isAuthenticated = !!user;
+
+    if (!isAuthenticated && !inAuthGroup) {
+      // Not authenticated → show intro slides if first time, else welcome
+      if (!hasSeenOnboarding) {
+        router.replace('/(auth)/onboarding');
+      } else {
+        router.replace('/(auth)/welcome');
+      }
+    } else if (isAuthenticated && inAuthGroup && !needsProfileSetup) {
+      // Authenticated, no pending onboarding, still on auth screens → go to tabs
+      router.replace('/(tabs)');
+    } else if (isAuthenticated && needsProfileSetup && !inAuthGroup) {
+      // Authenticated but needs onboarding → allow calendar routes
+      const inCalendarGroup = segments[0] === 'calendar';
+      if (!inCalendarGroup) {
+        router.replace('/(auth)/profile-setup');
+      }
+    }
+  }, [isInitialized, user, needsProfileSetup, hasSeenOnboarding, segments]);
+}
+
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     'PlusJakartaSans-Regular': PlusJakartaSans_400Regular,
@@ -74,6 +109,21 @@ export default function RootLayout() {
   });
 
   const [settingsReady, setSettingsReady] = useState(false);
+  const authInitialized = useAuthStore((s) => s.isInitialized);
+
+  // Initialize auth store
+  useEffect(() => {
+    useAuthStore.getState().initialize();
+  }, []);
+
+  // Wait for auth hydration from persisted store
+  useEffect(() => {
+    if (authInitialized) return;
+    const unsub = useAuthStore.persist.onFinishHydration(() => {
+      // Hydration complete — auth initialize() handles the rest
+    });
+    return unsub;
+  }, [authInitialized]);
 
   useEffect(() => {
     if (fontsLoaded) {
@@ -97,10 +147,13 @@ export default function RootLayout() {
   }, [fontsLoaded]);
 
   useEffect(() => {
-    if (fontsLoaded && settingsReady) {
+    if (fontsLoaded && settingsReady && authInitialized) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, settingsReady]);
+  }, [fontsLoaded, settingsReady, authInitialized]);
+
+  // Protected route redirect
+  useProtectedRoute(fontsLoaded && settingsReady && authInitialized);
 
   // Subscribe to language + unit so the entire tree re-renders on change
   const language = useSettingsStore((s) => s.language);
@@ -132,7 +185,7 @@ export default function RootLayout() {
     opacity: overlayOpacity.value,
   }));
 
-  if (!fontsLoaded || !settingsReady) {
+  if (!fontsLoaded || !settingsReady || !authInitialized) {
     return null;
   }
 
@@ -142,6 +195,7 @@ export default function RootLayout() {
       <GestureHandlerRootView style={styles.root} key={settingsKey}>
         <ThemeProvider value={OnsetDarkTheme}>
           <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(auth)" />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="recovery" />
             <Stack.Screen name="steps" />

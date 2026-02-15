@@ -14,6 +14,7 @@ interface BodyMapProps {
   view?: 'front' | 'back';
   showToggle?: boolean;
   showLegend?: boolean;
+  gender?: 'male' | 'female';
 }
 
 const STATUS_TO_INTENSITY: Record<RecoveryLevel, number> = {
@@ -58,6 +59,7 @@ export function BodyMap({
   view: externalView,
   showToggle = true,
   showLegend = true,
+  gender = 'male',
 }: BodyMapProps) {
   const [internalView, setInternalView] = useState<'front' | 'back'>('front');
   const view = externalView ?? internalView;
@@ -157,7 +159,7 @@ export function BodyMap({
       >
         <Body
           data={bodyData}
-          gender="male"
+          gender={gender}
           side={view}
           scale={scale}
           border="none"

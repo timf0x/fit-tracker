@@ -35,13 +35,16 @@ export interface UserProfile {
   username?: string; // @handle
   email?: string;
   profileImageUri?: string; // local URI from image picker
+  phone?: string;          // E.164 format "+33612345678"
+  phoneCountry?: string;   // ISO 3166-1 alpha-2 "FR"
   goal: TrainingGoal;
   experience: ExperienceLevel;
   daysPerWeek: 3 | 4 | 5 | 6;
   sex: 'male' | 'female';
   weight: number; // kg — required for weight estimation
   height?: number; // cm
-  age?: number;
+  age?: number; // deprecated — use birthDate + getAgeFromBirthDate() instead
+  birthDate?: string; // ISO date "1998-05-23" — age is computed from this
   trainingYears?: number; // years of consistent training (finer than experience level)
   equipment: EquipmentSetup;
   ownedEquipment?: Equipment[]; // granular override; falls back to EQUIPMENT_BY_SETUP[equipment]

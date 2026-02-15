@@ -40,6 +40,20 @@ import type {
   UserProfile,
 } from '@/types/program';
 
+// ─── Helpers ───
+
+/** Compute age from ISO birth date string */
+function getAgeFromBirthDate(bd: string): number {
+  const [y, m, d] = bd.split('-').map(Number);
+  const today = new Date();
+  let age = today.getFullYear() - y;
+  const monthDiff = today.getMonth() + 1 - m;
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < d)) {
+    age--;
+  }
+  return age;
+}
+
 // ─── Text tabs ───
 
 function TextTabs<T extends string>({
@@ -167,7 +181,7 @@ export default function ProfileEditScreen() {
   const [sex, setSex] = useState<'male' | 'female'>(existingProfile?.sex ?? 'male');
   const [weight, setWeight] = useState(existingProfile?.weight ?? 75);
   const [height, setHeight] = useState(existingProfile?.height ?? 175);
-  const [age, setAge] = useState(existingProfile?.age ?? 25);
+  const birthDate = existingProfile?.birthDate;
   const [experience, setExperience] = useState<ExperienceLevel>(existingProfile?.experience ?? 'intermediate');
   const [goal, setGoal] = useState<TrainingGoal>(existingProfile?.goal ?? 'hypertrophy');
   const [equipment, setEquipment] = useState<EquipmentSetup>(existingProfile?.equipment ?? 'full_gym');
@@ -191,7 +205,6 @@ export default function ProfileEditScreen() {
       setSex(p.sex ?? 'male');
       setWeight(p.weight ?? 75);
       setHeight(p.height ?? 175);
-      setAge(p.age ?? 25);
       setExperience(p.experience ?? 'intermediate');
       setGoal(p.goal ?? 'hypertrophy');
       setEquipment(p.equipment ?? 'full_gym');
@@ -303,7 +316,8 @@ export default function ProfileEditScreen() {
       sex,
       weight,
       height: height > 0 ? height : undefined,
-      age: age > 0 ? age : undefined,
+      birthDate: existingProfile?.birthDate,
+      age: birthDate ? getAgeFromBirthDate(birthDate) : existingProfile?.age,
       trainingYears: existingProfile?.trainingYears,
       equipment,
       ownedEquipment,
@@ -457,7 +471,11 @@ export default function ProfileEditScreen() {
               <Stepper value={height} onChange={setHeight} min={100} max={230} unit={i18n.t('settings.cm')} />
             </FieldRow>
             <FieldRow label={i18n.t('settings.profileAge')}>
-              <Stepper value={age} onChange={setAge} min={14} max={80} unit={i18n.t('settings.years')} />
+              <Text style={s.readOnlyValue}>
+                {birthDate
+                  ? `${getAgeFromBirthDate(birthDate)} ${i18n.t('settings.years')}`
+                  : '—'}
+              </Text>
             </FieldRow>
 
             {/* ════════════════════════════════════════
@@ -786,6 +804,12 @@ const s = StyleSheet.create({
     fontWeight: '600',
     minWidth: 50,
     textAlign: 'center',
+  },
+  readOnlyValue: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 15,
+    fontFamily: Fonts?.medium,
+    fontWeight: '500',
   },
 
   // Tappable row

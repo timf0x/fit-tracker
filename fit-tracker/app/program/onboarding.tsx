@@ -5,9 +5,6 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -65,11 +62,17 @@ const JOINT_ITEMS: { key: JointKey; Icon: any; labelKey: string }[] = [
   { key: 'wrist', Icon: Watch, labelKey: 'wrist' },
 ];
 
-const TOTAL_STEPS = 10;
+const TOTAL_STEPS = 9;
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { setUserProfile, generateAndSetProgram, startProgram, startProgramWithSchedule } = useProgramStore();
+  const { setUserProfile, generateAndSetProgram, startProgram, startProgramWithSchedule, userProfile: existingProfile } = useProgramStore();
+
+  // Read body data from existing profile (set during account onboarding)
+  const profileSex = existingProfile?.sex ?? 'male';
+  const profileWeight = existingProfile?.weight ?? 75;
+  const profileHeight = existingProfile?.height;
+  const profileAge = existingProfile?.age;
 
   // Form state
   const [step, setStep] = useState(0);
@@ -77,10 +80,6 @@ export default function OnboardingScreen() {
   const [experience, setExperience] = useState<ExperienceLevel | null>(null);
   const [daysPerWeek, setDaysPerWeek] = useState<3 | 4 | 5 | 6 | null>(null);
   const [equipment, setEquipment] = useState<EquipmentSetup | null>(null);
-  const [weight, setWeight] = useState('');
-  const [height, setHeight] = useState('');
-  const [age, setAge] = useState('');
-  const [sex, setSex] = useState<'male' | 'female' | null>(null);
   const [priorityMuscles, setPriorityMuscles] = useState<string[]>([]);
   const [trainingYears, setTrainingYears] = useState<number | null>(null);
   const [limitations, setLimitations] = useState<JointKey[]>([]);
@@ -127,12 +126,11 @@ export default function OnboardingScreen() {
       case 4: return true; // start date (always valid)
       case 5: return !!equipment;
       case 6: return true; // limitations (optional)
-      case 7: return !!sex && !!weight && parseFloat(weight) > 0;
-      case 8: return true; // priority muscles (optional)
-      case 9: return true; // confirmation
+      case 7: return true; // priority muscles (optional)
+      case 8: return true; // confirmation
       default: return false;
     }
-  }, [step, goal, experience, daysPerWeek, preferredDays, equipment, sex, weight]);
+  }, [step, goal, experience, daysPerWeek, preferredDays, equipment]);
 
   const next = () => {
     if (step < TOTAL_STEPS - 1) {
@@ -148,25 +146,30 @@ export default function OnboardingScreen() {
   };
 
   const handleGenerate = () => {
-    if (!goal || !experience || !daysPerWeek || !equipment || !sex || !weight) return;
+    if (!goal || !experience || !daysPerWeek || !equipment) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     const now = new Date().toISOString();
     const profile: UserProfile = {
+      // Preserve identity & body fields from existing profile
+      name: existingProfile?.name,
+      email: existingProfile?.email,
+      profileImageUri: existingProfile?.profileImageUri,
+      birthDate: existingProfile?.birthDate,
       goal,
       experience,
       daysPerWeek,
-      sex,
-      weight: parseFloat(weight),
+      sex: profileSex,
+      weight: profileWeight,
       equipment,
       ownedEquipment: EQUIPMENT_BY_SETUP[equipment],
-      height: height ? parseFloat(height) : undefined,
-      age: age ? parseInt(age, 10) : undefined,
+      height: profileHeight,
+      age: profileAge,
       trainingYears: trainingYears ?? undefined,
       limitations: limitations.length > 0 ? limitations : undefined,
       preferredDays: preferredDays.length > 0 ? preferredDays : undefined,
       priorityMuscles,
-      createdAt: now,
+      createdAt: existingProfile?.createdAt ?? now,
       updatedAt: now,
     };
 
@@ -216,9 +219,8 @@ export default function OnboardingScreen() {
       case 4: return renderStartDate();
       case 5: return renderEquipment();
       case 6: return renderLimitations();
-      case 7: return renderMeasurements();
-      case 8: return renderPriorityMuscles();
-      case 9: return renderConfirmation();
+      case 7: return renderPriorityMuscles();
+      case 8: return renderConfirmation();
       default: return null;
     }
   };
@@ -529,79 +531,6 @@ export default function OnboardingScreen() {
     </OnboardingStep>
   );
 
-  const renderMeasurements = () => (
-    <OnboardingStep
-      title={i18n.t('programOnboarding.measurements.title')}
-      subtitle={i18n.t('programOnboarding.measurements.subtitle')}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
-        <View style={styles.inputsGrid}>
-          <View style={styles.inputRow}>
-            <Text style={styles.inputLabel}>{i18n.t('programOnboarding.measurements.sex')}</Text>
-            <View style={styles.sexToggle}>
-              <Pressable
-                style={[styles.sexPill, sex === 'male' && styles.sexPillSelected]}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSex('male'); }}
-              >
-                <Text style={[styles.sexPillText, sex === 'male' && styles.sexPillTextSelected]}>
-                  {i18n.t('programOnboarding.measurements.male')}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.sexPill, sex === 'female' && styles.sexPillSelected]}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSex('female'); }}
-              >
-                <Text style={[styles.sexPillText, sex === 'female' && styles.sexPillTextSelected]}>
-                  {i18n.t('programOnboarding.measurements.female')}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-          <View style={styles.inputRow}>
-            <Text style={styles.inputLabel}>{i18n.t('programOnboarding.measurements.weight')}</Text>
-            <TextInput
-              style={styles.input}
-              value={weight}
-              onChangeText={setWeight}
-              keyboardType="numeric"
-              placeholder="75"
-              placeholderTextColor="rgba(255,255,255,0.2)"
-            />
-            <Text style={styles.inputHint}>{i18n.t('programOnboarding.measurements.weightHint')}</Text>
-          </View>
-          <View style={styles.inputRow}>
-            <Text style={styles.inputLabel}>{i18n.t('programOnboarding.measurements.height')}</Text>
-            <TextInput
-              style={styles.input}
-              value={height}
-              onChangeText={setHeight}
-              keyboardType="numeric"
-              placeholder="178"
-              placeholderTextColor="rgba(255,255,255,0.2)"
-            />
-            <Text style={styles.inputHint}>{i18n.t('programOnboarding.measurements.heightHint')}</Text>
-          </View>
-          <View style={styles.inputRow}>
-            <Text style={styles.inputLabel}>{i18n.t('programOnboarding.measurements.age')}</Text>
-            <TextInput
-              style={styles.input}
-              value={age}
-              onChangeText={setAge}
-              keyboardType="numeric"
-              placeholder="25"
-              placeholderTextColor="rgba(255,255,255,0.2)"
-            />
-            <Text style={styles.inputHint}>{i18n.t('programOnboarding.measurements.ageHint')}</Text>
-          </View>
-        </View>
-        <Text style={styles.requiredNote}>{i18n.t('programOnboarding.measurements.required')}</Text>
-      </KeyboardAvoidingView>
-    </OnboardingStep>
-  );
-
   const renderPriorityMuscles = () => (
     <OnboardingStep
       title={i18n.t('programOnboarding.priority.title')}
@@ -668,8 +597,8 @@ export default function OnboardingScreen() {
     { label: i18n.t('scheduling.confirmStart'), value: formatScheduledDate(computedStartDate, i18n.locale) },
     { label: i18n.t('programOnboarding.confirmation.equipment'), value: equipment ? equipLabels[equipment] : '—' },
     { label: i18n.t('programOnboarding.confirmation.limitations'), value: limitations.length > 0 ? limitations.map((k) => limitationLabels[k]).join(', ') : i18n.t('programOnboarding.confirmation.noLimitation') },
-    { label: i18n.t('programOnboarding.confirmation.sex'), value: sex === 'male' ? i18n.t('programOnboarding.measurements.male') : sex === 'female' ? i18n.t('programOnboarding.measurements.female') : '—' },
-    { label: i18n.t('programOnboarding.confirmation.weight'), value: weight ? `${weight} kg` : '—' },
+    { label: i18n.t('programOnboarding.confirmation.sex'), value: profileSex === 'male' ? i18n.t('programOnboarding.measurements.male') : i18n.t('programOnboarding.measurements.female') },
+    { label: i18n.t('programOnboarding.confirmation.weight'), value: `${profileWeight} ${i18n.t('common.kgUnit')}` },
     ...(priorityMuscles.length > 0
       ? [{ label: i18n.t('programOnboarding.confirmation.priorities'), value: priorityMuscles.map((pk) => {
           const group = PRIORITY_GROUPS.find((g) => g.key === pk);
@@ -1010,75 +939,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: Fonts?.semibold,
     fontWeight: '600',
-  },
-
-  // Inputs
-  inputsGrid: {
-    gap: 18,
-  },
-  inputRow: {
-    gap: 8,
-  },
-  inputLabel: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 13,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-  input: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-  },
-  sexToggle: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  sexPill: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-  },
-  sexPillSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  sexPillText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontFamily: Fonts?.semibold,
-    fontWeight: '600',
-  },
-  sexPillTextSelected: {
-    color: '#0C0C0C',
-  },
-  requiredNote: {
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: 12,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    marginTop: 16,
-  },
-
-  // Input hint (micro-pedagogy)
-  inputHint: {
-    color: 'rgba(255,255,255,0.25)',
-    fontSize: 11,
-    fontFamily: Fonts?.medium,
-    fontWeight: '500',
-    marginTop: 4,
-    fontStyle: 'italic',
   },
 
   // Training years stepper
